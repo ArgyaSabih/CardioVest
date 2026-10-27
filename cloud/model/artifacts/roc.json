@@ -1,0 +1,9 @@
+{
+ "n_window_uji": 3483,
+ "auc_per_kelas": {
+  "Normal": 0.8816,
+  "Pra-Serangan": 0.8071,
+  "Serangan": 0.7607
+ },
+ "auc_makro": 0.8165
+}

@@ -1,0 +1,438 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Debug Viewer C-251</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- font dimuat non-blocking: tanpa internet, halaman tetap tampil dengan font cadangan -->
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<link rel="stylesheet" href="vendor/leaflet.css">
+<style>
+  :root {
+    --bg: #0e1412;
+    --panel: #131b18;
+    --line: #22302b;
+    --ink: #e4ece8;
+    --ink-2: #9db0a8;
+    --ink-3: #6b7f77;
+    --trace: #5ee8a0;
+    --normal: #2fae6d;
+    --warning: #e2b340;
+    --critical: #e5484d;
+    --focus: #8fd3ff;
+    --mono: "Geist Mono", ui-monospace, monospace;
+    --sans: "Geist", ui-sans-serif, sans-serif;
+  }
+  :root[data-theme="light"] {
+    --bg: #f3f5f2; --panel: #fbfcfa; --line: #d9e0dc; --ink: #15201b; --ink-2: #4a5a53;
+    --ink-3: #6f7f78; --trace: #0f8a4d; --focus: #1d6fb8;
+  }
+  * { box-sizing: border-box; }
+  html, body { overflow-x: hidden; margin: 0; background: var(--bg); color: var(--ink); font-family: var(--sans);
+    font-size: 15px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+  button, select { font: inherit; }
+  :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  .wrap { max-width: 1400px; margin: 0 auto; padding: 16px; }
+  header.top { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; justify-content: space-between;
+    padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+  .brand { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px; min-width: 0; }
+  .brand h1 { font-size: 17px; font-weight: 600; margin: 0; letter-spacing: -0.01em; }
+  .brand .sub { font-family: var(--mono); font-size: 12px; color: var(--ink-3); }
+  .conn { font-family: var(--mono); font-size: 12px; display: inline-flex; align-items: center; gap: 6px; color: var(--ink-2); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ink-3); }
+  .dot.on { background: var(--normal); } .dot.off { background: var(--critical); }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; min-width: 0; max-width: 100%; }
+  .controls select { min-width: 0; max-width: 100%; flex: 1 1 260px; }
+  .controls label { font-size: 12px; color: var(--ink-3); }
+  select, .btn { min-height: 40px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel);
+    color: var(--ink); padding: 0 12px; }
+  .btn { cursor: pointer; transition: transform .12s cubic-bezier(.2,.8,.2,1), background .15s; }
+  .btn:active { transform: scale(.97); }
+  .btn.primary { background: var(--ink); color: var(--bg); border-color: var(--ink); font-weight: 600; }
+  .btn.danger { border-color: color-mix(in srgb, var(--critical) 60%, var(--line)); color: var(--critical); }
+
+  .banner { margin-top: 16px; display: grid; grid-template-columns: minmax(180px, 260px) 1fr auto; gap: 20px;
+    align-items: center; padding: 18px 20px; border-radius: 8px; background: var(--panel);
+    border: 1px solid var(--line); border-left: 6px solid var(--ink-3); transition: border-color .3s; }
+  .banner.NORMAL { border-left-color: var(--normal); }
+  .banner.WARNING { border-left-color: var(--warning); }
+  .banner.CRITICAL { border-left-color: var(--critical); animation: pulse 1.2s ease-in-out infinite; }
+  @keyframes pulse { 50% { box-shadow: inset 0 0 0 999px color-mix(in srgb, var(--critical) 10%, transparent); } }
+  @media (prefers-reduced-motion: reduce) { .banner.CRITICAL { animation: none; } }
+  .state { font-size: 34px; font-weight: 700; letter-spacing: -0.02em; line-height: 1; }
+  .state.NORMAL { color: var(--normal); } .state.WARNING { color: var(--warning); } .state.CRITICAL { color: var(--critical); }
+  .state-sub { font-family: var(--mono); font-size: 12px; color: var(--ink-3); margin-top: 6px; }
+  .reason { color: var(--ink-2); max-width: 70ch; }
+  .reason b { color: var(--ink); font-weight: 500; }
+  .scen { font-family: var(--mono); font-size: 12px; color: var(--ink-3); text-align: right; max-width: 42ch; }
+
+  .grid { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(300px, 1fr); gap: 16px; margin-top: 16px; }
+  .sec { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
+  .sec h2 { font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-3);
+    margin: 0; padding: 12px 16px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; }
+  .sec h2 span { font-family: var(--mono); text-transform: none; letter-spacing: 0; }
+  canvas#ecg { display: block; width: 100%; height: 240px; }
+  .rows > div { display: grid; grid-template-columns: 130px 1fr; gap: 12px; padding: 10px 16px;
+    border-bottom: 1px solid var(--line); align-items: baseline; }
+  .rows > div:last-child { border-bottom: 0; }
+  .k { color: var(--ink-3); font-size: 13px; }
+  .v { font-family: var(--mono); font-size: 14px; }
+  .v.big { font-size: 30px; font-weight: 600; letter-spacing: -0.02em; font-family: var(--sans); }
+  .v small { font-size: 12px; color: var(--ink-3); font-weight: 400; font-family: var(--mono); }
+  .flag { display: inline-block; font-size: 11px; padding: 1px 6px; border-radius: 4px; margin-left: 6px;
+    border: 1px solid var(--line); color: var(--ink-2); font-family: var(--mono); }
+  .flag.on { border-color: var(--critical); color: var(--critical); }
+  .prob { display: grid; grid-template-columns: 110px 1fr 52px; gap: 10px; align-items: center; padding: 8px 16px; }
+  .bar { height: 10px; border-radius: 3px; background: var(--line); overflow: hidden; }
+  .bar i { display: block; height: 100%; width: 0; background: var(--ink-2); transform-origin: left;
+    transition: width .35s cubic-bezier(.2,.8,.2,1); }
+  .prob.top .bar i { background: var(--trace); }
+  .prob .pv { font-family: var(--mono); font-size: 13px; text-align: right; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; }
+  .two > div:first-child { border-right: 1px solid var(--line); }
+  #map { height: 220px; border-radius: 0 0 8px 8px; }
+  .map-empty { height: 220px; display: grid; place-items: center; color: var(--ink-3); font-size: 13px; padding: 16px; text-align: center; }
+  .log { list-style: none; margin: 0; padding: 0; max-height: 300px; overflow: auto; }
+  .log li { display: grid; grid-template-columns: 64px 76px 1fr; gap: 8px; padding: 7px 16px;
+    border-bottom: 1px solid var(--line); font-size: 13px; }
+  .log time { font-family: var(--mono); color: var(--ink-3); font-size: 12px; }
+  .log .tag { font-family: var(--mono); font-size: 11px; color: var(--ink-2); }
+  .log .t-ALERT { color: var(--critical); } .log .t-TRANSISI { color: var(--warning); } .log .t-LWT { color: var(--focus); } .log .t-SINYAL { color: var(--warning); }
+  .log .empty { display: block; color: var(--ink-3); padding: 16px; }
+  .note { font-size: 12px; color: var(--ink-3); margin-top: 16px; max-width: 90ch; }
+  .col { display: grid; gap: 16px; align-content: start; }
+  @media (max-width: 900px) {
+    header.top > * { width: 100%; }
+    .rows > div { grid-template-columns: 110px 1fr; }
+    .grid { grid-template-columns: 1fr; }
+    .banner { grid-template-columns: 1fr; }
+    .scen { text-align: left; }
+    .two { grid-template-columns: 1fr; } .two > div:first-child { border-right: 0; border-bottom: 1px solid var(--line); }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <h1>Debug Viewer — Early Warning Serangan Jantung</h1>
+      <span class="sub" id="devLabel">cv-001</span>
+      <span class="conn"><span class="dot" id="brokerDot"></span><span id="brokerTxt">broker: menghubungkan</span></span>
+      <span class="conn"><span class="dot" id="devDot"></span><span id="devTxt">perangkat: ?</span></span>
+    </div>
+    <div class="controls">
+      <label for="scenario">Skenario</label>
+      <select id="scenario"><option>memuat...</option></select>
+      <button class="btn primary" id="apply">Jalankan</button>
+      <button class="btn danger" id="reset" title="Tombol hardware reset perangkat">Reset hardware</button>
+      <button class="btn" id="drop" title="Simulasikan sinyal 4G hilang 45 detik">Putus 45 s</button>
+      <button class="btn" id="theme" aria-label="Ganti tema terang/gelap">Tema</button>
+    </div>
+  </header>
+
+  <section class="banner" id="banner" aria-live="polite">
+    <div>
+      <div class="state" id="state">—</div>
+      <div class="state-sub" id="since">menunggu state dari cloud</div>
+    </div>
+    <div class="reason" id="reason">Belum ada keputusan. Pastikan layanan cloud dan simulator berjalan.</div>
+    <div class="scen" id="scen">—</div>
+  </section>
+
+  <div class="grid">
+    <div class="col">
+      <section class="sec">
+        <h2>ECG Lead I (sinyal bersih dari perangkat) <span id="ecgInfo">250 Hz</span></h2>
+        <canvas id="ecg" aria-label="Grafik ECG real-time"></canvas>
+      </section>
+      <section class="sec">
+        <h2>CNN 1D — window 7 s, hop 3,5 s <span id="infInfo">—</span></h2>
+        <div class="two">
+          <div>
+            <div class="prob" id="p0"><span class="k">Normal</span><div class="bar"><i></i></div><span class="pv">—</span></div>
+            <div class="prob" id="p1"><span class="k">Pra-Serangan</span><div class="bar"><i></i></div><span class="pv">—</span></div>
+            <div class="prob" id="p2"><span class="k">Serangan</span><div class="bar"><i></i></div><span class="pv">—</span></div>
+          </div>
+          <div class="rows">
+            <div><span class="k">Keputusan</span><span class="v" id="dAcc">—</span></div>
+            <div><span class="k">Validator</span><span class="v" id="dVal">—</span></div>
+            <div><span class="k">Persistence</span><span class="v" id="dPer">—</span></div>
+            <div><span class="k">Kualitas sinyal</span><span class="v" id="dSig">—</span></div>
+          </div>
+        </div>
+      </section>
+      <section class="sec">
+        <h2>Log transisi, alert, dan simulator <span id="rate">—</span></h2>
+        <ul class="log" id="log"><li><span class="empty">Belum ada kejadian.</span></li></ul>
+      </section>
+    </div>
+
+    <div class="col">
+      <section class="sec">
+        <h2>Vital <span id="vitalTs">—</span></h2>
+        <div class="rows">
+          <div><span class="k">Detak jantung</span><span class="v big" id="hr">—</span></div>
+          <div><span class="k">Sumber HR</span><span class="v" id="hrSrc">—</span></div>
+          <div><span class="k">GSR</span><span class="v big" id="gsr">—</span></div>
+          <div><span class="k">Kalibrasi GSR</span><span class="v" id="cal">—</span></div>
+          <div><span class="k">Akselerasi</span><span class="v" id="acc">—</span></div>
+          <div><span class="k">State lokal</span><span class="v" id="loc">—</span></div>
+        </div>
+      </section>
+      <section class="sec">
+        <h2>Lokasi GPS (aktif saat CRITICAL) <span id="gpsInfo">standby</span></h2>
+        <div id="mapWrap"><div class="map-empty" id="mapEmpty">GPS Neo-6M hanya dinyalakan pada state CRITICAL.</div></div>
+      </section>
+    </div>
+  </div>
+  <p class="note">Alat debug untuk pengujian pipeline simulasi, bukan aplikasi PWA. Data ECG bersifat sintetis dan tidak
+    bernilai diagnostik. Viewer terhubung langsung ke Mosquitto melalui MQTT-over-WebSocket (port 9001).</p>
+</div>
+
+<script src="vendor/mqtt.min.js"></script>
+<script src="vendor/leaflet.js"></script>
+<script>
+(() => {
+  const qs = new URLSearchParams(location.search);
+  const DEV = qs.get("device") || "cv-001";
+  const WS = qs.get("ws") || `ws://${location.hostname || "localhost"}:9001`;
+  const FS = 250;
+  const $ = (id) => document.getElementById(id);
+  $("devLabel").textContent = DEV;
+
+  // ---------------- tema
+  try { const t = localStorage.getItem("c251-theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+  $("theme").onclick = () => {
+    const n = document.documentElement.dataset.theme === "light" ? "dark" : "light";
+    document.documentElement.dataset.theme = n;
+    try { localStorage.setItem("c251-theme", n); } catch (e) {}
+  };
+
+  // ---------------- dekoder biner delta (sama dengan common/heartsim_common/codec.py)
+  function decodeEcg(buf) {
+    if ((buf[0] === 0x43 && buf[1] === 0x56) || (buf[0] === 0x48 && buf[1] === 0x57)) {  // 'CV' (lama: 'HW')
+      const dv = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+      const flags = dv.getUint8(3), n = dv.getUint16(18);
+      const out = new Int16Array(n); let pos = 20;
+      if (n) { out[0] = dv.getInt16(pos); pos += 2; }
+      for (let i = 1; i < n; i++) {
+        const b = dv.getUint8(pos);
+        let d;
+        if (b === 0x80) { d = dv.getInt16(pos + 1); pos += 3; } else { d = dv.getInt8(pos); pos += 1; }
+        out[i] = out[i - 1] + d;
+      }
+      return { samples: out, buffered: !!(flags & 1), fmt: "biner" };
+    }
+    const o = JSON.parse(new TextDecoder().decode(buf));
+    return { samples: Int16Array.from(o.samples), buffered: !!o.buffered, fmt: "json" };
+  }
+
+  // ---------------- ECG sweep 250 Hz (pemutaran ulang dengan jeda ~1 paket)
+  const cv = $("ecg"), cx = cv.getContext("2d");
+  const WIN = FS * 7;
+  const trace = new Float32Array(WIN).fill(NaN);
+  let head = 0, queue = [], lastT = performance.now(), lo = -300, hi = 700;
+  function css(v) { return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+  function resize() {
+    const r = cv.getBoundingClientRect(), d = devicePixelRatio || 1;
+    cv.width = r.width * d; cv.height = r.height * d; cx.setTransform(d, 0, 0, d, 0, 0);
+  }
+  addEventListener("resize", resize); resize();
+  function draw(now) {
+    const dt = Math.min(0.25, (now - lastT) / 1000); lastT = now;
+    let take = Math.round(dt * FS * (queue.length > FS * 5 ? 1.5 : 1));
+    while (take-- > 0 && queue.length) { trace[head] = queue.shift(); head = (head + 1) % WIN; }
+    const w = cv.clientWidth, h = cv.clientHeight;
+    cx.clearRect(0, 0, w, h);
+    cx.strokeStyle = css("--line"); cx.lineWidth = 1;
+    for (let s = 0; s <= 7; s++) { const x = s / 7 * w; cx.beginPath(); cx.moveTo(x, 0); cx.lineTo(x, h); cx.stroke(); }
+    const pad = 14, sy = (v) => h - pad - (v - lo) / (hi - lo) * (h - 2 * pad);
+    cx.strokeStyle = css("--trace"); cx.lineWidth = 1.6; cx.beginPath();
+    let pen = false;
+    for (let i = 0; i < WIN; i++) {
+      const v = trace[i];
+      if (Number.isNaN(v) || (i >= head && i < head + 12)) { pen = false; continue; }
+      const x = i / WIN * w, y = sy(v);
+      pen ? cx.lineTo(x, y) : cx.moveTo(x, y); pen = true;
+    }
+    cx.stroke();
+    cx.fillStyle = css("--ink-3"); cx.font = "11px Geist Mono, monospace";
+    cx.fillText("1 s/div", 8, 14);
+    requestAnimationFrame(draw);
+  }
+  requestAnimationFrame(draw);
+  function pushEcg(s) {
+    for (const v of s) queue.push(v);
+    const a = Array.from(s).sort((x, y) => x - y);
+    const nlo = a[Math.floor(a.length * 0.01)], nhi = a[Math.floor(a.length * 0.995)];
+    lo = 0.8 * lo + 0.2 * (nlo - 50); hi = 0.8 * hi + 0.2 * (nhi + 50);
+  }
+
+  // ---------------- log
+  const logEl = $("log"); let logEmpty = true;
+  function addLog(tag, text) {
+    if (logEmpty) { logEl.innerHTML = ""; logEmpty = false; }
+    const li = document.createElement("li");
+    const t = new Date().toLocaleTimeString("id-ID", { hour12: false });
+    li.innerHTML = `<time>${t}</time><span class="tag t-${tag}">${tag}</span><span></span>`;
+    li.lastChild.textContent = text;
+    logEl.prepend(li);
+    while (logEl.children.length > 60) logEl.lastChild.remove();
+  }
+
+  // ---------------- peta
+  let map = null, marker = null, circle = null;
+  function showGps(g) {
+    if (!g || !g.fix) {
+      $("gpsInfo").textContent = g ? "mencari satelit..." : "standby";
+      return;
+    }
+    $("gpsInfo").textContent = `${g.lat.toFixed(5)}, ${g.lon.toFixed(5)} ±${g.accuracy_m} m`;
+    if (!window.L) return;
+    if (!map) {
+      $("mapWrap").innerHTML = '<div id="map"></div>';
+      map = L.map("map", { zoomControl: true, attributionControl: true }).setView([g.lat, g.lon], 17);
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+        { maxZoom: 19, attribution: "&copy; OpenStreetMap" }).addTo(map);
+      marker = L.circleMarker([g.lat, g.lon], { radius: 7, weight: 2, color: css("--critical"),
+        fillColor: css("--critical"), fillOpacity: 0.9 }).addTo(map);
+      circle = L.circle([g.lat, g.lon], { radius: g.accuracy_m, color: css("--critical") }).addTo(map);
+    } else {
+      marker.setLatLng([g.lat, g.lon]); circle.setLatLng([g.lat, g.lon]).setRadius(g.accuracy_m);
+    }
+  }
+
+  // ---------------- state
+  let stateObj = null, prevState = null;
+  let lastSigOk = null, clockWarned = false;
+  function renderState() {
+    if (!stateObj) return;
+    const s = stateObj.state;
+    $("banner").className = "banner " + s;
+    $("state").className = "state " + s;
+    $("state").textContent = s;
+    const secs = Math.max(0, Math.round((Date.now() - stateObj.since) / 1000));
+    $("since").textContent = `sejak ${new Date(stateObj.since).toLocaleTimeString("id-ID", { hour12: false })} (${secs} s)`;
+    $("reason").innerHTML = "<b>Alasan:</b> ";
+    $("reason").append(stateObj.reason || "-");
+    const c = stateObj.calibration || {};
+    $("cal").textContent = c.calibrated
+      ? `ambang ${c.threshold} µS (μ ${c.mu}, σ ${c.sigma}, k ${c.k})`
+      : `berlangsung ${c.progress_s ?? 0}/${c.target_s ?? "?"} s, ambang sementara ${c.threshold} µS`;
+  }
+  setInterval(renderState, 1000);
+
+  // ---------------- laju data
+  const bytes = [];
+  setInterval(() => {
+    const now = Date.now(); while (bytes.length && now - bytes[0][0] > 30000) bytes.shift();
+    const agg = {}; for (const [, k, n] of bytes) agg[k] = (agg[k] || 0) + n;
+    $("rate").textContent = Object.entries(agg).map(([k, n]) => `${k} ${(n / 30).toFixed(0)} B/s`).join("  ·  ") || "—";
+  }, 2000);
+
+  // ---------------- MQTT
+  // broker produksi: ?ws=wss://domain:9443&user=web&pass=... (akun "web" hanya bisa membaca)
+  const opts = { clientId: "viewer-" + Math.random().toString(16).slice(2, 8), reconnectPeriod: 2000 };
+  if (qs.get("user")) { opts.username = qs.get("user"); opts.password = qs.get("pass") || ""; }
+  const client = mqtt.connect(WS, opts);
+  client.on("connect", () => {
+    $("brokerDot").className = "dot on"; $("brokerTxt").textContent = "broker: terhubung";
+    client.subscribe([`device/${DEV}/#`, `sim/${DEV}/status`], { qos: 1 });
+  });
+  client.on("close", () => { $("brokerDot").className = "dot off"; $("brokerTxt").textContent = "broker: terputus"; });
+  client.on("error", (e) => { $("brokerTxt").textContent = "broker: " + e.message; });
+
+  let simStatus = {};
+  client.on("message", (topic, buf) => {
+    const kind = topic.split("/").pop();
+    bytes.push([Date.now(), kind, buf.length]);
+    let d;
+    try {
+      if (kind === "ecg") {
+        const p = decodeEcg(buf);
+        if (!p.buffered) pushEcg(p.samples);
+        $("ecgInfo").textContent = `250 Hz · payload ${p.fmt} ${buf.length} B/paket`;
+        return;
+      }
+      d = JSON.parse(new TextDecoder().decode(buf));
+    } catch (e) { return; }
+
+    if (kind === "state") {
+      if (prevState && prevState !== d.state) addLog("TRANSISI", `${prevState} → ${d.state}: ${d.reason}`);
+      prevState = d.state; stateObj = d; renderState();
+    } else if (kind === "vital") {
+      if (d.buffered) return;
+      $("vitalTs").textContent = new Date(d.ts).toLocaleTimeString("id-ID", { hour12: false });
+      $("hr").innerHTML = d.hr == null ? "—" : `${Math.round(d.hr)} <small>bpm</small>`;
+      $("hrSrc").textContent = `${d.hr_source} · SQI ${d.sqi} · PPG ${d.hr_ppg ?? "—"} · ECG ${d.hr_ecg ?? "—"}`;
+      $("gsr").innerHTML = `${d.gsr.toFixed(2)} <small>µS</small>`;
+      const a = d.accel || {};
+      $("acc").innerHTML = `|a| ${a.mag} g <span class="flag ${d.fall_detected ? "on" : ""}">${d.fall_detected ? "JATUH" : "tidak jatuh"}</span>`;
+      $("loc").innerHTML = d.local_state + (d.lead_off ? ' <span class="flag on">ELEKTRODA LEPAS</span>' : "");
+      showGps(d.gps);
+    } else if (kind === "inference") {
+      if (d.late) return;
+      d.probs.forEach((p, i) => {
+        const row = $("p" + i);
+        row.querySelector("i").style.width = (p * 100).toFixed(1) + "%";
+        row.querySelector(".pv").textContent = p.toFixed(2);
+        row.classList.toggle("top", i === d.class_idx);
+      });
+      $("infInfo").textContent = `seq ${d.seq} · ${d.infer_ms} ms · latensi proses ${d.process_latency_ms} ms`;
+      $("dAcc").textContent = `${d.class} (p ${d.p_conf}) ${d.accepted ? "diterima" : "tidak diputuskan"}`;
+      const v = d.validators || {}, dec = d.decision || {};
+      $("dVal").textContent = `1_GSR=${+!!v.ind_gsr} 1_HR=${+!!v.ind_hr} · ${v.degraded ? "terdegradasi" : "independen"}`;
+      $("dPer").textContent = `non-Normal ${dec.consec_non_normal}/${dec.n_required} · Normal ${dec.consec_normal}`;
+      // gerbang kualitas (cloud/signal_quality.py): window gagal tidak menggerakkan FSM
+      const q = d.quality || {}, f = (x) => x == null ? "—" : (+x).toFixed(2);
+      const sigOk = d.signal_ok !== false;
+      $("dSig").innerHTML = sigOk
+        ? `baik · ${f(q.ptp_mv)} mV p-p <small>kSQI ${f(q.ksqi)} · pSQI ${f(q.psqi)} · basSQI ${f(q.bassqi)}</small>`
+        : `<span class="flag on">DIABAIKAN</span> `;
+      if (!sigOk) $("dSig").append(q.reason || "");
+      if (sigOk !== lastSigOk && lastSigOk !== null)
+        addLog("SINYAL", sigOk ? "kualitas ECG pulih, window kembali dinilai" : (q.reason || "kualitas ECG buruk"));
+      lastSigOk = sigOk;
+      if (d.clock_unsynced && !clockWarned) {
+        clockWarned = true;
+        addLog("JAM", "jam perangkat belum tersinkron; cloud memakai waktu terima paket");
+      }
+    } else if (kind === "alert") {
+      let t = `${d.event_type}`;
+      if (d.confidence != null) t += ` · conf ${d.confidence}`;
+      if (d.fall_detected) t += " · jatuh";
+      if (d.gps) t += ` · ${d.gps.lat}, ${d.gps.lng}`;
+      addLog("ALERT", t + (d.message ? " — " + d.message : ""));
+    } else if (kind === "lwt") {
+      const on = d.status === "online";
+      $("devDot").className = "dot " + (on ? "on" : "off");
+      $("devTxt").textContent = "perangkat: " + d.status;
+      if (!on) $("ecgInfo").textContent = "perangkat offline · data ditahan di ring-buffer lokal";
+      addLog("LWT", d.status + (d.reason ? ` (${d.reason})` : ""));
+    } else if (kind === "status") {
+      if (d.scenario !== simStatus.scenario || d.phase !== simStatus.phase)
+        addLog("SIM", `${d.scenario} · fase ${d.phase + 1}: ${d.phase_label}`);
+      const sel = $("scenario");
+      if (d.scenarios && sel.options.length !== Object.keys(d.scenarios).length) {
+        sel.innerHTML = "";
+        for (const [k, v] of Object.entries(d.scenarios)) {
+          const o = document.createElement("option"); o.value = k; o.textContent = `${k} — ${v}`; sel.append(o);
+        }
+      }
+      if (d.scenario !== simStatus.scenario) sel.value = d.scenario;
+      simStatus = d;
+      $("scen").textContent = `${d.scenario} · fase ${d.phase + 1}: ${d.phase_label} — ekspektasi: ${d.expected}` +
+        (d.ecg_source ? ` — ECG: ${d.ecg_source === "replay" ? "rekaman " + d.ecg_record : "sintetis"}` : "");
+    }
+  });
+
+  const ctl = (m) => client.publish(`sim/${DEV}/control`, JSON.stringify(m), { qos: 1 });
+  $("apply").onclick = () => ctl({ cmd: "scenario", name: $("scenario").value });
+  $("reset").onclick = () => ctl({ cmd: "reset" });
+  $("drop").onclick = () => ctl({ cmd: "putus", detik: 45 });
+})();
+</script>
+</body>
+</html>

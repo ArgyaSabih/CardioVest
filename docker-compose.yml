@@ -1,0 +1,136 @@
+# Pipeline simulasi Capstone C-251: perangkat virtual -> Mosquitto -> layanan cloud (CNN 1D + FSM)
+# Jalankan dari folder CardioVest:  docker compose up -d --build
+name: c251-cardiovest
+
+x-env: &common-env
+  MQTT_HOST: mosquitto
+  MQTT_PORT: "1883"
+  DEVICE_ID: ${DEVICE_ID:-cv-001}
+  USER_ID: ${USER_ID:-user-001}
+
+services:
+  mosquitto:
+    image: eclipse-mosquitto:2.0.20
+    container_name: c251-mosquitto
+    ports:
+      - "1883:1883"     # MQTT TCP
+      - "9001:9001"     # MQTT over WebSocket (debug viewer / website)
+    volumes:
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - mosquitto-data:/mosquitto/data
+    restart: unless-stopped
+
+  cloud:
+    build: { context: ., dockerfile: cloud/Dockerfile }
+    image: c251-cloud
+    container_name: c251-cloud
+    depends_on: [mosquitto]
+    environment:
+      <<: *common-env
+      TAU_CONF: ${TAU_CONF:-0.44}
+      TAU_CONF_MOTION: ${TAU_CONF_MOTION:-0.76}         # tau saat IMU mendeteksi gerak
+      MOTION_SD_G: ${MOTION_SD_G:-0.08}
+      REMOTE_RESET: ${REMOTE_RESET:-1}                  # 1 = tombol reset di aplikasi web diizinkan
+      PERSIST_N: ${PERSIST_N:-2}
+      PERSIST_N_DEGRADED: ${PERSIST_N_DEGRADED:-3}
+      PERSIST_N_PRE: ${PERSIST_N_PRE:-0}                  # 0 = sama dengan PERSIST_N (lihat tools/kalibrasi_lapangan.py)
+      RETENSI_HARI: ${RETENSI_HARI:-0}                    # F-BE-4; 0 = simpan semua, minimal 30 bila diisi
+      HYSTERESIS_M: ${HYSTERESIS_M:-1}
+      HR_HIGH: ${HR_HIGH:-120}
+      HR_LOW: ${HR_LOW:-40}
+      GSR_ABS_HIGH: ${GSR_ABS_HIGH:-20}
+      GSR_K: ${GSR_K:-2.5}
+      CALIB_SECONDS: ${CALIB_SECONDS:-30}
+      TAU_SQI: ${TAU_SQI:-0.5}
+      FCM_MOCK_FAIL_RATE: ${FCM_MOCK_FAIL_RATE:-0}
+      CONTACTS_JSON: ${CONTACTS_JSON:-}
+      MODEL_PATH: ${MODEL_PATH:-}                       # kosong = cloud/model/artifacts/cnn1d_ecg.keras
+    volumes:
+      - cloud-data:/data                                    # SQLite (volume Docker: aman untuk WAL)
+      - ./data/export:/export                               # hasil ekspor CSV muncul di CardioVest/data/export
+      - ./cloud/model/artifacts:/app/cloud/model/artifacts  # model .keras (dapat diganti tanpa rebuild)
+    restart: unless-stopped
+
+  simulator:
+    build: { context: ., dockerfile: simulator/Dockerfile }
+    image: c251-simulator
+    container_name: c251-simulator
+    depends_on: [mosquitto, cloud]
+    environment:
+      <<: *common-env
+      SCENARIO: ${SCENARIO:-normal}
+      PAYLOAD_FORMAT: ${PAYLOAD_FORMAT:-json}
+      ECG_SOURCE: ${ECG_SOURCE:-replay}                 # replay (rekaman asli held-out) | synthetic
+      REPLAY_ONLY_CORRECT: ${REPLAY_ONLY_CORRECT:-1}
+      REPLAY_MIN_CONF: ${REPLAY_MIN_CONF:-0.60}         # margin keyakinan window demo (mode =1)
+      TAU_CONF: ${TAU_CONF:-0.44}                       # juga batas bawah REPLAY_MIN_CONF
+      TAU_SQI: ${TAU_SQI:-0.5}
+      GPS_LAT: ${GPS_LAT:--7.765500}
+      GPS_LON: ${GPS_LON:-110.371900}
+    stdin_open: true    # untuk prompt sim> via: docker attach c251-simulator
+    tty: true
+    restart: unless-stopped
+
+  viewer:
+    build: { context: ./tools/debug-viewer }
+    image: c251-viewer
+    container_name: c251-viewer
+    ports:
+      - "${VIEWER_PORT:-8251}:80"   # buka http://localhost:8251 (8080 sering dipakai aplikasi lain di Windows)
+    depends_on: [mosquitto]
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------- aplikasi CardioVest (Next.js, folder web/)
+  web:
+    build: { context: ./web }
+    image: c251-web
+    container_name: c251-web
+    depends_on: [mosquitto, cloud]
+    ports:
+      - "${WEB_PORT:-8252}:8080"
+    environment:
+      MQTT_URL: mqtt://mosquitto:1883
+      # alat yang boleh dipasangkan, "ID:kode6digit" dipisah koma. Kode kosong = dibuat acak, lihat log
+      DEVICES: ${DEVICES:-cv-001:}
+      CLOUD_DB: /cloud-data/cardiovest.db
+      CONTACTS_JSON: ${CONTACTS_JSON:-}          # opsional: kontak awal untuk akun pertama yang pairing
+      PUBLIC_URL: ${PUBLIC_URL:-}                # alamat publik (tautan di email & notifikasi)
+      SMTP_URL: ${SMTP_URL:-}                    # kosong = email verifikasi/reset dicetak ke log
+      MAIL_FROM: ${MAIL_FROM:-CardioVest <no-reply@cardiovest.local>}
+      WEB_PORT: ${WEB_PORT:-8252}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-}      # hanya bila tampilan dipasang di Vercel (web/README.md)
+      PROXY_SECRET: ${PROXY_SECRET:-}
+    volumes:
+      - cloud-data:/cloud-data          # database cloud: hanya DIBACA (rw supaya berkas -shm WAL bisa dipakai)
+      - web-data:/data                  # akun, pairing, kontak, langganan notifikasi, kunci VAPID
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------- alat (dijalankan sesuai kebutuhan)
+  monitor:
+    image: c251-simulator
+    profiles: ["tools"]
+    environment: *common-env
+    stdin_open: true
+    tty: true
+    command: ["python", "/app/tools/monitor.py"]
+    depends_on: [mosquitto]
+
+  uji:
+    image: c251-simulator
+    profiles: ["tools"]
+    environment: *common-env
+    command: ["python", "/app/tools/uji_skenario.py"]
+    depends_on: [mosquitto]
+
+  trainer:
+    image: c251-cloud
+    profiles: ["tools"]
+    volumes:
+      - ./cloud/model/artifacts:/app/cloud/model/artifacts
+    # melatih model SINTETIS -> cnn1d_ecg_sintetis.keras (tidak menimpa model PTB-XL/MIT-BIH)
+    command: ["python", "/app/cloud/model/train.py", "--per-class", "3000", "--epochs", "25"]
+
+volumes:
+  mosquitto-data:
+  cloud-data:
+  web-data:

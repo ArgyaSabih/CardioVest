@@ -1,0 +1,1424 @@
+{
+  "aturan": "maksimalkan P(CRITICAL<=60 s | Serangan) lalu sensitivitas Serangan efektif, dengan kendala spesifisitas efektif >= 0.8 dan WARNING palsu <= 1.0/jam; dipilih pada VALIDASI, dilaporkan pada UJI",
+  "fsm": {
+    "N": 2,
+    "N_degraded": 3,
+    "M": 1,
+    "hop_s": 3.5,
+    "episode_s": 59.5
+  },
+  "tau_terpilih": 0.44,
+  "ece": {
+    "val": 0.0402,
+    "test": 0.0204
+  },
+  "validasi": {
+    "window": [
+      {
+        "tau": 0.34,
+        "cakupan": 0.9994,
+        "akurasi_diterima": 0.6141,
+        "sens_serangan_efektif": 0.5549,
+        "sens_abnormal_efektif": 0.7881,
+        "spesifisitas_efektif": 0.8372,
+        "serangan_dianggap_normal": 0.185
+      },
+      {
+        "tau": 0.36,
+        "cakupan": 0.9937,
+        "akurasi_diterima": 0.6156,
+        "sens_serangan_efektif": 0.5519,
+        "sens_abnormal_efektif": 0.7847,
+        "spesifisitas_efektif": 0.8403,
+        "serangan_dianggap_normal": 0.1789
+      },
+      {
+        "tau": 0.38,
+        "cakupan": 0.9763,
+        "akurasi_diterima": 0.6202,
+        "sens_serangan_efektif": 0.5479,
+        "sens_abnormal_efektif": 0.7748,
+        "spesifisitas_efektif": 0.8545,
+        "serangan_dianggap_normal": 0.1714
+      },
+      {
+        "tau": 0.4,
+        "cakupan": 0.95,
+        "akurasi_diterima": 0.6278,
+        "sens_serangan_efektif": 0.5449,
+        "sens_abnormal_efektif": 0.7613,
+        "spesifisitas_efektif": 0.877,
+        "serangan_dianggap_normal": 0.1624
+      },
+      {
+        "tau": 0.42,
+        "cakupan": 0.9183,
+        "akurasi_diterima": 0.635,
+        "sens_serangan_efektif": 0.5378,
+        "sens_abnormal_efektif": 0.7432,
+        "spesifisitas_efektif": 0.9013,
+        "serangan_dianggap_normal": 0.1559
+      },
+      {
+        "tau": 0.44,
+        "cakupan": 0.8847,
+        "akurasi_diterima": 0.6416,
+        "sens_serangan_efektif": 0.5273,
+        "sens_abnormal_efektif": 0.7206,
+        "spesifisitas_efektif": 0.9233,
+        "serangan_dianggap_normal": 0.1504
+      },
+      {
+        "tau": 0.46,
+        "cakupan": 0.8523,
+        "akurasi_diterima": 0.648,
+        "sens_serangan_efektif": 0.5163,
+        "sens_abnormal_efektif": 0.6995,
+        "spesifisitas_efektif": 0.9406,
+        "serangan_dianggap_normal": 0.1454
+      },
+      {
+        "tau": 0.48,
+        "cakupan": 0.8189,
+        "akurasi_diterima": 0.6526,
+        "sens_serangan_efektif": 0.5098,
+        "sens_abnormal_efektif": 0.6788,
+        "spesifisitas_efektif": 0.9534,
+        "serangan_dianggap_normal": 0.1373
+      },
+      {
+        "tau": 0.5,
+        "cakupan": 0.7715,
+        "akurasi_diterima": 0.66,
+        "sens_serangan_efektif": 0.4892,
+        "sens_abnormal_efektif": 0.6362,
+        "spesifisitas_efektif": 0.964,
+        "serangan_dianggap_normal": 0.1283
+      },
+      {
+        "tau": 0.52,
+        "cakupan": 0.7125,
+        "akurasi_diterima": 0.6717,
+        "sens_serangan_efektif": 0.4571,
+        "sens_abnormal_efektif": 0.5775,
+        "spesifisitas_efektif": 0.9766,
+        "serangan_dianggap_normal": 0.1173
+      },
+      {
+        "tau": 0.54,
+        "cakupan": 0.6635,
+        "akurasi_diterima": 0.6801,
+        "sens_serangan_efektif": 0.4266,
+        "sens_abnormal_efektif": 0.5285,
+        "spesifisitas_efektif": 0.9844,
+        "serangan_dianggap_normal": 0.1113
+      },
+      {
+        "tau": 0.56,
+        "cakupan": 0.6164,
+        "akurasi_diterima": 0.69,
+        "sens_serangan_efektif": 0.392,
+        "sens_abnormal_efektif": 0.4811,
+        "spesifisitas_efektif": 0.9889,
+        "serangan_dianggap_normal": 0.1023
+      },
+      {
+        "tau": 0.58,
+        "cakupan": 0.5734,
+        "akurasi_diterima": 0.6988,
+        "sens_serangan_efektif": 0.3624,
+        "sens_abnormal_efektif": 0.4331,
+        "spesifisitas_efektif": 0.9903,
+        "serangan_dianggap_normal": 0.0927
+      },
+      {
+        "tau": 0.6,
+        "cakupan": 0.5299,
+        "akurasi_diterima": 0.7089,
+        "sens_serangan_efektif": 0.3198,
+        "sens_abnormal_efektif": 0.3864,
+        "spesifisitas_efektif": 0.9929,
+        "serangan_dianggap_normal": 0.0872
+      },
+      {
+        "tau": 0.62,
+        "cakupan": 0.4887,
+        "akurasi_diterima": 0.7206,
+        "sens_serangan_efektif": 0.2927,
+        "sens_abnormal_efektif": 0.3499,
+        "spesifisitas_efektif": 0.9965,
+        "serangan_dianggap_normal": 0.0752
+      },
+      {
+        "tau": 0.64,
+        "cakupan": 0.4482,
+        "akurasi_diterima": 0.7334,
+        "sens_serangan_efektif": 0.2662,
+        "sens_abnormal_efektif": 0.315,
+        "spesifisitas_efektif": 0.9981,
+        "serangan_dianggap_normal": 0.0647
+      },
+      {
+        "tau": 0.66,
+        "cakupan": 0.41,
+        "akurasi_diterima": 0.7444,
+        "sens_serangan_efektif": 0.2346,
+        "sens_abnormal_efektif": 0.2813,
+        "spesifisitas_efektif": 0.9995,
+        "serangan_dianggap_normal": 0.0561
+      },
+      {
+        "tau": 0.68,
+        "cakupan": 0.3761,
+        "akurasi_diterima": 0.7511,
+        "sens_serangan_efektif": 0.2135,
+        "sens_abnormal_efektif": 0.2551,
+        "spesifisitas_efektif": 0.9995,
+        "serangan_dianggap_normal": 0.0506
+      },
+      {
+        "tau": 0.7,
+        "cakupan": 0.3438,
+        "akurasi_diterima": 0.7536,
+        "sens_serangan_efektif": 0.1895,
+        "sens_abnormal_efektif": 0.2333,
+        "spesifisitas_efektif": 0.9998,
+        "serangan_dianggap_normal": 0.0456
+      },
+      {
+        "tau": 0.72,
+        "cakupan": 0.3068,
+        "akurasi_diterima": 0.7619,
+        "sens_serangan_efektif": 0.1604,
+        "sens_abnormal_efektif": 0.2066,
+        "spesifisitas_efektif": 1.0,
+        "serangan_dianggap_normal": 0.0361
+      },
+      {
+        "tau": 0.74,
+        "cakupan": 0.2769,
+        "akurasi_diterima": 0.7683,
+        "sens_serangan_efektif": 0.1373,
+        "sens_abnormal_efektif": 0.1838,
+        "spesifisitas_efektif": 1.0,
+        "serangan_dianggap_normal": 0.0296
+      },
+      {
+        "tau": 0.76,
+        "cakupan": 0.2443,
+        "akurasi_diterima": 0.7704,
+        "sens_serangan_efektif": 0.1183,
+        "sens_abnormal_efektif": 0.1626,
+        "spesifisitas_efektif": 1.0,
+        "serangan_dianggap_normal": 0.0216
+      },
+      {
+        "tau": 0.78,
+        "cakupan": 0.2123,
+        "akurasi_diterima": 0.7639,
+        "sens_serangan_efektif": 0.0987,
+        "sens_abnormal_efektif": 0.1435,
+        "spesifisitas_efektif": 1.0,
+        "serangan_dianggap_normal": 0.015
+      },
+      {
+        "tau": 0.8,
+        "cakupan": 0.1817,
+        "akurasi_diterima": 0.7534,
+        "sens_serangan_efektif": 0.0782,
+        "sens_abnormal_efektif": 0.1261,
+        "spesifisitas_efektif": 1.0,
+        "serangan_dianggap_normal": 0.0095
+      },
+      {
+        "tau": 0.82,
+        "cakupan": 0.1557,
+        "akurasi_diterima": 0.7444,
+        "sens_serangan_efektif": 0.0687,
+        "sens_abnormal_efektif": 0.1163,
+        "spesifisitas_efektif": 1.0,
+        "serangan_dianggap_normal": 0.0035
+      },
+      {
+        "tau": 0.84,
+        "cakupan": 0.1327,
+        "akurasi_diterima": 0.7314,
+        "sens_serangan_efektif": 0.0551,
+        "sens_abnormal_efektif": 0.1042,
+        "spesifisitas_efektif": 1.0,
+        "serangan_dianggap_normal": 0.001
+      },
+      {
+        "tau": 0.86,
+        "cakupan": 0.1104,
+        "akurasi_diterima": 0.7253,
+        "sens_serangan_efektif": 0.0411,
+        "sens_abnormal_efektif": 0.0893,
+        "spesifisitas_efektif": 1.0,
+        "serangan_dianggap_normal": 0.0
+      },
+      {
+        "tau": 0.88,
+        "cakupan": 0.084,
+        "akurasi_diterima": 0.7587,
+        "sens_serangan_efektif": 0.0366,
+        "sens_abnormal_efektif": 0.0657,
+        "spesifisitas_efektif": 1.0,
+        "serangan_dianggap_normal": 0.0
+      },
+      {
+        "tau": 0.9,
+        "cakupan": 0.0604,
+        "akurasi_diterima": 0.7834,
+        "sens_serangan_efektif": 0.0301,
+        "sens_abnormal_efektif": 0.0468,
+        "spesifisitas_efektif": 1.0,
+        "serangan_dianggap_normal": 0.0
+      },
+      {
+        "tau": 0.92,
+        "cakupan": 0.0442,
+        "akurasi_diterima": 0.7403,
+        "sens_serangan_efektif": 0.0256,
+        "sens_abnormal_efektif": 0.0351,
+        "spesifisitas_efektif": 1.0,
+        "serangan_dianggap_normal": 0.0
+      },
+      {
+        "tau": 0.94,
+        "cakupan": 0.0293,
+        "akurasi_diterima": 0.6505,
+        "sens_serangan_efektif": 0.0206,
+        "sens_abnormal_efektif": 0.0269,
+        "spesifisitas_efektif": 1.0,
+        "serangan_dianggap_normal": 0.0
+      }
+    ],
+    "sistem": [
+      {
+        "tau": 0.34,
+        "p_critical_60s_serangan": 0.5844,
+        "median_waktu_critical_s": 7.0,
+        "p_warning_60s_serangan_tanpa_validator": 0.8324,
+        "p_warning_60s_pra_serangan": 0.7399,
+        "warning_palsu_per_jam_normal": 3.08,
+        "pasien_normal_bebas_warning_palsu_1jam": 0.835,
+        "critical_palsu_per_jam_normal_aktivitas": 17.525
+      },
+      {
+        "tau": 0.36,
+        "p_critical_60s_serangan": 0.5798,
+        "median_waktu_critical_s": 7.0,
+        "p_warning_60s_serangan_tanpa_validator": 0.8265,
+        "p_warning_60s_pra_serangan": 0.7396,
+        "warning_palsu_per_jam_normal": 3.0625,
+        "pasien_normal_bebas_warning_palsu_1jam": 0.835,
+        "critical_palsu_per_jam_normal_aktivitas": 17.4825
+      },
+      {
+        "tau": 0.38,
+        "p_critical_60s_serangan": 0.5735,
+        "median_waktu_critical_s": 7.0,
+        "p_warning_60s_serangan_tanpa_validator": 0.8159,
+        "p_warning_60s_pra_serangan": 0.7299,
+        "warning_palsu_per_jam_normal": 2.405,
+        "pasien_normal_bebas_warning_palsu_1jam": 0.845,
+        "critical_palsu_per_jam_normal_aktivitas": 16.8075
+      },
+      {
+        "tau": 0.4,
+        "p_critical_60s_serangan": 0.5717,
+        "median_waktu_critical_s": 7.0,
+        "p_warning_60s_serangan_tanpa_validator": 0.804,
+        "p_warning_60s_pra_serangan": 0.7133,
+        "warning_palsu_per_jam_normal": 2.0375,
+        "pasien_normal_bebas_warning_palsu_1jam": 0.855,
+        "critical_palsu_per_jam_normal_aktivitas": 16.1075
+      },
+      {
+        "tau": 0.42,
+        "p_critical_60s_serangan": 0.5651,
+        "median_waktu_critical_s": 7.0,
+        "p_warning_60s_serangan_tanpa_validator": 0.7832,
+        "p_warning_60s_pra_serangan": 0.6925,
+        "warning_palsu_per_jam_normal": 1.3525,
+        "pasien_normal_bebas_warning_palsu_1jam": 0.87,
+        "critical_palsu_per_jam_normal_aktivitas": 15.1875
+      },
+      {
+        "tau": 0.44,
+        "p_critical_60s_serangan": 0.5539,
+        "median_waktu_critical_s": 7.0,
+        "p_warning_60s_serangan_tanpa_validator": 0.757,
+        "p_warning_60s_pra_serangan": 0.6707,
+        "warning_palsu_per_jam_normal": 0.98,
+        "pasien_normal_bebas_warning_palsu_1jam": 0.885,
+        "critical_palsu_per_jam_normal_aktivitas": 13.2325
+      },
+      {
+        "tau": 0.46,
+        "p_critical_60s_serangan": 0.5445,
+        "median_waktu_critical_s": 7.0,
+        "p_warning_60s_serangan_tanpa_validator": 0.7393,
+        "p_warning_60s_pra_serangan": 0.6439,
+        "warning_palsu_per_jam_normal": 0.6025,
+        "pasien_normal_bebas_warning_palsu_1jam": 0.8975,
+        "critical_palsu_per_jam_normal_aktivitas": 11.95
+      },
+      {
+        "tau": 0.48,
+        "p_critical_60s_serangan": 0.5371,
+        "median_waktu_critical_s": 7.0,
+        "p_warning_60s_serangan_tanpa_validator": 0.7252,
+        "p_warning_60s_pra_serangan": 0.6174,
+        "warning_palsu_per_jam_normal": 0.5,
+        "pasien_normal_bebas_warning_palsu_1jam": 0.915,
+        "critical_palsu_per_jam_normal_aktivitas": 9.665
+      },
+      {
+        "tau": 0.5,
+        "p_critical_60s_serangan": 0.5165,
+        "median_waktu_critical_s": 7.0,
+        "p_warning_60s_serangan_tanpa_validator": 0.6835,
+        "p_warning_60s_pra_serangan": 0.5871,
+        "warning_palsu_per_jam_normal": 0.4275,
+        "pasien_normal_bebas_warning_palsu_1jam": 0.925,
+        "critical_palsu_per_jam_normal_aktivitas": 6.9325
+      },
+      {
+        "tau": 0.52,
+        "p_critical_60s_serangan": 0.4885,
+        "median_waktu_critical_s": 7.0,
+        "p_warning_60s_serangan_tanpa_validator": 0.6514,
+        "p_warning_60s_pra_serangan": 0.5333,
+        "warning_palsu_per_jam_normal": 0.3175,
+        "pasien_normal_bebas_warning_palsu_1jam": 0.9425,
+        "critical_palsu_per_jam_normal_aktivitas": 4.7125
+      },
+      {
+        "tau": 0.54,
+        "p_critical_60s_serangan": 0.4611,
+        "median_waktu_critical_s": 7.0,
+        "p_warning_60s_serangan_tanpa_validator": 0.5913,
+        "p_warning_60s_pra_serangan": 0.4831,
+        "warning_palsu_per_jam_normal": 0.17,
+        "pasien_normal_bebas_warning_palsu_1jam": 0.96,
+        "critical_palsu_per_jam_normal_aktivitas": 3.8575
+      },
+      {
+        "tau": 0.56,
+        "p_critical_60s_serangan": 0.4199,
+        "median_waktu_critical_s": 7.0,
+        "p_warning_60s_serangan_tanpa_validator": 0.534,
+        "p_warning_60s_pra_serangan": 0.4303,
+        "warning_palsu_per_jam_normal": 0.0275,
+        "pasien_normal_bebas_warning_palsu_1jam": 0.9725,
+        "critical_palsu_per_jam_normal_aktivitas": 1.7
+      },
+      {
+        "tau": 0.58,
+        "p_critical_60s_serangan": 0.3885,
+        "median_waktu_critical_s": 7.0,
+        "p_warning_60s_serangan_tanpa_validator": 0.4822,
+        "p_warning_60s_pra_serangan": 0.3704,
+        "warning_palsu_per_jam_normal": 0.0225,
+        "pasien_normal_bebas_warning_palsu_1jam": 0.9775,
+        "critical_palsu_per_jam_normal_aktivitas": 1.27
+      },
+      {
+        "tau": 0.6,
+        "p_critical_60s_serangan": 0.3505,
+        "median_waktu_critical_s": 7.0,
+        "p_warning_60s_serangan_tanpa_validator": 0.4252,
+        "p_warning_60s_pra_serangan": 0.3164,
+        "warning_palsu_per_jam_normal": 0.0175,
+        "pasien_normal_bebas_warning_palsu_1jam": 0.9825,
+        "critical_palsu_per_jam_normal_aktivitas": 0.41
+      },
+      {
+        "tau": 0.62,
+        "p_critical_60s_serangan": 0.3193,
+        "median_waktu_critical_s": 7.0,
+        "p_warning_60s_serangan_tanpa_validator": 0.3773,
+        "p_warning_60s_pra_serangan": 0.2721,
+        "warning_palsu_per_jam_normal": 0.0075,
+        "pasien_normal_bebas_warning_palsu_1jam": 0.9925,
+        "critical_palsu_per_jam_normal_aktivitas": 0.41
+      },
+      {
+        "tau": 0.64,
+        "p_critical_60s_serangan": 0.295,
+        "median_waktu_critical_s": 7.0,
+        "p_warning_60s_serangan_tanpa_validator": 0.3377,
+        "p_warning_60s_pra_serangan": 0.236,
+        "warning_palsu_per_jam_normal": 0.005,
+        "pasien_normal_bebas_warning_palsu_1jam": 0.995,
+        "critical_palsu_per_jam_normal_aktivitas": 0.0
+      },
+      {
+        "tau": 0.66,
+        "p_critical_60s_serangan": 0.2539,
+        "median_waktu_critical_s": 7.0,
+        "p_warning_60s_serangan_tanpa_validator": 0.2776,
+        "p_warning_60s_pra_serangan": 0.198,
+        "warning_palsu_per_jam_normal": 0.0,
+        "pasien_normal_bebas_warning_palsu_1jam": 1.0,
+        "critical_palsu_per_jam_normal_aktivitas": 0.0
+      },
+      {
+        "tau": 0.68,
+        "p_critical_60s_serangan": 0.2302,
+        "median_waktu_critical_s": 7.0,
+        "p_warning_60s_serangan_tanpa_validator": 0.2508,
+        "p_warning_60s_pra_serangan": 0.1688,
+        "warning_palsu_per_jam_normal": 0.0,
+        "pasien_normal_bebas_warning_palsu_1jam": 1.0,
+        "critical_palsu_per_jam_normal_aktivitas": 0.0
+      },
+      {
+        "tau": 0.7,
+        "p_critical_60s_serangan": 0.215,
+        "median_waktu_critical_s": 7.0,
+        "p_warning_60s_serangan_tanpa_validator": 0.2336,
+        "p_warning_60s_pra_serangan": 0.1498,
+        "warning_palsu_per_jam_normal": 0.0,
+        "pasien_normal_bebas_warning_palsu_1jam": 1.0,
+        "critical_palsu_per_jam_normal_aktivitas": 0.0
+      },
+      {
+        "tau": 0.72,
+        "p_critical_60s_serangan": 0.1826,
+        "median_waktu_critical_s": 7.0,
+        "p_warning_60s_serangan_tanpa_validator": 0.1947,
+        "p_warning_60s_pra_serangan": 0.1283,
+        "warning_palsu_per_jam_normal": 0.0,
+        "pasien_normal_bebas_warning_palsu_1jam": 1.0,
+        "critical_palsu_per_jam_normal_aktivitas": 0.0
+      },
+      {
+        "tau": 0.74,
+        "p_critical_60s_serangan": 0.1548,
+        "median_waktu_critical_s": 7.0,
+        "p_warning_60s_serangan_tanpa_validator": 0.162,
+        "p_warning_60s_pra_serangan": 0.1127,
+        "warning_palsu_per_jam_normal": 0.0,
+        "pasien_normal_bebas_warning_palsu_1jam": 1.0,
+        "critical_palsu_per_jam_normal_aktivitas": 0.0
+      },
+      {
+        "tau": 0.76,
+        "p_critical_60s_serangan": 0.1439,
+        "median_waktu_critical_s": 7.0,
+        "p_warning_60s_serangan_tanpa_validator": 0.1461,
+        "p_warning_60s_pra_serangan": 0.0968,
+        "warning_palsu_per_jam_normal": 0.0,
+        "pasien_normal_bebas_warning_palsu_1jam": 1.0,
+        "critical_palsu_per_jam_normal_aktivitas": 0.0
+      },
+      {
+        "tau": 0.78,
+        "p_critical_60s_serangan": 0.1255,
+        "median_waktu_critical_s": 7.0,
+        "p_warning_60s_serangan_tanpa_validator": 0.1265,
+        "p_warning_60s_pra_serangan": 0.0856,
+        "warning_palsu_per_jam_normal": 0.0,
+        "pasien_normal_bebas_warning_palsu_1jam": 1.0,
+        "critical_palsu_per_jam_normal_aktivitas": 0.0
+      },
+      {
+        "tau": 0.8,
+        "p_critical_60s_serangan": 0.0956,
+        "median_waktu_critical_s": 7.0,
+        "p_warning_60s_serangan_tanpa_validator": 0.0969,
+        "p_warning_60s_pra_serangan": 0.0724,
+        "warning_palsu_per_jam_normal": 0.0,
+        "pasien_normal_bebas_warning_palsu_1jam": 1.0,
+        "critical_palsu_per_jam_normal_aktivitas": 0.0
+      },
+      {
+        "tau": 0.82,
+        "p_critical_60s_serangan": 0.0832,
+        "median_waktu_critical_s": 7.0,
+        "p_warning_60s_serangan_tanpa_validator": 0.0844,
+        "p_warning_60s_pra_serangan": 0.0671,
+        "warning_palsu_per_jam_normal": 0.0,
+        "pasien_normal_bebas_warning_palsu_1jam": 1.0,
+        "critical_palsu_per_jam_normal_aktivitas": 0.0
+      },
+      {
+        "tau": 0.84,
+        "p_critical_60s_serangan": 0.0676,
+        "median_waktu_critical_s": 7.0,
+        "p_warning_60s_serangan_tanpa_validator": 0.0688,
+        "p_warning_60s_pra_serangan": 0.0635,
+        "warning_palsu_per_jam_normal": 0.0,
+        "pasien_normal_bebas_warning_palsu_1jam": 1.0,
+        "critical_palsu_per_jam_normal_aktivitas": 0.0
+      },
+      {
+        "tau": 0.86,
+        "p_critical_60s_serangan": 0.0498,
+        "median_waktu_critical_s": 7.0,
+        "p_warning_60s_serangan_tanpa_validator": 0.0511,
+        "p_warning_60s_pra_serangan": 0.0562,
+        "warning_palsu_per_jam_normal": 0.0,
+        "pasien_normal_bebas_warning_palsu_1jam": 1.0,
+        "critical_palsu_per_jam_normal_aktivitas": 0.0
+      },
+      {
+        "tau": 0.88,
+        "p_critical_60s_serangan": 0.0427,
+        "median_waktu_critical_s": 7.0,
+        "p_warning_60s_serangan_tanpa_validator": 0.0433,
+        "p_warning_60s_pra_serangan": 0.0447,
+        "warning_palsu_per_jam_normal": 0.0,
+        "pasien_normal_bebas_warning_palsu_1jam": 1.0,
+        "critical_palsu_per_jam_normal_aktivitas": 0.0
+      },
+      {
+        "tau": 0.9,
+        "p_critical_60s_serangan": 0.0336,
+        "median_waktu_critical_s": 7.0,
+        "p_warning_60s_serangan_tanpa_validator": 0.034,
+        "p_warning_60s_pra_serangan": 0.0385,
+        "warning_palsu_per_jam_normal": 0.0,
+        "pasien_normal_bebas_warning_palsu_1jam": 1.0,
+        "critical_palsu_per_jam_normal_aktivitas": 0.0
+      },
+      {
+        "tau": 0.92,
+        "p_critical_60s_serangan": 0.0287,
+        "median_waktu_critical_s": 7.0,
+        "p_warning_60s_serangan_tanpa_validator": 0.0293,
+        "p_warning_60s_pra_serangan": 0.0292,
+        "warning_palsu_per_jam_normal": 0.0,
+        "pasien_normal_bebas_warning_palsu_1jam": 1.0,
+        "critical_palsu_per_jam_normal_aktivitas": 0.0
+      },
+      {
+        "tau": 0.94,
+        "p_critical_60s_serangan": 0.0215,
+        "median_waktu_critical_s": 7.0,
+        "p_warning_60s_serangan_tanpa_validator": 0.0212,
+        "p_warning_60s_pra_serangan": 0.0205,
+        "warning_palsu_per_jam_normal": 0.0,
+        "pasien_normal_bebas_warning_palsu_1jam": 1.0,
+        "critical_palsu_per_jam_normal_aktivitas": 0.0
+      }
+    ]
+  },
+  "uji": {
+    "window": [
+      {
+        "tau": 0.0,
+        "cakupan": 1.0,
+        "akurasi_diterima": 0.628,
+        "sens_serangan_efektif": 0.5117,
+        "sens_abnormal_efektif": 0.7896,
+        "spesifisitas_efektif": 0.806,
+        "serangan_dianggap_normal": 0.2019
+      },
+      {
+        "tau": 0.44,
+        "cakupan": 0.8844,
+        "akurasi_diterima": 0.6621,
+        "sens_serangan_efektif": 0.4757,
+        "sens_abnormal_efektif": 0.7173,
+        "spesifisitas_efektif": 0.8998,
+        "serangan_dianggap_normal": 0.1615
+      },
+      {
+        "tau": 0.5,
+        "cakupan": 0.7831,
+        "akurasi_diterima": 0.6818,
+        "sens_serangan_efektif": 0.4364,
+        "sens_abnormal_efektif": 0.6235,
+        "spesifisitas_efektif": 0.9289,
+        "serangan_dianggap_normal": 0.1375
+      },
+      {
+        "tau": 0.6,
+        "cakupan": 0.4857,
+        "akurasi_diterima": 0.7598,
+        "sens_serangan_efektif": 0.3033,
+        "sens_abnormal_efektif": 0.3089,
+        "spesifisitas_efektif": 0.9883,
+        "serangan_dianggap_normal": 0.0878
+      },
+      {
+        "tau": 0.75,
+        "cakupan": 0.1903,
+        "akurasi_diterima": 0.8424,
+        "sens_serangan_efektif": 0.1064,
+        "sens_abnormal_efektif": 0.0794,
+        "spesifisitas_efektif": 0.9973,
+        "serangan_dianggap_normal": 0.0316
+      },
+      {
+        "tau": 0.85,
+        "cakupan": 0.0687,
+        "akurasi_diterima": 0.9301,
+        "sens_serangan_efektif": 0.0436,
+        "sens_abnormal_efektif": 0.0272,
+        "spesifisitas_efektif": 0.998,
+        "serangan_dianggap_normal": 0.0044
+      }
+    ],
+    "sistem": [
+      {
+        "tau": 0.0,
+        "p_critical_60s_serangan": 0.5675,
+        "median_waktu_critical_s": 7.0,
+        "p_warning_60s_serangan_tanpa_validator": 0.8243,
+        "p_warning_60s_pra_serangan": 0.7515,
+        "warning_palsu_per_jam_normal": 3.815,
+        "pasien_normal_bebas_warning_palsu_1jam": 0.84,
+        "critical_palsu_per_jam_normal_aktivitas": 17.465
+      },
+      {
+        "tau": 0.44,
+        "p_critical_60s_serangan": 0.5262,
+        "median_waktu_critical_s": 7.0,
+        "p_warning_60s_serangan_tanpa_validator": 0.7419,
+        "p_warning_60s_pra_serangan": 0.6882,
+        "warning_palsu_per_jam_normal": 1.45,
+        "pasien_normal_bebas_warning_palsu_1jam": 0.9,
+        "critical_palsu_per_jam_normal_aktivitas": 8.3425
+      },
+      {
+        "tau": 0.5,
+        "p_critical_60s_serangan": 0.4729,
+        "median_waktu_critical_s": 7.0,
+        "p_warning_60s_serangan_tanpa_validator": 0.6477,
+        "p_warning_60s_pra_serangan": 0.5924,
+        "warning_palsu_per_jam_normal": 0.36,
+        "pasien_normal_bebas_warning_palsu_1jam": 0.94,
+        "critical_palsu_per_jam_normal_aktivitas": 6.25
+      },
+      {
+        "tau": 0.6,
+        "p_critical_60s_serangan": 0.3323,
+        "median_waktu_critical_s": 7.0,
+        "p_warning_60s_serangan_tanpa_validator": 0.3796,
+        "p_warning_60s_pra_serangan": 0.3119,
+        "warning_palsu_per_jam_normal": 0.0025,
+        "pasien_normal_bebas_warning_palsu_1jam": 0.9975,
+        "critical_palsu_per_jam_normal_aktivitas": 0.4225
+      },
+      {
+        "tau": 0.75,
+        "p_critical_60s_serangan": 0.1282,
+        "median_waktu_critical_s": 7.0,
+        "p_warning_60s_serangan_tanpa_validator": 0.1288,
+        "p_warning_60s_pra_serangan": 0.0797,
+        "warning_palsu_per_jam_normal": 0.0,
+        "pasien_normal_bebas_warning_palsu_1jam": 1.0,
+        "critical_palsu_per_jam_normal_aktivitas": 0.0
+      },
+      {
+        "tau": 0.85,
+        "p_critical_60s_serangan": 0.0465,
+        "median_waktu_critical_s": 7.0,
+        "p_warning_60s_serangan_tanpa_validator": 0.0486,
+        "p_warning_60s_pra_serangan": 0.0313,
+        "warning_palsu_per_jam_normal": 0.0,
+        "pasien_normal_bebas_warning_palsu_1jam": 1.0,
+        "critical_palsu_per_jam_normal_aktivitas": 0.0
+      }
+    ],
+    "sistem_terdegradasi_N3": [
+      {
+        "tau": 0.44,
+        "p_critical_60s_serangan": 0.5221,
+        "median_waktu_critical_s": 10.5,
+        "p_warning_60s_serangan_tanpa_validator": 0.7303,
+        "p_warning_60s_pra_serangan": 0.6799,
+        "warning_palsu_per_jam_normal": 0.615,
+        "pasien_normal_bebas_warning_palsu_1jam": 0.8825,
+        "critical_palsu_per_jam_normal_aktivitas": 7.19
+      }
+    ],
+    "ci95_bootstrap_pasien": {
+      "sens_serangan_efektif": [
+        0.4344,
+        0.5108
+      ],
+      "sens_abnormal_efektif": [
+        0.6731,
+        0.7584
+      ],
+      "spesifisitas_efektif": [
+        0.8077,
+        0.9528
+      ]
+    }
+  },
+  "tau_gerak": {
+    "aturan": "tau terkecil >= tau_conf dengan WARNING palsu <= 0.05 per episode artefak 45 s pada setiap intensitas gerak; dipilih pada validasi",
+    "tau_gerak_terpilih": 0.76,
+    "validasi": {
+      "motion_0.6": {
+        "prediksi_normal_dengan_artefak": [
+          0.6241,
+          0.0116,
+          0.3643
+        ],
+        "per_tau": [
+          {
+            "tau": 0.44,
+            "warning_palsu_45s": 0.3873,
+            "critical_palsu_45s_olahraga": 0.3902,
+            "p_critical_60s_serangan_saat_gerak": 0.5589
+          },
+          {
+            "tau": 0.46,
+            "warning_palsu_45s": 0.3634,
+            "critical_palsu_45s_olahraga": 0.3659,
+            "p_critical_60s_serangan_saat_gerak": 0.5364
+          },
+          {
+            "tau": 0.48,
+            "warning_palsu_45s": 0.3349,
+            "critical_palsu_45s_olahraga": 0.3368,
+            "p_critical_60s_serangan_saat_gerak": 0.5164
+          },
+          {
+            "tau": 0.5,
+            "warning_palsu_45s": 0.3062,
+            "critical_palsu_45s_olahraga": 0.306,
+            "p_critical_60s_serangan_saat_gerak": 0.4879
+          },
+          {
+            "tau": 0.52,
+            "warning_palsu_45s": 0.2698,
+            "critical_palsu_45s_olahraga": 0.2709,
+            "p_critical_60s_serangan_saat_gerak": 0.4738
+          },
+          {
+            "tau": 0.54,
+            "warning_palsu_45s": 0.2338,
+            "critical_palsu_45s_olahraga": 0.2326,
+            "p_critical_60s_serangan_saat_gerak": 0.4374
+          },
+          {
+            "tau": 0.56,
+            "warning_palsu_45s": 0.2088,
+            "critical_palsu_45s_olahraga": 0.2095,
+            "p_critical_60s_serangan_saat_gerak": 0.4215
+          },
+          {
+            "tau": 0.58,
+            "warning_palsu_45s": 0.1844,
+            "critical_palsu_45s_olahraga": 0.1825,
+            "p_critical_60s_serangan_saat_gerak": 0.3869
+          },
+          {
+            "tau": 0.6,
+            "warning_palsu_45s": 0.1548,
+            "critical_palsu_45s_olahraga": 0.1548,
+            "p_critical_60s_serangan_saat_gerak": 0.3453
+          },
+          {
+            "tau": 0.62,
+            "warning_palsu_45s": 0.1378,
+            "critical_palsu_45s_olahraga": 0.1371,
+            "p_critical_60s_serangan_saat_gerak": 0.3117
+          },
+          {
+            "tau": 0.64,
+            "warning_palsu_45s": 0.119,
+            "critical_palsu_45s_olahraga": 0.1159,
+            "p_critical_60s_serangan_saat_gerak": 0.2818
+          },
+          {
+            "tau": 0.66,
+            "warning_palsu_45s": 0.0929,
+            "critical_palsu_45s_olahraga": 0.0913,
+            "p_critical_60s_serangan_saat_gerak": 0.2551
+          },
+          {
+            "tau": 0.68,
+            "warning_palsu_45s": 0.0757,
+            "critical_palsu_45s_olahraga": 0.0757,
+            "p_critical_60s_serangan_saat_gerak": 0.2248
+          },
+          {
+            "tau": 0.7,
+            "warning_palsu_45s": 0.0607,
+            "critical_palsu_45s_olahraga": 0.0616,
+            "p_critical_60s_serangan_saat_gerak": 0.2
+          },
+          {
+            "tau": 0.72,
+            "warning_palsu_45s": 0.0466,
+            "critical_palsu_45s_olahraga": 0.0482,
+            "p_critical_60s_serangan_saat_gerak": 0.1738
+          },
+          {
+            "tau": 0.74,
+            "warning_palsu_45s": 0.0397,
+            "critical_palsu_45s_olahraga": 0.0414,
+            "p_critical_60s_serangan_saat_gerak": 0.1505
+          },
+          {
+            "tau": 0.76,
+            "warning_palsu_45s": 0.031,
+            "critical_palsu_45s_olahraga": 0.0313,
+            "p_critical_60s_serangan_saat_gerak": 0.1388
+          },
+          {
+            "tau": 0.78,
+            "warning_palsu_45s": 0.0221,
+            "critical_palsu_45s_olahraga": 0.0214,
+            "p_critical_60s_serangan_saat_gerak": 0.1168
+          },
+          {
+            "tau": 0.8,
+            "warning_palsu_45s": 0.0146,
+            "critical_palsu_45s_olahraga": 0.0129,
+            "p_critical_60s_serangan_saat_gerak": 0.0967
+          },
+          {
+            "tau": 0.82,
+            "warning_palsu_45s": 0.0099,
+            "critical_palsu_45s_olahraga": 0.0089,
+            "p_critical_60s_serangan_saat_gerak": 0.086
+          },
+          {
+            "tau": 0.84,
+            "warning_palsu_45s": 0.0073,
+            "critical_palsu_45s_olahraga": 0.0066,
+            "p_critical_60s_serangan_saat_gerak": 0.0813
+          },
+          {
+            "tau": 0.86,
+            "warning_palsu_45s": 0.0059,
+            "critical_palsu_45s_olahraga": 0.0056,
+            "p_critical_60s_serangan_saat_gerak": 0.0612
+          },
+          {
+            "tau": 0.88,
+            "warning_palsu_45s": 0.0038,
+            "critical_palsu_45s_olahraga": 0.0035,
+            "p_critical_60s_serangan_saat_gerak": 0.0523
+          },
+          {
+            "tau": 0.9,
+            "warning_palsu_45s": 0.0019,
+            "critical_palsu_45s_olahraga": 0.0016,
+            "p_critical_60s_serangan_saat_gerak": 0.0341
+          },
+          {
+            "tau": 0.92,
+            "warning_palsu_45s": 0.0019,
+            "critical_palsu_45s_olahraga": 0.0014,
+            "p_critical_60s_serangan_saat_gerak": 0.0229
+          },
+          {
+            "tau": 0.94,
+            "warning_palsu_45s": 0.0,
+            "critical_palsu_45s_olahraga": 0.0,
+            "p_critical_60s_serangan_saat_gerak": 0.0159
+          }
+        ]
+      },
+      "motion_0.9": {
+        "prediksi_normal_dengan_artefak": [
+          0.6423,
+          0.0038,
+          0.3539
+        ],
+        "per_tau": [
+          {
+            "tau": 0.44,
+            "warning_palsu_45s": 0.385,
+            "critical_palsu_45s_olahraga": 0.3801,
+            "p_critical_60s_serangan_saat_gerak": 0.5093
+          },
+          {
+            "tau": 0.46,
+            "warning_palsu_45s": 0.3721,
+            "critical_palsu_45s_olahraga": 0.3671,
+            "p_critical_60s_serangan_saat_gerak": 0.4893
+          },
+          {
+            "tau": 0.48,
+            "warning_palsu_45s": 0.3448,
+            "critical_palsu_45s_olahraga": 0.3401,
+            "p_critical_60s_serangan_saat_gerak": 0.4706
+          },
+          {
+            "tau": 0.5,
+            "warning_palsu_45s": 0.3213,
+            "critical_palsu_45s_olahraga": 0.3173,
+            "p_critical_60s_serangan_saat_gerak": 0.4533
+          },
+          {
+            "tau": 0.52,
+            "warning_palsu_45s": 0.3029,
+            "critical_palsu_45s_olahraga": 0.3027,
+            "p_critical_60s_serangan_saat_gerak": 0.421
+          },
+          {
+            "tau": 0.54,
+            "warning_palsu_45s": 0.2756,
+            "critical_palsu_45s_olahraga": 0.2752,
+            "p_critical_60s_serangan_saat_gerak": 0.4121
+          },
+          {
+            "tau": 0.56,
+            "warning_palsu_45s": 0.2554,
+            "critical_palsu_45s_olahraga": 0.2505,
+            "p_critical_60s_serangan_saat_gerak": 0.371
+          },
+          {
+            "tau": 0.58,
+            "warning_palsu_45s": 0.2321,
+            "critical_palsu_45s_olahraga": 0.2317,
+            "p_critical_60s_serangan_saat_gerak": 0.3579
+          },
+          {
+            "tau": 0.6,
+            "warning_palsu_45s": 0.2001,
+            "critical_palsu_45s_olahraga": 0.2018,
+            "p_critical_60s_serangan_saat_gerak": 0.3243
+          },
+          {
+            "tau": 0.62,
+            "warning_palsu_45s": 0.1745,
+            "critical_palsu_45s_olahraga": 0.1766,
+            "p_critical_60s_serangan_saat_gerak": 0.3047
+          },
+          {
+            "tau": 0.64,
+            "warning_palsu_45s": 0.1496,
+            "critical_palsu_45s_olahraga": 0.1515,
+            "p_critical_60s_serangan_saat_gerak": 0.2808
+          },
+          {
+            "tau": 0.66,
+            "warning_palsu_45s": 0.123,
+            "critical_palsu_45s_olahraga": 0.1235,
+            "p_critical_60s_serangan_saat_gerak": 0.2645
+          },
+          {
+            "tau": 0.68,
+            "warning_palsu_45s": 0.1023,
+            "critical_palsu_45s_olahraga": 0.1035,
+            "p_critical_60s_serangan_saat_gerak": 0.2168
+          },
+          {
+            "tau": 0.7,
+            "warning_palsu_45s": 0.0856,
+            "critical_palsu_45s_olahraga": 0.087,
+            "p_critical_60s_serangan_saat_gerak": 0.1944
+          },
+          {
+            "tau": 0.72,
+            "warning_palsu_45s": 0.0687,
+            "critical_palsu_45s_olahraga": 0.0703,
+            "p_critical_60s_serangan_saat_gerak": 0.1715
+          },
+          {
+            "tau": 0.74,
+            "warning_palsu_45s": 0.0532,
+            "critical_palsu_45s_olahraga": 0.0548,
+            "p_critical_60s_serangan_saat_gerak": 0.1486
+          },
+          {
+            "tau": 0.76,
+            "warning_palsu_45s": 0.0419,
+            "critical_palsu_45s_olahraga": 0.0416,
+            "p_critical_60s_serangan_saat_gerak": 0.1341
+          },
+          {
+            "tau": 0.78,
+            "warning_palsu_45s": 0.0343,
+            "critical_palsu_45s_olahraga": 0.0327,
+            "p_critical_60s_serangan_saat_gerak": 0.114
+          },
+          {
+            "tau": 0.8,
+            "warning_palsu_45s": 0.0261,
+            "critical_palsu_45s_olahraga": 0.0249,
+            "p_critical_60s_serangan_saat_gerak": 0.0981
+          },
+          {
+            "tau": 0.82,
+            "warning_palsu_45s": 0.0167,
+            "critical_palsu_45s_olahraga": 0.0151,
+            "p_critical_60s_serangan_saat_gerak": 0.0902
+          },
+          {
+            "tau": 0.84,
+            "warning_palsu_45s": 0.0071,
+            "critical_palsu_45s_olahraga": 0.0061,
+            "p_critical_60s_serangan_saat_gerak": 0.0785
+          },
+          {
+            "tau": 0.86,
+            "warning_palsu_45s": 0.0056,
+            "critical_palsu_45s_olahraga": 0.0045,
+            "p_critical_60s_serangan_saat_gerak": 0.064
+          },
+          {
+            "tau": 0.88,
+            "warning_palsu_45s": 0.0019,
+            "critical_palsu_45s_olahraga": 0.0016,
+            "p_critical_60s_serangan_saat_gerak": 0.0514
+          },
+          {
+            "tau": 0.9,
+            "warning_palsu_45s": 0.0019,
+            "critical_palsu_45s_olahraga": 0.0016,
+            "p_critical_60s_serangan_saat_gerak": 0.0402
+          },
+          {
+            "tau": 0.92,
+            "warning_palsu_45s": 0.0007,
+            "critical_palsu_45s_olahraga": 0.0007,
+            "p_critical_60s_serangan_saat_gerak": 0.0276
+          },
+          {
+            "tau": 0.94,
+            "warning_palsu_45s": 0.0,
+            "critical_palsu_45s_olahraga": 0.0,
+            "p_critical_60s_serangan_saat_gerak": 0.0182
+          }
+        ]
+      }
+    },
+    "uji": {
+      "motion_0.6": {
+        "prediksi_normal_dengan_artefak": [
+          0.5772,
+          0.0242,
+          0.3987
+        ],
+        "per_tau": [
+          {
+            "tau": 0.44,
+            "warning_palsu_45s": 0.4,
+            "critical_palsu_45s_olahraga": 0.3907,
+            "p_critical_60s_serangan_saat_gerak": 0.5304
+          },
+          {
+            "tau": 0.46,
+            "warning_palsu_45s": 0.3721,
+            "critical_palsu_45s_olahraga": 0.3667,
+            "p_critical_60s_serangan_saat_gerak": 0.5051
+          },
+          {
+            "tau": 0.48,
+            "warning_palsu_45s": 0.3462,
+            "critical_palsu_45s_olahraga": 0.3421,
+            "p_critical_60s_serangan_saat_gerak": 0.4743
+          },
+          {
+            "tau": 0.5,
+            "warning_palsu_45s": 0.3198,
+            "critical_palsu_45s_olahraga": 0.3143,
+            "p_critical_60s_serangan_saat_gerak": 0.4425
+          },
+          {
+            "tau": 0.52,
+            "warning_palsu_45s": 0.294,
+            "critical_palsu_45s_olahraga": 0.2926,
+            "p_critical_60s_serangan_saat_gerak": 0.4075
+          },
+          {
+            "tau": 0.54,
+            "warning_palsu_45s": 0.2595,
+            "critical_palsu_45s_olahraga": 0.2617,
+            "p_critical_60s_serangan_saat_gerak": 0.3748
+          },
+          {
+            "tau": 0.56,
+            "warning_palsu_45s": 0.2317,
+            "critical_palsu_45s_olahraga": 0.2324,
+            "p_critical_60s_serangan_saat_gerak": 0.3514
+          },
+          {
+            "tau": 0.58,
+            "warning_palsu_45s": 0.2024,
+            "critical_palsu_45s_olahraga": 0.2002,
+            "p_critical_60s_serangan_saat_gerak": 0.3168
+          },
+          {
+            "tau": 0.6,
+            "warning_palsu_45s": 0.1771,
+            "critical_palsu_45s_olahraga": 0.1762,
+            "p_critical_60s_serangan_saat_gerak": 0.2939
+          },
+          {
+            "tau": 0.62,
+            "warning_palsu_45s": 0.1452,
+            "critical_palsu_45s_olahraga": 0.1429,
+            "p_critical_60s_serangan_saat_gerak": 0.2734
+          },
+          {
+            "tau": 0.64,
+            "warning_palsu_45s": 0.1245,
+            "critical_palsu_45s_olahraga": 0.1226,
+            "p_critical_60s_serangan_saat_gerak": 0.2379
+          },
+          {
+            "tau": 0.66,
+            "warning_palsu_45s": 0.1064,
+            "critical_palsu_45s_olahraga": 0.1033,
+            "p_critical_60s_serangan_saat_gerak": 0.2093
+          },
+          {
+            "tau": 0.68,
+            "warning_palsu_45s": 0.0876,
+            "critical_palsu_45s_olahraga": 0.0855,
+            "p_critical_60s_serangan_saat_gerak": 0.1916
+          },
+          {
+            "tau": 0.7,
+            "warning_palsu_45s": 0.0702,
+            "critical_palsu_45s_olahraga": 0.069,
+            "p_critical_60s_serangan_saat_gerak": 0.1668
+          },
+          {
+            "tau": 0.72,
+            "warning_palsu_45s": 0.0548,
+            "critical_palsu_45s_olahraga": 0.0526,
+            "p_critical_60s_serangan_saat_gerak": 0.1509
+          },
+          {
+            "tau": 0.74,
+            "warning_palsu_45s": 0.0471,
+            "critical_palsu_45s_olahraga": 0.0445,
+            "p_critical_60s_serangan_saat_gerak": 0.1407
+          },
+          {
+            "tau": 0.76,
+            "warning_palsu_45s": 0.0312,
+            "critical_palsu_45s_olahraga": 0.03,
+            "p_critical_60s_serangan_saat_gerak": 0.1276
+          },
+          {
+            "tau": 0.78,
+            "warning_palsu_45s": 0.0236,
+            "critical_palsu_45s_olahraga": 0.0229,
+            "p_critical_60s_serangan_saat_gerak": 0.1121
+          },
+          {
+            "tau": 0.8,
+            "warning_palsu_45s": 0.0186,
+            "critical_palsu_45s_olahraga": 0.0179,
+            "p_critical_60s_serangan_saat_gerak": 0.0935
+          },
+          {
+            "tau": 0.82,
+            "warning_palsu_45s": 0.0119,
+            "critical_palsu_45s_olahraga": 0.0119,
+            "p_critical_60s_serangan_saat_gerak": 0.0804
+          },
+          {
+            "tau": 0.84,
+            "warning_palsu_45s": 0.0076,
+            "critical_palsu_45s_olahraga": 0.0081,
+            "p_critical_60s_serangan_saat_gerak": 0.0706
+          },
+          {
+            "tau": 0.86,
+            "warning_palsu_45s": 0.0055,
+            "critical_palsu_45s_olahraga": 0.0064,
+            "p_critical_60s_serangan_saat_gerak": 0.0593
+          },
+          {
+            "tau": 0.88,
+            "warning_palsu_45s": 0.0017,
+            "critical_palsu_45s_olahraga": 0.0014,
+            "p_critical_60s_serangan_saat_gerak": 0.0509
+          },
+          {
+            "tau": 0.9,
+            "warning_palsu_45s": 0.0,
+            "critical_palsu_45s_olahraga": 0.0,
+            "p_critical_60s_serangan_saat_gerak": 0.0379
+          },
+          {
+            "tau": 0.92,
+            "warning_palsu_45s": 0.0,
+            "critical_palsu_45s_olahraga": 0.0,
+            "p_critical_60s_serangan_saat_gerak": 0.0318
+          },
+          {
+            "tau": 0.94,
+            "warning_palsu_45s": 0.0,
+            "critical_palsu_45s_olahraga": 0.0,
+            "p_critical_60s_serangan_saat_gerak": 0.0173
+          }
+        ]
+      },
+      "motion_0.9": {
+        "prediksi_normal_dengan_artefak": [
+          0.5901,
+          0.0229,
+          0.3869
+        ],
+        "per_tau": [
+          {
+            "tau": 0.44,
+            "warning_palsu_45s": 0.4019,
+            "critical_palsu_45s_olahraga": 0.395,
+            "p_critical_60s_serangan_saat_gerak": 0.4939
+          },
+          {
+            "tau": 0.46,
+            "warning_palsu_45s": 0.386,
+            "critical_palsu_45s_olahraga": 0.38,
+            "p_critical_60s_serangan_saat_gerak": 0.4813
+          },
+          {
+            "tau": 0.48,
+            "warning_palsu_45s": 0.3579,
+            "critical_palsu_45s_olahraga": 0.3583,
+            "p_critical_60s_serangan_saat_gerak": 0.457
+          },
+          {
+            "tau": 0.5,
+            "warning_palsu_45s": 0.335,
+            "critical_palsu_45s_olahraga": 0.3355,
+            "p_critical_60s_serangan_saat_gerak": 0.428
+          },
+          {
+            "tau": 0.52,
+            "warning_palsu_45s": 0.311,
+            "critical_palsu_45s_olahraga": 0.3112,
+            "p_critical_60s_serangan_saat_gerak": 0.4136
+          },
+          {
+            "tau": 0.54,
+            "warning_palsu_45s": 0.2824,
+            "critical_palsu_45s_olahraga": 0.2819,
+            "p_critical_60s_serangan_saat_gerak": 0.3921
+          },
+          {
+            "tau": 0.56,
+            "warning_palsu_45s": 0.26,
+            "critical_palsu_45s_olahraga": 0.2607,
+            "p_critical_60s_serangan_saat_gerak": 0.365
+          },
+          {
+            "tau": 0.58,
+            "warning_palsu_45s": 0.2321,
+            "critical_palsu_45s_olahraga": 0.2345,
+            "p_critical_60s_serangan_saat_gerak": 0.3229
+          },
+          {
+            "tau": 0.6,
+            "warning_palsu_45s": 0.2088,
+            "critical_palsu_45s_olahraga": 0.2098,
+            "p_critical_60s_serangan_saat_gerak": 0.3
+          },
+          {
+            "tau": 0.62,
+            "warning_palsu_45s": 0.1864,
+            "critical_palsu_45s_olahraga": 0.1879,
+            "p_critical_60s_serangan_saat_gerak": 0.2729
+          },
+          {
+            "tau": 0.64,
+            "warning_palsu_45s": 0.1571,
+            "critical_palsu_45s_olahraga": 0.1612,
+            "p_critical_60s_serangan_saat_gerak": 0.2449
+          },
+          {
+            "tau": 0.66,
+            "warning_palsu_45s": 0.1307,
+            "critical_palsu_45s_olahraga": 0.1355,
+            "p_critical_60s_serangan_saat_gerak": 0.2178
+          },
+          {
+            "tau": 0.68,
+            "warning_palsu_45s": 0.1014,
+            "critical_palsu_45s_olahraga": 0.1019,
+            "p_critical_60s_serangan_saat_gerak": 0.1879
+          },
+          {
+            "tau": 0.7,
+            "warning_palsu_45s": 0.0857,
+            "critical_palsu_45s_olahraga": 0.0855,
+            "p_critical_60s_serangan_saat_gerak": 0.1561
+          },
+          {
+            "tau": 0.72,
+            "warning_palsu_45s": 0.0707,
+            "critical_palsu_45s_olahraga": 0.0698,
+            "p_critical_60s_serangan_saat_gerak": 0.1407
+          },
+          {
+            "tau": 0.74,
+            "warning_palsu_45s": 0.0569,
+            "critical_palsu_45s_olahraga": 0.055,
+            "p_critical_60s_serangan_saat_gerak": 0.1182
+          },
+          {
+            "tau": 0.76,
+            "warning_palsu_45s": 0.044,
+            "critical_palsu_45s_olahraga": 0.0429,
+            "p_critical_60s_serangan_saat_gerak": 0.1126
+          },
+          {
+            "tau": 0.78,
+            "warning_palsu_45s": 0.034,
+            "critical_palsu_45s_olahraga": 0.0331,
+            "p_critical_60s_serangan_saat_gerak": 0.0991
+          },
+          {
+            "tau": 0.8,
+            "warning_palsu_45s": 0.0245,
+            "critical_palsu_45s_olahraga": 0.0226,
+            "p_critical_60s_serangan_saat_gerak": 0.0902
+          },
+          {
+            "tau": 0.82,
+            "warning_palsu_45s": 0.0164,
+            "critical_palsu_45s_olahraga": 0.0152,
+            "p_critical_60s_serangan_saat_gerak": 0.0818
+          },
+          {
+            "tau": 0.84,
+            "warning_palsu_45s": 0.009,
+            "critical_palsu_45s_olahraga": 0.0086,
+            "p_critical_60s_serangan_saat_gerak": 0.0748
+          },
+          {
+            "tau": 0.86,
+            "warning_palsu_45s": 0.0057,
+            "critical_palsu_45s_olahraga": 0.005,
+            "p_critical_60s_serangan_saat_gerak": 0.057
+          },
+          {
+            "tau": 0.88,
+            "warning_palsu_45s": 0.0019,
+            "critical_palsu_45s_olahraga": 0.0021,
+            "p_critical_60s_serangan_saat_gerak": 0.0388
+          },
+          {
+            "tau": 0.9,
+            "warning_palsu_45s": 0.0007,
+            "critical_palsu_45s_olahraga": 0.0007,
+            "p_critical_60s_serangan_saat_gerak": 0.0294
+          },
+          {
+            "tau": 0.92,
+            "warning_palsu_45s": 0.0,
+            "critical_palsu_45s_olahraga": 0.0,
+            "p_critical_60s_serangan_saat_gerak": 0.0215
+          },
+          {
+            "tau": 0.94,
+            "warning_palsu_45s": 0.0,
+            "critical_palsu_45s_olahraga": 0.0,
+            "p_critical_60s_serangan_saat_gerak": 0.0168
+          }
+        ]
+      }
+    }
+  }
+}

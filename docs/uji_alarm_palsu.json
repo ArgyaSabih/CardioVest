@@ -1,0 +1,1351 @@
+{
+ "jam": 17.96,
+ "ringkasan": {
+  "tanpa gerbang, N=2 (kode asli)": {
+   "warning_per_jam": 5.85,
+   "critical_terburuk_per_jam": 20.16
+  },
+  "dengan gerbang, N=2": {
+   "warning_per_jam": 5.85,
+   "critical_terburuk_per_jam": 20.16
+  },
+  "dengan gerbang, N=3": {
+   "warning_per_jam": 2.06,
+   "critical_terburuk_per_jam": 14.15
+  },
+  "dengan gerbang, N=4": {
+   "warning_per_jam": 1.5,
+   "critical_terburuk_per_jam": 10.86
+  },
+  "gerbang, N=2, tau 0.60": {
+   "warning_per_jam": 2.78,
+   "critical_terburuk_per_jam": 1.89
+  },
+  "gerbang, N=3, tau 0.60": {
+   "warning_per_jam": 0.89,
+   "critical_terburuk_per_jam": 1.23
+  },
+  "gerbang, N=4, tau 0.60": {
+   "warning_per_jam": 0.78,
+   "critical_terburuk_per_jam": 0.89
+  },
+  "gerbang, N=2, tau 0.70": {
+   "warning_per_jam": 1.39,
+   "critical_terburuk_per_jam": 1.73
+  },
+  "gerbang, N=3, tau 0.70": {
+   "warning_per_jam": 0.45,
+   "critical_terburuk_per_jam": 1.06
+  },
+  "gerbang, N=4, tau 0.70": {
+   "warning_per_jam": 0.22,
+   "critical_terburuk_per_jam": 0.78
+  },
+  "gerbang, N=2, tau 0.80": {
+   "warning_per_jam": 0.45,
+   "critical_terburuk_per_jam": 1.28
+  },
+  "gerbang, N=3, tau 0.80": {
+   "warning_per_jam": 0.11,
+   "critical_terburuk_per_jam": 0.84
+  },
+  "gerbang, N=4, tau 0.80": {
+   "warning_per_jam": 0.11,
+   "critical_terburuk_per_jam": 0.61
+  },
+  "gerbang, N=2, tau 0.90": {
+   "warning_per_jam": 0.11,
+   "critical_terburuk_per_jam": 0.22
+  },
+  "gerbang, N=3, tau 0.90": {
+   "warning_per_jam": 0.11,
+   "critical_terburuk_per_jam": 0.11
+  },
+  "gerbang, N=4, tau 0.90": {
+   "warning_per_jam": 0.11,
+   "critical_terburuk_per_jam": 0.11
+  }
+ },
+ "pemicu_pra_serangan": 3537,
+ "pemicu_serangan": 925,
+ "per_rekaman": [
+  {
+   "rekaman": "100001",
+   "jam": 0.998,
+   "gerak": 0.001949317738791423,
+   "kelas3": 0.0,
+   "diblok": 0.0,
+   "tanpa gerbang, N=2 (kode asli)": {
+    "warning": 2,
+    "critical_terburuk": 0
+   },
+   "dengan gerbang, N=2": {
+    "warning": 2,
+    "critical_terburuk": 0
+   },
+   "dengan gerbang, N=3": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "dengan gerbang, N=4": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=2, tau 0.60": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=3, tau 0.60": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=4, tau 0.60": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=2, tau 0.70": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=3, tau 0.70": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=4, tau 0.70": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=2, tau 0.80": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=3, tau 0.80": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=4, tau 0.80": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=2, tau 0.90": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=3, tau 0.90": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=4, tau 0.90": {
+    "warning": 0,
+    "critical_terburuk": 0
+   }
+  },
+  {
+   "rekaman": "100002",
+   "jam": 0.998,
+   "gerak": 0.06335282651072124,
+   "kelas3": 0.0,
+   "diblok": 0.0,
+   "tanpa gerbang, N=2 (kode asli)": {
+    "warning": 11,
+    "critical_terburuk": 11
+   },
+   "dengan gerbang, N=2": {
+    "warning": 11,
+    "critical_terburuk": 11
+   },
+   "dengan gerbang, N=3": {
+    "warning": 8,
+    "critical_terburuk": 9
+   },
+   "dengan gerbang, N=4": {
+    "warning": 6,
+    "critical_terburuk": 7
+   },
+   "gerbang, N=2, tau 0.60": {
+    "warning": 2,
+    "critical_terburuk": 1
+   },
+   "gerbang, N=3, tau 0.60": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=4, tau 0.60": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=2, tau 0.70": {
+    "warning": 1,
+    "critical_terburuk": 1
+   },
+   "gerbang, N=3, tau 0.70": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=4, tau 0.70": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=2, tau 0.80": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=3, tau 0.80": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=4, tau 0.80": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=2, tau 0.90": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=3, tau 0.90": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=4, tau 0.90": {
+    "warning": 0,
+    "critical_terburuk": 0
+   }
+  },
+  {
+   "rekaman": "103001",
+   "jam": 0.998,
+   "gerak": 0.0341130604288499,
+   "kelas3": 0.0,
+   "diblok": 0.0,
+   "tanpa gerbang, N=2 (kode asli)": {
+    "warning": 1,
+    "critical_terburuk": 0
+   },
+   "dengan gerbang, N=2": {
+    "warning": 1,
+    "critical_terburuk": 0
+   },
+   "dengan gerbang, N=3": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "dengan gerbang, N=4": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=2, tau 0.60": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=3, tau 0.60": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=4, tau 0.60": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=2, tau 0.70": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=3, tau 0.70": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=4, tau 0.70": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=2, tau 0.80": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=3, tau 0.80": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=4, tau 0.80": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=2, tau 0.90": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=3, tau 0.90": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=4, tau 0.90": {
+    "warning": 0,
+    "critical_terburuk": 0
+   }
+  },
+  {
+   "rekaman": "103002",
+   "jam": 0.998,
+   "gerak": 0.05263157894736842,
+   "kelas3": 0.0,
+   "diblok": 0.0,
+   "tanpa gerbang, N=2 (kode asli)": {
+    "warning": 1,
+    "critical_terburuk": 0
+   },
+   "dengan gerbang, N=2": {
+    "warning": 1,
+    "critical_terburuk": 0
+   },
+   "dengan gerbang, N=3": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "dengan gerbang, N=4": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=2, tau 0.60": {
+    "warning": 1,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=3, tau 0.60": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=4, tau 0.60": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=2, tau 0.70": {
+    "warning": 1,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=3, tau 0.70": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=4, tau 0.70": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=2, tau 0.80": {
+    "warning": 1,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=3, tau 0.80": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=4, tau 0.80": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=2, tau 0.90": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=3, tau 0.90": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=4, tau 0.90": {
+    "warning": 0,
+    "critical_terburuk": 0
+   }
+  },
+  {
+   "rekaman": "103003",
+   "jam": 0.998,
+   "gerak": 0.0,
+   "kelas3": 0.0,
+   "diblok": 0.0,
+   "tanpa gerbang, N=2 (kode asli)": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "dengan gerbang, N=2": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "dengan gerbang, N=3": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "dengan gerbang, N=4": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=2, tau 0.60": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=3, tau 0.60": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=4, tau 0.60": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=2, tau 0.70": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=3, tau 0.70": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=4, tau 0.70": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=2, tau 0.80": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=3, tau 0.80": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=4, tau 0.80": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=2, tau 0.90": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=3, tau 0.90": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=4, tau 0.90": {
+    "warning": 0,
+    "critical_terburuk": 0
+   }
+  },
+  {
+   "rekaman": "104001",
+   "jam": 0.998,
+   "gerak": 0.18031189083820662,
+   "kelas3": 0.0,
+   "diblok": 0.0,
+   "tanpa gerbang, N=2 (kode asli)": {
+    "warning": 7,
+    "critical_terburuk": 30
+   },
+   "dengan gerbang, N=2": {
+    "warning": 7,
+    "critical_terburuk": 30
+   },
+   "dengan gerbang, N=3": {
+    "warning": 3,
+    "critical_terburuk": 19
+   },
+   "dengan gerbang, N=4": {
+    "warning": 2,
+    "critical_terburuk": 14
+   },
+   "gerbang, N=2, tau 0.60": {
+    "warning": 4,
+    "critical_terburuk": 29
+   },
+   "gerbang, N=3, tau 0.60": {
+    "warning": 2,
+    "critical_terburuk": 19
+   },
+   "gerbang, N=4, tau 0.60": {
+    "warning": 2,
+    "critical_terburuk": 14
+   },
+   "gerbang, N=2, tau 0.70": {
+    "warning": 3,
+    "critical_terburuk": 29
+   },
+   "gerbang, N=3, tau 0.70": {
+    "warning": 2,
+    "critical_terburuk": 19
+   },
+   "gerbang, N=4, tau 0.70": {
+    "warning": 2,
+    "critical_terburuk": 14
+   },
+   "gerbang, N=2, tau 0.80": {
+    "warning": 2,
+    "critical_terburuk": 23
+   },
+   "gerbang, N=3, tau 0.80": {
+    "warning": 2,
+    "critical_terburuk": 15
+   },
+   "gerbang, N=4, tau 0.80": {
+    "warning": 2,
+    "critical_terburuk": 11
+   },
+   "gerbang, N=2, tau 0.90": {
+    "warning": 2,
+    "critical_terburuk": 4
+   },
+   "gerbang, N=3, tau 0.90": {
+    "warning": 2,
+    "critical_terburuk": 2
+   },
+   "gerbang, N=4, tau 0.90": {
+    "warning": 2,
+    "critical_terburuk": 2
+   }
+  },
+  {
+   "rekaman": "105001",
+   "jam": 0.998,
+   "gerak": 0.0009746588693957114,
+   "kelas3": 0.0,
+   "diblok": 0.0,
+   "tanpa gerbang, N=2 (kode asli)": {
+    "warning": 2,
+    "critical_terburuk": 0
+   },
+   "dengan gerbang, N=2": {
+    "warning": 2,
+    "critical_terburuk": 0
+   },
+   "dengan gerbang, N=3": {
+    "warning": 1,
+    "critical_terburuk": 0
+   },
+   "dengan gerbang, N=4": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=2, tau 0.60": {
+    "warning": 2,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=3, tau 0.60": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=4, tau 0.60": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=2, tau 0.70": {
+    "warning": 1,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=3, tau 0.70": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=4, tau 0.70": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=2, tau 0.80": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=3, tau 0.80": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=4, tau 0.80": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=2, tau 0.90": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=3, tau 0.90": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=4, tau 0.90": {
+    "warning": 0,
+    "critical_terburuk": 0
+   }
+  },
+  {
+   "rekaman": "111001",
+   "jam": 0.998,
+   "gerak": 0.9639376218323586,
+   "kelas3": 0.0,
+   "diblok": 0.0,
+   "tanpa gerbang, N=2 (kode asli)": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "dengan gerbang, N=2": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "dengan gerbang, N=3": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "dengan gerbang, N=4": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=2, tau 0.60": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=3, tau 0.60": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=4, tau 0.60": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=2, tau 0.70": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=3, tau 0.70": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=4, tau 0.70": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=2, tau 0.80": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=3, tau 0.80": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=4, tau 0.80": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=2, tau 0.90": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=3, tau 0.90": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=4, tau 0.90": {
+    "warning": 0,
+    "critical_terburuk": 0
+   }
+  },
+  {
+   "rekaman": "113001",
+   "jam": 0.998,
+   "gerak": 0.04483430799220273,
+   "kelas3": 0.0,
+   "diblok": 0.0,
+   "tanpa gerbang, N=2 (kode asli)": {
+    "warning": 27,
+    "critical_terburuk": 1
+   },
+   "dengan gerbang, N=2": {
+    "warning": 27,
+    "critical_terburuk": 1
+   },
+   "dengan gerbang, N=3": {
+    "warning": 5,
+    "critical_terburuk": 1
+   },
+   "dengan gerbang, N=4": {
+    "warning": 3,
+    "critical_terburuk": 1
+   },
+   "gerbang, N=2, tau 0.60": {
+    "warning": 20,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=3, tau 0.60": {
+    "warning": 5,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=4, tau 0.60": {
+    "warning": 4,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=2, tau 0.70": {
+    "warning": 11,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=3, tau 0.70": {
+    "warning": 3,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=4, tau 0.70": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=2, tau 0.80": {
+    "warning": 1,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=3, tau 0.80": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=4, tau 0.80": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=2, tau 0.90": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=3, tau 0.90": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=4, tau 0.90": {
+    "warning": 0,
+    "critical_terburuk": 0
+   }
+  },
+  {
+   "rekaman": "114001",
+   "jam": 0.998,
+   "gerak": 0.050682261208576995,
+   "kelas3": 0.0,
+   "diblok": 0.0,
+   "tanpa gerbang, N=2 (kode asli)": {
+    "warning": 10,
+    "critical_terburuk": 0
+   },
+   "dengan gerbang, N=2": {
+    "warning": 10,
+    "critical_terburuk": 0
+   },
+   "dengan gerbang, N=3": {
+    "warning": 3,
+    "critical_terburuk": 0
+   },
+   "dengan gerbang, N=4": {
+    "warning": 2,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=2, tau 0.60": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=3, tau 0.60": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=4, tau 0.60": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=2, tau 0.70": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=3, tau 0.70": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=4, tau 0.70": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=2, tau 0.80": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=3, tau 0.80": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=4, tau 0.80": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=2, tau 0.90": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=3, tau 0.90": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=4, tau 0.90": {
+    "warning": 0,
+    "critical_terburuk": 0
+   }
+  },
+  {
+   "rekaman": "115001",
+   "jam": 0.998,
+   "gerak": 0.0,
+   "kelas3": 0.0,
+   "diblok": 0.0,
+   "tanpa gerbang, N=2 (kode asli)": {
+    "warning": 1,
+    "critical_terburuk": 0
+   },
+   "dengan gerbang, N=2": {
+    "warning": 1,
+    "critical_terburuk": 0
+   },
+   "dengan gerbang, N=3": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "dengan gerbang, N=4": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=2, tau 0.60": {
+    "warning": 1,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=3, tau 0.60": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=4, tau 0.60": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=2, tau 0.70": {
+    "warning": 1,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=3, tau 0.70": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=4, tau 0.70": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=2, tau 0.80": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=3, tau 0.80": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=4, tau 0.80": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=2, tau 0.90": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=3, tau 0.90": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=4, tau 0.90": {
+    "warning": 0,
+    "critical_terburuk": 0
+   }
+  },
+  {
+   "rekaman": "118001",
+   "jam": 0.998,
+   "gerak": 0.0,
+   "kelas3": 0.0,
+   "diblok": 0.0,
+   "tanpa gerbang, N=2 (kode asli)": {
+    "warning": 5,
+    "critical_terburuk": 0
+   },
+   "dengan gerbang, N=2": {
+    "warning": 5,
+    "critical_terburuk": 0
+   },
+   "dengan gerbang, N=3": {
+    "warning": 1,
+    "critical_terburuk": 0
+   },
+   "dengan gerbang, N=4": {
+    "warning": 1,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=2, tau 0.60": {
+    "warning": 5,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=3, tau 0.60": {
+    "warning": 1,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=4, tau 0.60": {
+    "warning": 1,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=2, tau 0.70": {
+    "warning": 5,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=3, tau 0.70": {
+    "warning": 1,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=4, tau 0.70": {
+    "warning": 1,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=2, tau 0.80": {
+    "warning": 4,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=3, tau 0.80": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=4, tau 0.80": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=2, tau 0.90": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=3, tau 0.90": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=4, tau 0.90": {
+    "warning": 0,
+    "critical_terburuk": 0
+   }
+  },
+  {
+   "rekaman": "121001",
+   "jam": 0.998,
+   "gerak": 0.0,
+   "kelas3": 0.0,
+   "diblok": 0.0,
+   "tanpa gerbang, N=2 (kode asli)": {
+    "warning": 1,
+    "critical_terburuk": 0
+   },
+   "dengan gerbang, N=2": {
+    "warning": 1,
+    "critical_terburuk": 0
+   },
+   "dengan gerbang, N=3": {
+    "warning": 1,
+    "critical_terburuk": 0
+   },
+   "dengan gerbang, N=4": {
+    "warning": 1,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=2, tau 0.60": {
+    "warning": 1,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=3, tau 0.60": {
+    "warning": 1,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=4, tau 0.60": {
+    "warning": 1,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=2, tau 0.70": {
+    "warning": 1,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=3, tau 0.70": {
+    "warning": 1,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=4, tau 0.70": {
+    "warning": 1,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=2, tau 0.80": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=3, tau 0.80": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=4, tau 0.80": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=2, tau 0.90": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=3, tau 0.90": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=4, tau 0.90": {
+    "warning": 0,
+    "critical_terburuk": 0
+   }
+  },
+  {
+   "rekaman": "122001",
+   "jam": 0.998,
+   "gerak": 0.0,
+   "kelas3": 0.0,
+   "diblok": 0.0,
+   "tanpa gerbang, N=2 (kode asli)": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "dengan gerbang, N=2": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "dengan gerbang, N=3": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "dengan gerbang, N=4": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=2, tau 0.60": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=3, tau 0.60": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=4, tau 0.60": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=2, tau 0.70": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=3, tau 0.70": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=4, tau 0.70": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=2, tau 0.80": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=3, tau 0.80": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=4, tau 0.80": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=2, tau 0.90": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=3, tau 0.90": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=4, tau 0.90": {
+    "warning": 0,
+    "critical_terburuk": 0
+   }
+  },
+  {
+   "rekaman": "123001",
+   "jam": 0.998,
+   "gerak": 0.06627680311890838,
+   "kelas3": 0.0,
+   "diblok": 0.0,
+   "tanpa gerbang, N=2 (kode asli)": {
+    "warning": 21,
+    "critical_terburuk": 11
+   },
+   "dengan gerbang, N=2": {
+    "warning": 21,
+    "critical_terburuk": 11
+   },
+   "dengan gerbang, N=3": {
+    "warning": 7,
+    "critical_terburuk": 7
+   },
+   "dengan gerbang, N=4": {
+    "warning": 6,
+    "critical_terburuk": 6
+   },
+   "gerbang, N=2, tau 0.60": {
+    "warning": 7,
+    "critical_terburuk": 2
+   },
+   "gerbang, N=3, tau 0.60": {
+    "warning": 2,
+    "critical_terburuk": 2
+   },
+   "gerbang, N=4, tau 0.60": {
+    "warning": 2,
+    "critical_terburuk": 1
+   },
+   "gerbang, N=2, tau 0.70": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=3, tau 0.70": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=4, tau 0.70": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=2, tau 0.80": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=3, tau 0.80": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=4, tau 0.80": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=2, tau 0.90": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=3, tau 0.90": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=4, tau 0.90": {
+    "warning": 0,
+    "critical_terburuk": 0
+   }
+  },
+  {
+   "rekaman": "124001",
+   "jam": 0.998,
+   "gerak": 0.06432748538011696,
+   "kelas3": 0.0029239766081871343,
+   "diblok": 0.0,
+   "tanpa gerbang, N=2 (kode asli)": {
+    "warning": 7,
+    "critical_terburuk": 6
+   },
+   "dengan gerbang, N=2": {
+    "warning": 7,
+    "critical_terburuk": 6
+   },
+   "dengan gerbang, N=3": {
+    "warning": 3,
+    "critical_terburuk": 5
+   },
+   "dengan gerbang, N=4": {
+    "warning": 2,
+    "critical_terburuk": 5
+   },
+   "gerbang, N=2, tau 0.60": {
+    "warning": 5,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=3, tau 0.60": {
+    "warning": 3,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=4, tau 0.60": {
+    "warning": 3,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=2, tau 0.70": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=3, tau 0.70": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=4, tau 0.70": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=2, tau 0.80": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=3, tau 0.80": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=4, tau 0.80": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=2, tau 0.90": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=3, tau 0.90": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=4, tau 0.90": {
+    "warning": 0,
+    "critical_terburuk": 0
+   }
+  },
+  {
+   "rekaman": "125001",
+   "jam": 0.998,
+   "gerak": 0.19005847953216373,
+   "kelas3": 0.0,
+   "diblok": 0.0,
+   "tanpa gerbang, N=2 (kode asli)": {
+    "warning": 1,
+    "critical_terburuk": 303
+   },
+   "dengan gerbang, N=2": {
+    "warning": 1,
+    "critical_terburuk": 303
+   },
+   "dengan gerbang, N=3": {
+    "warning": 1,
+    "critical_terburuk": 213
+   },
+   "dengan gerbang, N=4": {
+    "warning": 1,
+    "critical_terburuk": 162
+   },
+   "gerbang, N=2, tau 0.60": {
+    "warning": 1,
+    "critical_terburuk": 2
+   },
+   "gerbang, N=3, tau 0.60": {
+    "warning": 1,
+    "critical_terburuk": 1
+   },
+   "gerbang, N=4, tau 0.60": {
+    "warning": 1,
+    "critical_terburuk": 1
+   },
+   "gerbang, N=2, tau 0.70": {
+    "warning": 1,
+    "critical_terburuk": 1
+   },
+   "gerbang, N=3, tau 0.70": {
+    "warning": 1,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=4, tau 0.70": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=2, tau 0.80": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=3, tau 0.80": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=4, tau 0.80": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=2, tau 0.90": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=3, tau 0.90": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=4, tau 0.90": {
+    "warning": 0,
+    "critical_terburuk": 0
+   }
+  },
+  {
+   "rekaman": "126001",
+   "jam": 0.998,
+   "gerak": 0.0,
+   "kelas3": 0.0,
+   "diblok": 0.0,
+   "tanpa gerbang, N=2 (kode asli)": {
+    "warning": 8,
+    "critical_terburuk": 0
+   },
+   "dengan gerbang, N=2": {
+    "warning": 8,
+    "critical_terburuk": 0
+   },
+   "dengan gerbang, N=3": {
+    "warning": 4,
+    "critical_terburuk": 0
+   },
+   "dengan gerbang, N=4": {
+    "warning": 3,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=2, tau 0.60": {
+    "warning": 1,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=3, tau 0.60": {
+    "warning": 1,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=4, tau 0.60": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=2, tau 0.70": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=3, tau 0.70": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=4, tau 0.70": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=2, tau 0.80": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=3, tau 0.80": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=4, tau 0.80": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=2, tau 0.90": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=3, tau 0.90": {
+    "warning": 0,
+    "critical_terburuk": 0
+   },
+   "gerbang, N=4, tau 0.90": {
+    "warning": 0,
+    "critical_terburuk": 0
+   }
+  }
+ ]
+}

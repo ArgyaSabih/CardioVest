@@ -1,0 +1,87 @@
+{
+ "sumber": "cnn1d_ecg.keras",
+ "parameter": 44547,
+ "input": [
+  null,
+  1750,
+  1
+ ],
+ "lapisan": [
+  {
+   "nama": "ecg",
+   "jenis": "InputLayer"
+  },
+  {
+   "nama": "conv1d",
+   "jenis": "Conv1D",
+   "filter": 32,
+   "kernel": 5
+  },
+  {
+   "nama": "batch_normalization",
+   "jenis": "BatchNormalization"
+  },
+  {
+   "nama": "max_pooling1d",
+   "jenis": "MaxPooling1D"
+  },
+  {
+   "nama": "conv1d_1",
+   "jenis": "Conv1D",
+   "filter": 64,
+   "kernel": 5
+  },
+  {
+   "nama": "batch_normalization_1",
+   "jenis": "BatchNormalization"
+  },
+  {
+   "nama": "max_pooling1d_1",
+   "jenis": "MaxPooling1D"
+  },
+  {
+   "nama": "conv1d_2",
+   "jenis": "Conv1D",
+   "filter": 128,
+   "kernel": 3
+  },
+  {
+   "nama": "batch_normalization_2",
+   "jenis": "BatchNormalization"
+  },
+  {
+   "nama": "global_average_pooling1d",
+   "jenis": "GlobalAveragePooling1D"
+  },
+  {
+   "nama": "dropout",
+   "jenis": "Dropout",
+   "rate": 0.3
+  },
+  {
+   "nama": "dense",
+   "jenis": "Dense",
+   "unit": 64
+  },
+  {
+   "nama": "dropout_1",
+   "jenis": "Dropout",
+   "rate": 0.2
+  },
+  {
+   "nama": "probs",
+   "jenis": "Dense",
+   "unit": 3
+  }
+ ],
+ "h5": {
+  "berkas": "cnn1d_ecg.h5",
+  "selisih_maks": 0.0
+ },
+ "onnx": {
+  "berkas": "cnn1d_ecg.onnx",
+  "opset": 17,
+  "selisih_maks": 4.172325134277344e-07,
+  "kelas_sama": 1.0
+ }
+}
