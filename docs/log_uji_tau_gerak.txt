@@ -1,0 +1,562 @@
+################ hw-301 REPLAY_ONLY_CORRECT=1 seed 5 json  (TAU_CONF=0.44, TAU_CONF_MOTION=0.76)
+
+=== normal: reset + stabilisasi (normal, 15-60 s), lalu uji 35 s
+    state : NORMAL
+    alert : []
+    hasil : PASS 
+    klinis: benar: tanpa alarm
+
+=== artefak: reset + stabilisasi (normal, 15-60 s), lalu uji 65 s
+    state : NORMAL
+    alert : []
+    hasil : PASS 
+    klinis: benar: tanpa alarm
+
+=== pra_serangan: reset + stabilisasi (normal, 15-60 s), lalu uji 70 s
+    state : NORMAL -> WARNING -> NORMAL
+    alert : ['warning']
+    alasan: Pra-Serangan persisten 2/2 window
+    alasan: Normal persisten 3/3 window (histeresis)
+    hasil : PASS 
+    klinis: terdeteksi
+
+=== pra_af: reset + stabilisasi (normal, 15-60 s), lalu uji 70 s
+    state : NORMAL -> WARNING -> NORMAL
+    alert : ['warning']
+    alasan: Pra-Serangan persisten 2/2 window
+    alasan: Normal persisten 3/3 window (histeresis)
+    hasil : PASS 
+    klinis: terdeteksi
+
+=== serangan: reset + stabilisasi (normal, 15-60 s), lalu uji 45 s
+    state : NORMAL -> WARNING -> CRITICAL
+    alert : ['warning', 'critical']
+    alasan: Pra-Serangan persisten 2/2 window
+    alasan: gerbang cross-validation terpenuhi: Serangan AND 1_GSR=1, 1_HR=1
+    hasil : PASS CRITICAL tetap terkunci
+    klinis: terdeteksi
+
+=== serangan_jatuh: reset + stabilisasi (normal, 15-60 s), lalu uji 60 s
+    state : NORMAL -> WARNING -> CRITICAL
+    alert : ['warning', 'critical', 'critical_fall', 'critical_location']
+    alasan: Pra-Serangan persisten 2/2 window
+    alasan: gerbang cross-validation terpenuhi: Serangan AND 1_GSR=1, 1_HR=1
+    hasil : PASS 
+    klinis: terdeteksi
+
+=== serangan_vt: reset + stabilisasi (normal, 15-60 s), lalu uji 35 s
+    state : NORMAL -> CRITICAL
+    alert : ['critical']
+    alasan: Serangan persisten 3/3 window dan cross-validation terpenuhi (1_GSR=1, 1_HR=1)
+    hasil : PASS 
+    klinis: terdeteksi
+
+=== sqi_rendah: reset + stabilisasi (normal, 15-60 s), lalu uji 80 s
+    state : NORMAL -> WARNING -> NORMAL
+    alert : ['warning']
+    alasan: Pra-Serangan persisten 3/3 window
+    alasan: Normal persisten 4/4 window (histeresis)
+    hasil : PASS N=3 (terdegradasi)
+    klinis: terdeteksi
+
+=== putus_koneksi: reset + stabilisasi (normal, 15-60 s), lalu uji 110 s
+    state : NORMAL -> WARNING -> CRITICAL
+    alert : ['warning', 'critical']
+    alasan: Pra-Serangan persisten 2/2 window
+    alasan: gerbang cross-validation terpenuhi: Serangan AND 1_GSR=1, 1_HR=1
+    hasil : PASS LWT=['offline', 'online'], inferensi paket terlambat=12
+    klinis: terdeteksi
+
+RINGKASAN
+  PASS  normal          NORMAL                              alert[-]  | klinis: benar: tanpa alarm
+  PASS  artefak         NORMAL                              alert[-]  | klinis: benar: tanpa alarm
+  PASS  pra_serangan    NORMAL -> WARNING -> NORMAL         alert[warning]  | klinis: terdeteksi
+  PASS  pra_af          NORMAL -> WARNING -> NORMAL         alert[warning]  | klinis: terdeteksi
+  PASS  serangan        NORMAL -> WARNING -> CRITICAL       alert[warning,critical] CRITICAL tetap terkunci | klinis: terdeteksi
+  PASS  serangan_jatuh  NORMAL -> WARNING -> CRITICAL       alert[warning,critical,critical_fall,critical_location]  | klinis: terdeteksi
+  PASS  serangan_vt     NORMAL -> CRITICAL                  alert[critical]  | klinis: terdeteksi
+  PASS  sqi_rendah      NORMAL -> WARNING -> NORMAL         alert[warning] N=3 (terdegradasi) | klinis: terdeteksi
+  PASS  putus_koneksi   NORMAL -> WARNING -> CRITICAL       alert[warning,critical] LWT=['offline', 'online'], inferensi paket terlambat=12 | klinis: terdeteksi
+
+################ hw-302 REPLAY_ONLY_CORRECT=1 seed 17 json  (TAU_CONF=0.44, TAU_CONF_MOTION=0.76)
+
+=== normal: reset + stabilisasi (normal, 15-60 s), lalu uji 35 s
+    state : NORMAL
+    alert : []
+    hasil : PASS 
+    klinis: benar: tanpa alarm
+
+=== artefak: reset + stabilisasi (normal, 15-60 s), lalu uji 65 s
+    state : NORMAL
+    alert : []
+    hasil : PASS 
+    klinis: benar: tanpa alarm
+
+=== pra_serangan: reset + stabilisasi (normal, 15-60 s), lalu uji 70 s
+    state : NORMAL -> WARNING -> NORMAL
+    alert : ['warning']
+    alasan: Pra-Serangan persisten 2/2 window
+    alasan: Normal persisten 3/3 window (histeresis)
+    hasil : PASS 
+    klinis: terdeteksi
+
+=== pra_af: reset + stabilisasi (normal, 15-60 s), lalu uji 70 s
+    state : NORMAL -> WARNING -> NORMAL
+    alert : ['warning']
+    alasan: Pra-Serangan persisten 2/2 window
+    alasan: Normal persisten 3/3 window (histeresis)
+    hasil : PASS 
+    klinis: terdeteksi
+
+=== serangan: reset + stabilisasi (normal, 15-60 s), lalu uji 45 s
+    state : NORMAL -> WARNING -> CRITICAL
+    alert : ['warning', 'critical']
+    alasan: Pra-Serangan persisten 2/2 window
+    alasan: gerbang cross-validation terpenuhi: Serangan AND 1_GSR=1, 1_HR=1
+    hasil : PASS CRITICAL tetap terkunci
+    klinis: terdeteksi
+
+=== serangan_jatuh: reset + stabilisasi (normal, 15-60 s), lalu uji 60 s
+    state : NORMAL -> WARNING -> CRITICAL
+    alert : ['warning', 'critical', 'critical_fall', 'critical_location']
+    alasan: Pra-Serangan persisten 2/2 window
+    alasan: gerbang cross-validation terpenuhi: Serangan AND 1_GSR=1, 1_HR=1
+    hasil : PASS 
+    klinis: terdeteksi
+
+=== serangan_vt: reset + stabilisasi (normal, 15-60 s), lalu uji 35 s
+    state : NORMAL -> WARNING -> CRITICAL
+    alert : ['warning', 'critical']
+    alasan: Pra-Serangan persisten 3/3 window
+    alasan: gerbang cross-validation terpenuhi: Serangan AND 1_GSR=1, 1_HR=1
+    hasil : FAIL 
+    klinis: terdeteksi
+
+=== sqi_rendah: reset + stabilisasi (normal, 15-60 s), lalu uji 80 s
+    state : NORMAL -> WARNING -> NORMAL
+    alert : ['warning']
+    alasan: Pra-Serangan persisten 3/3 window
+    alasan: Normal persisten 4/4 window (histeresis)
+    hasil : PASS N=3 (terdegradasi)
+    klinis: terdeteksi
+
+=== putus_koneksi: reset + stabilisasi (normal, 15-60 s), lalu uji 110 s
+    state : NORMAL -> WARNING -> CRITICAL
+    alert : ['warning', 'critical']
+    alasan: Pra-Serangan persisten 2/2 window
+    alasan: gerbang cross-validation terpenuhi: Serangan AND 1_GSR=1, 1_HR=1
+    hasil : PASS LWT=['offline', 'online'], inferensi paket terlambat=12
+    klinis: terdeteksi
+
+RINGKASAN
+  PASS  normal          NORMAL                              alert[-]  | klinis: benar: tanpa alarm
+  PASS  artefak         NORMAL                              alert[-]  | klinis: benar: tanpa alarm
+  PASS  pra_serangan    NORMAL -> WARNING -> NORMAL         alert[warning]  | klinis: terdeteksi
+  PASS  pra_af          NORMAL -> WARNING -> NORMAL         alert[warning]  | klinis: terdeteksi
+  PASS  serangan        NORMAL -> WARNING -> CRITICAL       alert[warning,critical] CRITICAL tetap terkunci | klinis: terdeteksi
+  PASS  serangan_jatuh  NORMAL -> WARNING -> CRITICAL       alert[warning,critical,critical_fall,critical_location]  | klinis: terdeteksi
+  FAIL  serangan_vt     NORMAL -> WARNING -> CRITICAL       alert[warning,critical]  | klinis: terdeteksi
+  PASS  sqi_rendah      NORMAL -> WARNING -> NORMAL         alert[warning] N=3 (terdegradasi) | klinis: terdeteksi
+  PASS  putus_koneksi   NORMAL -> WARNING -> CRITICAL       alert[warning,critical] LWT=['offline', 'online'], inferensi paket terlambat=12 | klinis: terdeteksi
+
+################ hw-303 REPLAY_ONLY_CORRECT=1 seed 29 json  (TAU_CONF=0.44, TAU_CONF_MOTION=0.76)
+
+=== normal: reset + stabilisasi (normal, 15-60 s), lalu uji 35 s
+    state : NORMAL
+    alert : []
+    hasil : PASS 
+    klinis: benar: tanpa alarm
+
+=== artefak: reset + stabilisasi (normal, 15-60 s), lalu uji 65 s
+    state : NORMAL
+    alert : []
+    hasil : PASS 
+    klinis: benar: tanpa alarm
+
+=== pra_serangan: reset + stabilisasi (normal, 15-60 s), lalu uji 70 s
+    state : NORMAL -> WARNING -> NORMAL
+    alert : ['warning']
+    alasan: Pra-Serangan persisten 2/2 window
+    alasan: Normal persisten 3/3 window (histeresis)
+    hasil : PASS 
+    klinis: terdeteksi
+
+=== pra_af: reset + stabilisasi (normal, 15-60 s), lalu uji 70 s
+    state : NORMAL -> WARNING -> NORMAL
+    alert : ['warning']
+    alasan: Pra-Serangan persisten 2/2 window
+    alasan: Normal persisten 3/3 window (histeresis)
+    hasil : PASS 
+    klinis: terdeteksi
+
+=== serangan: reset + stabilisasi (normal, 15-60 s), lalu uji 45 s
+    state : NORMAL -> WARNING -> CRITICAL
+    alert : ['warning', 'critical']
+    alasan: Pra-Serangan persisten 2/2 window
+    alasan: gerbang cross-validation terpenuhi: Serangan AND 1_GSR=1, 1_HR=1
+    hasil : PASS CRITICAL tetap terkunci
+    klinis: terdeteksi
+
+=== serangan_jatuh: reset + stabilisasi (normal, 15-60 s), lalu uji 60 s
+    state : NORMAL -> WARNING -> CRITICAL
+    alert : ['warning', 'critical', 'critical_fall', 'critical_location']
+    alasan: Pra-Serangan persisten 2/2 window
+    alasan: gerbang cross-validation terpenuhi: Serangan AND 1_GSR=1, 1_HR=1
+    hasil : PASS 
+    klinis: terdeteksi
+
+=== serangan_vt: reset + stabilisasi (normal, 15-60 s), lalu uji 35 s
+    state : NORMAL -> WARNING -> CRITICAL
+    alert : ['warning', 'critical']
+    alasan: Pra-Serangan persisten 3/3 window
+    alasan: gerbang cross-validation terpenuhi: Serangan AND 1_GSR=1, 1_HR=1
+    hasil : FAIL 
+    klinis: terdeteksi
+
+=== sqi_rendah: reset + stabilisasi (normal, 15-60 s), lalu uji 80 s
+    state : NORMAL -> WARNING -> NORMAL
+    alert : ['warning']
+    alasan: Pra-Serangan persisten 3/3 window
+    alasan: Normal persisten 4/4 window (histeresis)
+    hasil : PASS N=3 (terdegradasi)
+    klinis: terdeteksi
+
+=== putus_koneksi: reset + stabilisasi (normal, 15-60 s), lalu uji 110 s
+    state : NORMAL -> WARNING -> CRITICAL
+    alert : ['warning', 'critical']
+    alasan: Pra-Serangan persisten 2/2 window
+    alasan: gerbang cross-validation terpenuhi: Serangan AND 1_GSR=1, 1_HR=1
+    hasil : PASS LWT=['offline', 'online'], inferensi paket terlambat=12
+    klinis: terdeteksi
+
+RINGKASAN
+  PASS  normal          NORMAL                              alert[-]  | klinis: benar: tanpa alarm
+  PASS  artefak         NORMAL                              alert[-]  | klinis: benar: tanpa alarm
+  PASS  pra_serangan    NORMAL -> WARNING -> NORMAL         alert[warning]  | klinis: terdeteksi
+  PASS  pra_af          NORMAL -> WARNING -> NORMAL         alert[warning]  | klinis: terdeteksi
+  PASS  serangan        NORMAL -> WARNING -> CRITICAL       alert[warning,critical] CRITICAL tetap terkunci | klinis: terdeteksi
+  PASS  serangan_jatuh  NORMAL -> WARNING -> CRITICAL       alert[warning,critical,critical_fall,critical_location]  | klinis: terdeteksi
+  FAIL  serangan_vt     NORMAL -> WARNING -> CRITICAL       alert[warning,critical]  | klinis: terdeteksi
+  PASS  sqi_rendah      NORMAL -> WARNING -> NORMAL         alert[warning] N=3 (terdegradasi) | klinis: terdeteksi
+  PASS  putus_koneksi   NORMAL -> WARNING -> CRITICAL       alert[warning,critical] LWT=['offline', 'online'], inferensi paket terlambat=12 | klinis: terdeteksi
+
+################ hw-304 REPLAY_ONLY_CORRECT=1 seed 41 json  (TAU_CONF=0.44, TAU_CONF_MOTION=0.76)
+
+=== normal: reset + stabilisasi (normal, 15-60 s), lalu uji 35 s
+    state : NORMAL
+    alert : []
+    hasil : PASS 
+    klinis: benar: tanpa alarm
+
+=== artefak: reset + stabilisasi (normal, 15-60 s), lalu uji 65 s
+    state : NORMAL -> WARNING
+    alert : ['warning']
+    alasan: Serangan persisten 3/3 window; validator belum lengkap (1_GSR=0, 1_HR=1)
+    hasil : FAIL 
+    klinis: ALARM PALSU (WARNING)
+
+=== pra_serangan: reset + stabilisasi (normal, 15-60 s), lalu uji 70 s
+    state : NORMAL -> WARNING -> NORMAL
+    alert : ['warning']
+    alasan: Pra-Serangan persisten 2/2 window
+    alasan: Normal persisten 3/3 window (histeresis)
+    hasil : PASS 
+    klinis: terdeteksi
+
+=== pra_af: reset + stabilisasi (normal, 15-60 s), lalu uji 70 s
+    state : NORMAL -> WARNING -> NORMAL
+    alert : ['warning']
+    alasan: Pra-Serangan persisten 2/2 window
+    alasan: Normal persisten 3/3 window (histeresis)
+    hasil : PASS 
+    klinis: terdeteksi
+
+=== serangan: reset + stabilisasi (normal, 15-60 s), lalu uji 45 s
+    state : NORMAL -> WARNING -> CRITICAL
+    alert : ['warning', 'critical']
+    alasan: Pra-Serangan persisten 2/2 window
+    alasan: gerbang cross-validation terpenuhi: Serangan AND 1_GSR=1, 1_HR=1
+    hasil : PASS CRITICAL tetap terkunci
+    klinis: terdeteksi
+
+=== serangan_jatuh: reset + stabilisasi (normal, 15-60 s), lalu uji 60 s
+    state : NORMAL -> WARNING -> CRITICAL
+    alert : ['warning', 'critical', 'critical_fall', 'critical_location']
+    alasan: Pra-Serangan persisten 2/2 window
+    alasan: gerbang cross-validation terpenuhi: Serangan AND 1_GSR=1, 1_HR=1
+    hasil : PASS 
+    klinis: terdeteksi
+
+=== serangan_vt: reset + stabilisasi (normal, 15-60 s), lalu uji 35 s
+    state : NORMAL -> CRITICAL
+    alert : ['critical']
+    alasan: Serangan persisten 3/3 window dan cross-validation terpenuhi (1_GSR=1, 1_HR=1)
+    hasil : PASS 
+    klinis: terdeteksi
+
+=== sqi_rendah: reset + stabilisasi (normal, 15-60 s), lalu uji 80 s
+    state : NORMAL -> WARNING -> NORMAL
+    alert : ['warning']
+    alasan: Pra-Serangan persisten 3/3 window
+    alasan: Normal persisten 4/4 window (histeresis)
+    hasil : PASS N=3 (terdegradasi)
+    klinis: terdeteksi
+
+=== putus_koneksi: reset + stabilisasi (normal, 15-60 s), lalu uji 110 s
+    state : NORMAL -> WARNING -> CRITICAL
+    alert : ['warning', 'critical']
+    alasan: Pra-Serangan persisten 2/2 window
+    alasan: gerbang cross-validation terpenuhi: Serangan AND 1_GSR=1, 1_HR=1
+    hasil : PASS LWT=['offline', 'online'], inferensi paket terlambat=12
+    klinis: terdeteksi
+
+RINGKASAN
+  PASS  normal          NORMAL                              alert[-]  | klinis: benar: tanpa alarm
+  FAIL  artefak         NORMAL -> WARNING                   alert[warning]  | klinis: ALARM PALSU (WARNING)
+  PASS  pra_serangan    NORMAL -> WARNING -> NORMAL         alert[warning]  | klinis: terdeteksi
+  PASS  pra_af          NORMAL -> WARNING -> NORMAL         alert[warning]  | klinis: terdeteksi
+  PASS  serangan        NORMAL -> WARNING -> CRITICAL       alert[warning,critical] CRITICAL tetap terkunci | klinis: terdeteksi
+  PASS  serangan_jatuh  NORMAL -> WARNING -> CRITICAL       alert[warning,critical,critical_fall,critical_location]  | klinis: terdeteksi
+  PASS  serangan_vt     NORMAL -> CRITICAL                  alert[critical]  | klinis: terdeteksi
+  PASS  sqi_rendah      NORMAL -> WARNING -> NORMAL         alert[warning] N=3 (terdegradasi) | klinis: terdeteksi
+  PASS  putus_koneksi   NORMAL -> WARNING -> CRITICAL       alert[warning,critical] LWT=['offline', 'online'], inferensi paket terlambat=12 | klinis: terdeteksi
+
+################ hw-311 REPLAY_ONLY_CORRECT=0 seed 11 binary  (TAU_CONF=0.44, TAU_CONF_MOTION=0.76)
+
+=== normal: reset + stabilisasi (normal, 15-60 s), lalu uji 35 s
+    catatan: state awal WARNING (belum pulih setelah 60 s)
+    state : WARNING
+    alert : []
+    hasil : FAIL 
+    klinis: tidak dinilai (state awal WARNING: sinyal 'normal' saat stabilisasi tidak dikenali Normal)
+
+=== artefak: reset + stabilisasi (normal, 15-60 s), lalu uji 65 s
+    catatan: state awal WARNING (belum pulih setelah 60 s)
+    state : WARNING
+    alert : []
+    hasil : FAIL 
+    klinis: tidak dinilai (state awal WARNING: sinyal 'normal' saat stabilisasi tidak dikenali Normal)
+
+=== pra_serangan: reset + stabilisasi (normal, 15-60 s), lalu uji 70 s
+    state : NORMAL
+    alert : []
+    hasil : FAIL 
+    klinis: TERLEWAT
+
+=== pra_af: reset + stabilisasi (normal, 15-60 s), lalu uji 70 s
+    state : NORMAL -> WARNING
+    alert : ['warning']
+    alasan: Pra-Serangan persisten 2/2 window
+    hasil : FAIL 
+    klinis: terdeteksi
+
+=== serangan: reset + stabilisasi (normal, 15-60 s), lalu uji 45 s
+    catatan: state awal WARNING (belum pulih setelah 60 s)
+    state : WARNING -> NORMAL -> WARNING -> CRITICAL
+    alert : ['warning', 'critical']
+    alasan: Normal persisten 3/3 window (histeresis)
+    alasan: Serangan persisten 2/2 window; validator belum lengkap (1_GSR=0, 1_HR=0)
+    alasan: gerbang cross-validation terpenuhi: Serangan AND 1_GSR=1, 1_HR=1
+    hasil : FAIL CRITICAL tetap terkunci
+    klinis: tidak dinilai (state awal WARNING: sinyal 'normal' saat stabilisasi tidak dikenali Normal)
+
+=== serangan_jatuh: reset + stabilisasi (normal, 15-60 s), lalu uji 60 s
+    state : NORMAL -> WARNING
+    alert : ['warning']
+    alasan: Pra-Serangan persisten 2/2 window
+    hasil : FAIL 
+    klinis: terdeteksi sebagian (WARNING, bukan CRITICAL)
+
+=== serangan_vt: reset + stabilisasi (normal, 15-60 s), lalu uji 35 s
+    state : NORMAL -> CRITICAL
+    alert : ['critical']
+    alasan: Serangan persisten 3/3 window dan cross-validation terpenuhi (1_GSR=1, 1_HR=1)
+    hasil : PASS 
+    klinis: terdeteksi
+
+=== sqi_rendah: reset + stabilisasi (normal, 15-60 s), lalu uji 80 s
+    state : NORMAL -> WARNING -> NORMAL
+    alert : ['warning']
+    alasan: Pra-Serangan persisten 3/3 window
+    alasan: Normal persisten 4/4 window (histeresis)
+    hasil : PASS N=3 (terdegradasi)
+    klinis: terdeteksi
+
+=== putus_koneksi: reset + stabilisasi (normal, 15-60 s), lalu uji 110 s
+    state : NORMAL -> WARNING -> CRITICAL
+    alert : ['warning', 'critical', 'critical_location']
+    alasan: Pra-Serangan persisten 2/2 window
+    alasan: gerbang cross-validation terpenuhi: Serangan AND 1_GSR=1, 1_HR=1
+    hasil : PASS LWT=['offline', 'online'], inferensi paket terlambat=11
+    klinis: terdeteksi
+
+RINGKASAN
+  FAIL  normal          WARNING                             alert[-]  | klinis: tidak dinilai (state awal WARNING: sinyal 'normal' saat stabilisasi tidak dikenali Normal)
+  FAIL  artefak         WARNING                             alert[-]  | klinis: tidak dinilai (state awal WARNING: sinyal 'normal' saat stabilisasi tidak dikenali Normal)
+  FAIL  pra_serangan    NORMAL                              alert[-]  | klinis: TERLEWAT
+  FAIL  pra_af          NORMAL -> WARNING                   alert[warning]  | klinis: terdeteksi
+  FAIL  serangan        WARNING -> NORMAL -> WARNING -> CRITICAL alert[warning,critical] CRITICAL tetap terkunci | klinis: tidak dinilai (state awal WARNING: sinyal 'normal' saat stabilisasi tidak dikenali Normal)
+  FAIL  serangan_jatuh  NORMAL -> WARNING                   alert[warning]  | klinis: terdeteksi sebagian (WARNING, bukan CRITICAL)
+  PASS  serangan_vt     NORMAL -> CRITICAL                  alert[critical]  | klinis: terdeteksi
+  PASS  sqi_rendah      NORMAL -> WARNING -> NORMAL         alert[warning] N=3 (terdegradasi) | klinis: terdeteksi
+  PASS  putus_koneksi   NORMAL -> WARNING -> CRITICAL       alert[warning,critical,critical_location] LWT=['offline', 'online'], inferensi paket terlambat=11 | klinis: terdeteksi
+
+################ hw-312 REPLAY_ONLY_CORRECT=0 seed 23 binary  (TAU_CONF=0.44, TAU_CONF_MOTION=0.76)
+
+=== normal: reset + stabilisasi (normal, 15-60 s), lalu uji 35 s
+    state : NORMAL
+    alert : []
+    hasil : PASS 
+    klinis: benar: tanpa alarm
+
+=== artefak: reset + stabilisasi (normal, 15-60 s), lalu uji 65 s
+    state : NORMAL
+    alert : []
+    hasil : PASS 
+    klinis: benar: tanpa alarm
+
+=== pra_serangan: reset + stabilisasi (normal, 15-60 s), lalu uji 70 s
+    state : NORMAL -> WARNING -> NORMAL
+    alert : ['warning']
+    alasan: Pra-Serangan persisten 2/2 window
+    alasan: Normal persisten 3/3 window (histeresis)
+    hasil : PASS 
+    klinis: terdeteksi
+
+=== pra_af: reset + stabilisasi (normal, 15-60 s), lalu uji 70 s
+    state : NORMAL -> WARNING -> NORMAL
+    alert : ['warning']
+    alasan: Pra-Serangan persisten 2/2 window
+    alasan: Normal persisten 3/3 window (histeresis)
+    hasil : PASS 
+    klinis: terdeteksi
+
+=== serangan: reset + stabilisasi (normal, 15-60 s), lalu uji 45 s
+    catatan: state awal WARNING (belum pulih setelah 60 s)
+    state : WARNING -> NORMAL -> WARNING -> CRITICAL
+    alert : ['warning', 'critical']
+    alasan: Normal persisten 3/3 window (histeresis)
+    alasan: Pra-Serangan persisten 2/2 window
+    alasan: gerbang cross-validation terpenuhi: Serangan AND 1_GSR=1, 1_HR=1
+    hasil : FAIL CRITICAL tetap terkunci
+    klinis: tidak dinilai (state awal WARNING: sinyal 'normal' saat stabilisasi tidak dikenali Normal)
+
+=== serangan_jatuh: reset + stabilisasi (normal, 15-60 s), lalu uji 60 s
+    state : NORMAL -> WARNING
+    alert : ['warning']
+    alasan: Pra-Serangan persisten 2/2 window
+    hasil : FAIL 
+    klinis: terdeteksi sebagian (WARNING, bukan CRITICAL)
+
+=== serangan_vt: reset + stabilisasi (normal, 15-60 s), lalu uji 35 s
+    catatan: state awal WARNING (belum pulih setelah 60 s)
+    state : WARNING -> CRITICAL
+    alert : ['critical', 'critical_location']
+    alasan: gerbang cross-validation terpenuhi: Serangan AND 1_GSR=1, 1_HR=1
+    hasil : FAIL 
+    klinis: tidak dinilai (state awal WARNING: sinyal 'normal' saat stabilisasi tidak dikenali Normal)
+
+=== sqi_rendah: reset + stabilisasi (normal, 15-60 s), lalu uji 80 s
+    state : NORMAL -> WARNING -> NORMAL
+    alert : ['warning']
+    alasan: Pra-Serangan persisten 3/3 window
+    alasan: Normal persisten 4/4 window (histeresis)
+    hasil : PASS N=3 (terdegradasi)
+    klinis: terdeteksi
+
+=== putus_koneksi: reset + stabilisasi (normal, 15-60 s), lalu uji 110 s
+    state : NORMAL -> CRITICAL
+    alert : ['critical']
+    alasan: Serangan persisten 2/2 window dan cross-validation terpenuhi (1_GSR=1, 1_HR=1)
+    hasil : FAIL LWT=['offline', 'online'], inferensi paket terlambat=12
+    klinis: terdeteksi
+
+RINGKASAN
+  PASS  normal          NORMAL                              alert[-]  | klinis: benar: tanpa alarm
+  PASS  artefak         NORMAL                              alert[-]  | klinis: benar: tanpa alarm
+  PASS  pra_serangan    NORMAL -> WARNING -> NORMAL         alert[warning]  | klinis: terdeteksi
+  PASS  pra_af          NORMAL -> WARNING -> NORMAL         alert[warning]  | klinis: terdeteksi
+  FAIL  serangan        WARNING -> NORMAL -> WARNING -> CRITICAL alert[warning,critical] CRITICAL tetap terkunci | klinis: tidak dinilai (state awal WARNING: sinyal 'normal' saat stabilisasi tidak dikenali Normal)
+  FAIL  serangan_jatuh  NORMAL -> WARNING                   alert[warning]  | klinis: terdeteksi sebagian (WARNING, bukan CRITICAL)
+  FAIL  serangan_vt     WARNING -> CRITICAL                 alert[critical,critical_location]  | klinis: tidak dinilai (state awal WARNING: sinyal 'normal' saat stabilisasi tidak dikenali Normal)
+  PASS  sqi_rendah      NORMAL -> WARNING -> NORMAL         alert[warning] N=3 (terdegradasi) | klinis: terdeteksi
+  FAIL  putus_koneksi   NORMAL -> CRITICAL                  alert[critical] LWT=['offline', 'online'], inferensi paket terlambat=12 | klinis: terdeteksi
+
+################ hw-313 REPLAY_ONLY_CORRECT=0 seed 37 binary  (TAU_CONF=0.44, TAU_CONF_MOTION=0.76)
+
+=== normal: reset + stabilisasi (normal, 15-60 s), lalu uji 35 s
+    state : NORMAL
+    alert : []
+    hasil : PASS 
+    klinis: benar: tanpa alarm
+
+=== artefak: reset + stabilisasi (normal, 15-60 s), lalu uji 65 s
+    state : NORMAL
+    alert : []
+    hasil : PASS 
+    klinis: benar: tanpa alarm
+
+=== pra_serangan: reset + stabilisasi (normal, 15-60 s), lalu uji 70 s
+    state : NORMAL -> WARNING
+    alert : ['warning']
+    alasan: Serangan persisten 2/2 window; validator belum lengkap (1_GSR=1, 1_HR=0)
+    hasil : FAIL 
+    klinis: terdeteksi
+
+=== pra_af: reset + stabilisasi (normal, 15-60 s), lalu uji 70 s
+    state : NORMAL -> WARNING -> NORMAL
+    alert : ['warning']
+    alasan: Pra-Serangan persisten 2/2 window
+    alasan: Normal persisten 3/3 window (histeresis)
+    hasil : PASS 
+    klinis: terdeteksi
+
+=== serangan: reset + stabilisasi (normal, 15-60 s), lalu uji 45 s
+    state : NORMAL -> WARNING -> CRITICAL
+    alert : ['warning', 'critical']
+    alasan: Pra-Serangan persisten 2/2 window
+    alasan: gerbang cross-validation terpenuhi: Serangan AND 1_GSR=1, 1_HR=1
+    hasil : PASS CRITICAL tetap terkunci
+    klinis: terdeteksi
+
+=== serangan_jatuh: reset + stabilisasi (normal, 15-60 s), lalu uji 60 s
+    state : NORMAL -> WARNING -> CRITICAL
+    alert : ['warning', 'critical', 'critical_fall', 'critical_location']
+    alasan: Pra-Serangan persisten 2/2 window
+    alasan: gerbang cross-validation terpenuhi: Serangan AND 1_GSR=1, 1_HR=1
+    hasil : PASS 
+    klinis: terdeteksi
+
+=== serangan_vt: reset + stabilisasi (normal, 15-60 s), lalu uji 35 s
+    state : NORMAL -> CRITICAL
+    alert : ['critical']
+    alasan: Serangan persisten 3/3 window dan cross-validation terpenuhi (1_GSR=1, 1_HR=1)
+    hasil : PASS 
+    klinis: terdeteksi
+
+=== sqi_rendah: reset + stabilisasi (normal, 15-60 s), lalu uji 80 s
+    state : NORMAL
+    alert : []
+    hasil : FAIL N=3 TIDAK terlihat
+    klinis: TERLEWAT
+
+=== putus_koneksi: reset + stabilisasi (normal, 15-60 s), lalu uji 110 s
+    state : NORMAL -> WARNING
+    alert : ['warning']
+    alasan: Pra-Serangan persisten 2/2 window
+    hasil : FAIL LWT=['offline', 'online'], inferensi paket terlambat=12
+    klinis: terdeteksi sebagian (WARNING, bukan CRITICAL)
+
+RINGKASAN
+  PASS  normal          NORMAL                              alert[-]  | klinis: benar: tanpa alarm
+  PASS  artefak         NORMAL                              alert[-]  | klinis: benar: tanpa alarm
+  FAIL  pra_serangan    NORMAL -> WARNING                   alert[warning]  | klinis: terdeteksi
+  PASS  pra_af          NORMAL -> WARNING -> NORMAL         alert[warning]  | klinis: terdeteksi
+  PASS  serangan        NORMAL -> WARNING -> CRITICAL       alert[warning,critical] CRITICAL tetap terkunci | klinis: terdeteksi
+  PASS  serangan_jatuh  NORMAL -> WARNING -> CRITICAL       alert[warning,critical,critical_fall,critical_location]  | klinis: terdeteksi
+  PASS  serangan_vt     NORMAL -> CRITICAL                  alert[critical]  | klinis: terdeteksi
+  FAIL  sqi_rendah      NORMAL                              alert[-] N=3 TIDAK terlihat | klinis: TERLEWAT
+  FAIL  putus_koneksi   NORMAL -> WARNING                   alert[warning] LWT=['offline', 'online'], inferensi paket terlambat=12 | klinis: terdeteksi sebagian (WARNING, bukan CRITICAL)
+
+################ hw-302 serangan_vt diulang setelah ekspektasi alternatif ditambahkan
+  PASS  serangan_vt     NORMAL -> CRITICAL                  alert[critical]  | klinis: terdeteksi

@@ -1,0 +1,7 @@
+# HTTPS otomatis (Let's Encrypt) untuk aplikasi web. Isi WEB_DOMAIN di .env; domain harus sudah
+# mengarah ke IP server dan port 80/443 terbuka. Notifikasi push dan "pasang ke layar utama"
+# hanya jalan lewat HTTPS.
+{$WEB_DOMAIN} {
+	encode gzip
+	reverse_proxy web:8080
+}

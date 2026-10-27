@@ -1,0 +1,18 @@
+* text=auto
+*.sh text eol=lf
+*.py text eol=lf
+*.js text eol=lf
+*.mjs text eol=lf
+*.jsx text eol=lf
+*.json text eol=lf
+*.yml text eol=lf
+Dockerfile text eol=lf
+mosquitto/produksi/acl text eol=lf
+
+*.npz binary
+*.keras binary
+*.h5 binary
+*.onnx binary
+*.png binary
+*.bin binary
+*.db binary

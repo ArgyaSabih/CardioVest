@@ -1,0 +1,313 @@
+{
+  "catatan": "Dilatih pada PTB-XL (lead I, 100 Hz -> 250 Hz) + MIT-BIH (MLII, 360 Hz -> 250 Hz), split inter-patient 70/15/15. Kelas Serangan PTB-XL = pola infark (akut/lama tidak dibedakan).",
+  "dataset": {
+    "berkas": "ecg_c251_250hz.npz",
+    "window": 23112,
+    "cap_per_pasien": 60,
+    "per_split": {
+      "train": 16125,
+      "val": 3518,
+      "test": 3469
+    },
+    "pasien_per_split": {
+      "train": 11699,
+      "val": 2508,
+      "test": 2508
+    },
+    "kelas_total": [
+      9165,
+      9539,
+      4408
+    ],
+    "kondisi_total": {
+      "normal": 9165,
+      "af": 1434,
+      "st_depression": 3284,
+      "cd": 2880,
+      "stemi": 4158,
+      "pvc": 1489,
+      "svt": 452,
+      "vt": 104,
+      "vf": 146
+    }
+  },
+  "pelatihan": {
+    "epoch_dijalankan": 28,
+    "oversample_vt_vf": 10,
+    "epoch_terbaik": 18,
+    "class_weight": {
+      "0": 0.8373578439009192,
+      "1": 0.8176148463644661,
+      "2": 1.7161558109833972
+    },
+    "parameter": 44547,
+    "durasi_s": 925
+  },
+  "uji": {
+    "n": 3469,
+    "accuracy": 0.633,
+    "macro_f1": 0.5974,
+    "confusion_matrix": [
+      [
+        1095,
+        129,
+        113
+      ],
+      [
+        330,
+        797,
+        394
+      ],
+      [
+        131,
+        176,
+        304
+      ]
+    ],
+    "per_kelas": {
+      "Normal": {
+        "n": 1337,
+        "sensitivity": 0.819,
+        "specificity": 0.7838,
+        "precision": 0.7037,
+        "f1": 0.757
+      },
+      "Pra-Serangan": {
+        "n": 1521,
+        "sensitivity": 0.524,
+        "specificity": 0.8434,
+        "precision": 0.7232,
+        "f1": 0.6077
+      },
+      "Serangan": {
+        "n": 611,
+        "sensitivity": 0.4975,
+        "specificity": 0.8226,
+        "precision": 0.3748,
+        "f1": 0.4276
+      }
+    },
+    "auc_ovr_macro": 0.8115,
+    "per_sumber": {
+      "mitdb": {
+        "n": 618,
+        "accuracy": 0.6618,
+        "macro_f1": 0.504,
+        "per_kelas": {
+          "Normal": {
+            "n": 240,
+            "sensitivity": 0.5208,
+            "specificity": 0.9577,
+            "precision": 0.8865,
+            "f1": 0.6562
+          },
+          "Pra-Serangan": {
+            "n": 374,
+            "sensitivity": 0.7487,
+            "specificity": 0.832,
+            "precision": 0.8723,
+            "f1": 0.8058
+          },
+          "Serangan": {
+            "n": 4,
+            "sensitivity": 1.0,
+            "specificity": 0.7524,
+            "precision": 0.0256,
+            "f1": 0.05
+          }
+        }
+      },
+      "ptbxl": {
+        "n": 2851,
+        "accuracy": 0.6268,
+        "macro_f1": 0.5947,
+        "per_kelas": {
+          "Normal": {
+            "n": 1097,
+            "sensitivity": 0.8842,
+            "specificity": 0.7463,
+            "precision": 0.6855,
+            "f1": 0.7723
+          },
+          "Pra-Serangan": {
+            "n": 1147,
+            "sensitivity": 0.4507,
+            "specificity": 0.8451,
+            "precision": 0.662,
+            "f1": 0.5363
+          },
+          "Serangan": {
+            "n": 607,
+            "sensitivity": 0.4942,
+            "specificity": 0.8418,
+            "precision": 0.458,
+            "f1": 0.4754
+          }
+        }
+      }
+    },
+    "per_kondisi": {
+      "af": {
+        "n": 288,
+        "kelas": "Pra-Serangan",
+        "benar": 0.5382
+      },
+      "cd": {
+        "n": 470,
+        "kelas": "Pra-Serangan",
+        "benar": 0.4787
+      },
+      "normal": {
+        "n": 1337,
+        "kelas": "Normal",
+        "benar": 0.819
+      },
+      "pvc": {
+        "n": 223,
+        "kelas": "Pra-Serangan",
+        "benar": 0.6592
+      },
+      "st_depression": {
+        "n": 511,
+        "kelas": "Pra-Serangan",
+        "benar": 0.4951
+      },
+      "stemi": {
+        "n": 607,
+        "kelas": "Serangan",
+        "benar": 0.4942
+      },
+      "svt": {
+        "n": 29,
+        "kelas": "Pra-Serangan",
+        "benar": 0.5862
+      },
+      "vt": {
+        "n": 4,
+        "kelas": "Serangan",
+        "benar": 1.0
+      }
+    },
+    "tau_conf": [
+      {
+        "tau": 0.0,
+        "cakupan": 1.0,
+        "akurasi_diterima": 0.633,
+        "sensitivity_serangan_efektif": 0.4975,
+        "sensitivity_serangan_diterima": 0.4975
+      },
+      {
+        "tau": 0.44,
+        "cakupan": 0.8861,
+        "akurasi_diterima": 0.6666,
+        "sensitivity_serangan_efektif": 0.4632,
+        "sensitivity_serangan_diterima": 0.537
+      },
+      {
+        "tau": 0.5,
+        "cakupan": 0.7884,
+        "akurasi_diterima": 0.6878,
+        "sensitivity_serangan_efektif": 0.437,
+        "sensitivity_serangan_diterima": 0.5804
+      },
+      {
+        "tau": 0.6,
+        "cakupan": 0.4929,
+        "akurasi_diterima": 0.7632,
+        "sensitivity_serangan_efektif": 0.2962,
+        "sensitivity_serangan_diterima": 0.6962
+      },
+      {
+        "tau": 0.7,
+        "cakupan": 0.2958,
+        "akurasi_diterima": 0.8236,
+        "sensitivity_serangan_efektif": 0.18,
+        "sensitivity_serangan_diterima": 0.7534
+      },
+      {
+        "tau": 0.75,
+        "cakupan": 0.1986,
+        "akurasi_diterima": 0.8389,
+        "sensitivity_serangan_efektif": 0.1047,
+        "sensitivity_serangan_diterima": 0.7356
+      },
+      {
+        "tau": 0.8,
+        "cakupan": 0.1263,
+        "akurasi_diterima": 0.879,
+        "sensitivity_serangan_efektif": 0.0687,
+        "sensitivity_serangan_diterima": 0.8235
+      },
+      {
+        "tau": 0.85,
+        "cakupan": 0.0735,
+        "akurasi_diterima": 0.9333,
+        "sensitivity_serangan_efektif": 0.0442,
+        "sensitivity_serangan_diterima": 0.871
+      }
+    ],
+    "serangan_per_lokasi_infark": {
+      "AMI": {
+        "lokasi": "anterior/anteroseptal",
+        "n": 367,
+        "sensitivity": 0.624
+      },
+      "IMI": {
+        "lokasi": "inferior",
+        "n": 333,
+        "sensitivity": 0.3814
+      },
+      "LMI": {
+        "lokasi": "lateral",
+        "n": 15,
+        "sensitivity": 0.7333
+      },
+      "INJ/STE": {
+        "lokasi": "pola injury/elevasi ST",
+        "n": 4,
+        "sensitivity": 0.25
+      },
+      "PMI": {
+        "lokasi": "posterior",
+        "n": 2,
+        "sensitivity": 1.0
+      }
+    }
+  },
+  "validasi": {
+    "accuracy": 0.6165,
+    "macro_f1": 0.5835,
+    "per_kelas": {
+      "Normal": {
+        "n": 1409,
+        "sensitivity": 0.8446,
+        "specificity": 0.7819,
+        "precision": 0.7212,
+        "f1": 0.778
+      },
+      "Pra-Serangan": {
+        "n": 1444,
+        "sensitivity": 0.4266,
+        "specificity": 0.8438,
+        "precision": 0.6553,
+        "f1": 0.5168
+      },
+      "Serangan": {
+        "n": 665,
+        "sensitivity": 0.5459,
+        "specificity": 0.802,
+        "precision": 0.3912,
+        "f1": 0.4557
+      }
+    }
+  },
+  "kecocokan_ecg_sintetis": {
+    "normal": 0.85,
+    "st_depression": 0.5,
+    "af": 0.417,
+    "pvc": 0.433,
+    "stemi": 0.767,
+    "vt": 0.8,
+    "vf": 0.717
+  }
+}

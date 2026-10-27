@@ -1,0 +1,98 @@
+ Container c251-mosquitto Running 
+ Container c251-cardiovest-uji-run-ead31ba3c496 Creating 
+ Container c251-cardiovest-uji-run-ead31ba3c496 Created 
+
+=== normal: reset + stabilisasi (normal, 15-60 s), lalu uji 35 s
+    state : NORMAL
+    alert : []
+    hasil : PASS 
+    klinis: benar: tanpa alarm
+
+=== artefak: reset + stabilisasi (normal, 15-60 s), lalu uji 65 s
+    state : NORMAL
+    alert : []
+    hasil : PASS 
+    klinis: benar: tanpa alarm
+
+=== pra_serangan: reset + stabilisasi (normal, 15-60 s), lalu uji 70 s
+    state : NORMAL -> WARNING -> NORMAL
+    alert : ['warning']
+    alasan: Pra-Serangan persisten 2/2 window
+    alasan: Normal persisten 3/3 window (histeresis)
+    hasil : PASS 
+    klinis: terdeteksi
+
+=== pra_af: reset + stabilisasi (normal, 15-60 s), lalu uji 70 s
+    state : NORMAL -> WARNING -> NORMAL
+    alert : ['warning']
+    alasan: Pra-Serangan persisten 2/2 window
+    alasan: Normal persisten 3/3 window (histeresis)
+    hasil : PASS 
+    klinis: terdeteksi
+
+=== serangan: reset + stabilisasi (normal, 15-60 s), lalu uji 45 s
+    state : NORMAL -> WARNING -> CRITICAL
+    alert : ['warning', 'critical']
+    alasan: Pra-Serangan persisten 2/2 window
+    alasan: gerbang cross-validation terpenuhi: Serangan AND 1_GSR=1, 1_HR=1
+    hasil : PASS CRITICAL tetap terkunci
+    klinis: terdeteksi
+
+=== serangan_jatuh: reset + stabilisasi (normal, 15-60 s), lalu uji 60 s
+    state : NORMAL -> WARNING -> CRITICAL
+    alert : ['warning', 'critical', 'critical_location', 'critical_fall']
+    alasan: Pra-Serangan persisten 2/2 window
+    alasan: gerbang cross-validation terpenuhi: Serangan AND 1_GSR=1, 1_HR=1
+    hasil : PASS 
+    klinis: terdeteksi
+
+=== serangan_vt: reset + stabilisasi (normal, 15-60 s), lalu uji 35 s
+    state : NORMAL -> CRITICAL
+    alert : ['critical']
+    alasan: Serangan persisten 3/3 window dan cross-validation terpenuhi (1_GSR=1, 1_HR=1)
+    hasil : PASS 
+    klinis: terdeteksi
+
+=== sqi_rendah: reset + stabilisasi (normal, 15-60 s), lalu uji 80 s
+    state : NORMAL -> WARNING -> NORMAL
+    alert : ['warning']
+    alasan: Pra-Serangan persisten 3/3 window
+    alasan: Normal persisten 4/4 window (histeresis)
+    hasil : PASS N=3 (terdegradasi)
+    klinis: terdeteksi
+
+=== putus_koneksi: reset + stabilisasi (normal, 15-60 s), lalu uji 110 s
+    state : NORMAL -> WARNING -> CRITICAL
+    alert : ['warning', 'critical']
+    alasan: Pra-Serangan persisten 2/2 window
+    alasan: gerbang cross-validation terpenuhi: Serangan AND 1_GSR=1, 1_HR=1
+    hasil : PASS LWT=['offline', 'online'], inferensi paket terlambat=12
+    klinis: terdeteksi
+
+=== reset_offline: reset + stabilisasi (normal, 15-60 s), lalu uji 100 s
+    state : NORMAL -> WARNING -> CRITICAL -> NORMAL
+    alert : ['warning', 'critical', 'resolved']
+    alasan: Pra-Serangan persisten 2/2 window
+    alasan: gerbang cross-validation terpenuhi: Serangan AND 1_GSR=1, 1_HR=1
+    alasan: hardware reset R(t)=1 dari perangkat
+    hasil : PASS alasan akhir: hardware reset R(t)=1 dari perangkat; cmd=['WARNING', 'CRITICAL', 'NORMAL']
+    klinis: terdeteksi
+
+=== elektroda_lepas: reset + stabilisasi (normal, 15-60 s), lalu uji 45 s
+    state : NORMAL
+    alert : []
+    hasil : PASS 9 window ditandai kualitas sinyal buruk
+    klinis: benar: tanpa alarm
+
+RINGKASAN
+  PASS  normal          NORMAL                              alert[-]  | klinis: benar: tanpa alarm
+  PASS  artefak         NORMAL                              alert[-]  | klinis: benar: tanpa alarm
+  PASS  pra_serangan    NORMAL -> WARNING -> NORMAL         alert[warning]  | klinis: terdeteksi
+  PASS  pra_af          NORMAL -> WARNING -> NORMAL         alert[warning]  | klinis: terdeteksi
+  PASS  serangan        NORMAL -> WARNING -> CRITICAL       alert[warning,critical] CRITICAL tetap terkunci | klinis: terdeteksi
+  PASS  serangan_jatuh  NORMAL -> WARNING -> CRITICAL       alert[warning,critical,critical_location,critical_fall]  | klinis: terdeteksi
+  PASS  serangan_vt     NORMAL -> CRITICAL                  alert[critical]  | klinis: terdeteksi
+  PASS  sqi_rendah      NORMAL -> WARNING -> NORMAL         alert[warning] N=3 (terdegradasi) | klinis: terdeteksi
+  PASS  putus_koneksi   NORMAL -> WARNING -> CRITICAL       alert[warning,critical] LWT=['offline', 'online'], inferensi paket terlambat=12 | klinis: terdeteksi
+  PASS  reset_offline   NORMAL -> WARNING -> CRITICAL -> NORMAL alert[warning,critical,resolved] alasan akhir: hardware reset R(t)=1 dari perangkat; cmd=['WARNING', 'CRITICAL', 'NORMAL'] | klinis: terdeteksi
+  PASS  elektroda_lepas NORMAL                              alert[-] 9 window ditandai kualitas sinyal buruk | klinis: benar: tanpa alarm

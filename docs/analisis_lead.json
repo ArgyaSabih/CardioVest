@@ -1,0 +1,146 @@
+[
+ {
+  "kelompok": "akurasi keseluruhan",
+  "n": 3483,
+  "pasien": 2507,
+  "Lead I": 0.63,
+  "Lead II": 0.655,
+  "selisih": 0.025,
+  "ci95": [
+   0.001,
+   0.049
+  ]
+ },
+ {
+  "kelompok": "sensitivity Normal",
+  "n": 1351,
+  "pasien": 1049,
+  "Lead I": 0.806,
+  "Lead II": 0.821,
+  "selisih": 0.015,
+  "ci95": [
+   -0.007,
+   0.036
+  ]
+ },
+ {
+  "kelompok": "sensitivity Pra-Serangan",
+  "n": 1521,
+  "pasien": 997,
+  "Lead I": 0.518,
+  "Lead II": 0.545,
+  "selisih": 0.027,
+  "ci95": [
+   -0.02,
+   0.079
+  ]
+ },
+ {
+  "kelompok": "sensitivity Serangan",
+  "n": 611,
+  "pasien": 535,
+  "Lead I": 0.52,
+  "Lead II": 0.563,
+  "selisih": 0.043,
+  "ci95": [
+   -0.015,
+   0.102
+  ]
+ },
+ {
+  "kelompok": "kondisi stemi",
+  "n": 607,
+  "pasien": 534,
+  "Lead I": 0.517,
+  "Lead II": 0.56,
+  "selisih": 0.043,
+  "ci95": [
+   -0.016,
+   0.106
+  ]
+ },
+ {
+  "kelompok": "kondisi st_depression",
+  "n": 511,
+  "pasien": 456,
+  "Lead I": 0.448,
+  "Lead II": 0.546,
+  "selisih": 0.098,
+  "ci95": [
+   0.032,
+   0.162
+  ]
+ },
+ {
+  "kelompok": "kondisi af",
+  "n": 288,
+  "pasien": 136,
+  "Lead I": 0.677,
+  "Lead II": 0.663,
+  "selisih": -0.014,
+  "ci95": [
+   -0.096,
+   0.148
+  ]
+ },
+ {
+  "kelompok": "kondisi cd",
+  "n": 470,
+  "pasien": 328,
+  "Lead I": 0.419,
+  "Lead II": 0.355,
+  "selisih": -0.064,
+  "ci95": [
+   -0.132,
+   -0.003
+  ]
+ },
+ {
+  "kelompok": "kondisi pvc",
+  "n": 223,
+  "pasien": 97,
+  "Lead I": 0.686,
+  "Lead II": 0.785,
+  "selisih": 0.099,
+  "ci95": [
+   -0.037,
+   0.222
+  ]
+ },
+ {
+  "kelompok": "Serangan: infark inferior",
+  "n": 333,
+  "pasien": 294,
+  "Lead I": 0.417,
+  "Lead II": 0.709,
+  "selisih": 0.291,
+  "ci95": [
+   0.211,
+   0.367
+  ]
+ },
+ {
+  "kelompok": "Serangan: infark anterior/anteroseptal",
+  "n": 367,
+  "pasien": 325,
+  "Lead I": 0.635,
+  "Lead II": 0.485,
+  "selisih": -0.15,
+  "ci95": [
+   -0.217,
+   -0.083
+  ]
+ },
+ {
+  "kelompok": "Serangan: infark lateral",
+  "n": 15,
+  "pasien": 13,
+  "Lead I": 0.667,
+  "Lead II": 0.267,
+  "selisih": -0.4,
+  "ci95": [
+   -0.667,
+   -0.125
+  ]
+ }
+]

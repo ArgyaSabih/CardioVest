@@ -1,0 +1,46 @@
+{
+  "catatan": "Dievaluasi pada ECG SINTETIS; bukan performa klinis.",
+  "accuracy": 0.9683,
+  "confusion_matrix(baris=aktual, kolom=prediksi)": [
+    [
+      859,
+      31,
+      0
+    ],
+    [
+      26,
+      425,
+      0
+    ],
+    [
+      0,
+      0,
+      459
+    ]
+  ],
+  "kelas": [
+    "Normal",
+    "Pra-Serangan",
+    "Serangan"
+  ],
+  "per_kelas": {
+    "Normal": {
+      "sensitivity": 0.9652,
+      "specificity": 0.9714,
+      "precision": 0.9706
+    },
+    "Pra-Serangan": {
+      "sensitivity": 0.9424,
+      "specificity": 0.977,
+      "precision": 0.932
+    },
+    "Serangan": {
+      "sensitivity": 1.0,
+      "specificity": 1.0,
+      "precision": 1.0
+    }
+  },
+  "parameter": 44547,
+  "epoch_dijalankan": 25,
+  "per_class_train": 3000
+}

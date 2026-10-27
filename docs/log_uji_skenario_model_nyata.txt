@@ -1,0 +1,69 @@
+
+=== normal: reset + stabilisasi 15 s, lalu uji 35 s
+    state : NORMAL
+    alert : []
+    hasil : PASS 
+
+=== artefak: reset + stabilisasi 15 s, lalu uji 65 s
+    state : NORMAL
+    alert : []
+    hasil : PASS 
+
+=== pra_serangan: reset + stabilisasi 15 s, lalu uji 70 s
+    state : NORMAL -> WARNING -> NORMAL
+    alert : ['warning']
+    alasan: Pra-Serangan persisten 2/2 window
+    alasan: Normal persisten 3/3 window (histeresis)
+    hasil : PASS 
+
+=== pra_af: reset + stabilisasi 15 s, lalu uji 70 s
+    state : NORMAL -> WARNING -> NORMAL
+    alert : ['warning']
+    alasan: Pra-Serangan persisten 2/2 window
+    alasan: Normal persisten 3/3 window (histeresis)
+    hasil : PASS 
+
+=== serangan: reset + stabilisasi 15 s, lalu uji 45 s
+    state : NORMAL -> WARNING -> CRITICAL
+    alert : ['warning', 'critical']
+    alasan: Pra-Serangan persisten 2/2 window
+    alasan: gerbang cross-validation terpenuhi: Serangan AND 1_GSR=1, 1_HR=1
+    hasil : PASS CRITICAL tetap terkunci
+
+=== serangan_jatuh: reset + stabilisasi 15 s, lalu uji 60 s
+    state : NORMAL -> WARNING -> CRITICAL
+    alert : ['warning', 'critical', 'critical_fall']
+    alasan: Pra-Serangan persisten 2/2 window
+    alasan: gerbang cross-validation terpenuhi: Serangan AND 1_GSR=1, 1_HR=1
+    hasil : PASS 
+
+=== serangan_vt: reset + stabilisasi 15 s, lalu uji 35 s
+    state : NORMAL -> CRITICAL
+    alert : ['critical', 'critical_location']
+    alasan: Serangan persisten 3/3 window dan cross-validation terpenuhi (1_GSR=1, 1_HR=1)
+    hasil : PASS 
+
+=== sqi_rendah: reset + stabilisasi 15 s, lalu uji 80 s
+    state : NORMAL -> WARNING -> NORMAL
+    alert : ['warning']
+    alasan: Pra-Serangan persisten 3/3 window
+    alasan: Normal persisten 4/4 window (histeresis)
+    hasil : PASS N=3 (terdegradasi)
+
+=== putus_koneksi: reset + stabilisasi 15 s, lalu uji 110 s
+    state : NORMAL -> WARNING -> CRITICAL
+    alert : ['warning', 'critical']
+    alasan: Pra-Serangan persisten 2/2 window
+    alasan: gerbang cross-validation terpenuhi: Serangan AND 1_GSR=1, 1_HR=1
+    hasil : PASS LWT=['offline', 'online'], inferensi paket terlambat=11
+
+RINGKASAN
+  PASS  normal          NORMAL                              alert[-] 
+  PASS  artefak         NORMAL                              alert[-] 
+  PASS  pra_serangan    NORMAL -> WARNING -> NORMAL         alert[warning] 
+  PASS  pra_af          NORMAL -> WARNING -> NORMAL         alert[warning] 
+  PASS  serangan        NORMAL -> WARNING -> CRITICAL       alert[warning,critical] CRITICAL tetap terkunci
+  PASS  serangan_jatuh  NORMAL -> WARNING -> CRITICAL       alert[warning,critical,critical_fall] 
+  PASS  serangan_vt     NORMAL -> CRITICAL                  alert[critical,critical_location] 
+  PASS  sqi_rendah      NORMAL -> WARNING -> NORMAL         alert[warning] N=3 (terdegradasi)
+  PASS  putus_koneksi   NORMAL -> WARNING -> CRITICAL       alert[warning,critical] LWT=['offline', 'online'], inferensi paket terlambat=11
