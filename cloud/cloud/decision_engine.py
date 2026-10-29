@@ -222,20 +222,17 @@ class DecisionEngine:
         self.consec_non_normal = self.consec_normal = 0
         return self._decision(prev, True, reason, self.n)
 
-    def remote_reset(self, who: str = "aplikasi web") -> Decision:
+    def _reset(self, why: str) -> Decision:
         prev = self.state
-        if self.state != C.STATE_CRITICAL:
-            return self._decision(prev, False, f"reset diabaikan: state {prev} bukan CRITICAL", self.n)
         self.state = C.STATE_NORMAL
         self.consec_non_normal = 0
         self.consec_normal = 0
-        return self._decision(prev, True, f"reset jarak jauh dari {who}", self.n)
+        if prev == C.STATE_NORMAL:
+            return self._decision(prev, False, f"{why}; state sudah NORMAL, penghitung persistence dibersihkan", self.n)
+        return self._decision(prev, True, why, self.n)
+
+    def remote_reset(self, who: str = "aplikasi web") -> Decision:
+        return self._reset(f"reset jarak jauh dari {who}")
 
     def hardware_reset(self) -> Decision:
-        prev = self.state
-        if self.state != C.STATE_CRITICAL:
-            return self._decision(prev, False, f"reset diabaikan: state {prev} bukan CRITICAL", self.n)
-        self.state = C.STATE_NORMAL
-        self.consec_non_normal = 0
-        self.consec_normal = 0
-        return self._decision(prev, True, "hardware reset R(t)=1 dari perangkat", self.n)
+        return self._reset("hardware reset R(t)=1 dari perangkat")

@@ -201,7 +201,7 @@ test('socket /data/realtime: User Utama menerima status alatnya, tamu ditolak', 
   bad.close();
 });
 
-test('Reset alarm dari web: butuh konfirmasi, hanya saat CRITICAL, dan diteruskan ke cloud lewat topik remote', async () => {
+test('Reset dari web: butuh konfirmasi, berlaku di semua state, dan diteruskan ke cloud lewat topik remote', async () => {
   const sent = [];
   const orig = mq.publish.bind(mq);
   const wasConnected = Object.getOwnPropertyDescriptor(mq, 'connected');
@@ -210,9 +210,9 @@ test('Reset alarm dari web: butuh konfirmasi, hanya saat CRITICAL, dan diteruska
   try {
     const L = backend.live('cv-001');
     const prev = L.state;
-    L.state = { state: 'NORMAL' };
+    L.state = null;
     assert.equal((await call('/api/reset', { method: 'POST', body: { confirm: true } })).status, 409);
-    L.state = { state: 'CRITICAL' };
+    L.state = { state: 'WARNING' };
     assert.equal((await call('/api/reset', { method: 'POST', body: {} })).status, 400);
     assert.equal((await anon('/api/reset', { method: 'POST', body: { confirm: true } })).status, 401);
     const r = await call('/api/reset', { method: 'POST', body: { confirm: true } });

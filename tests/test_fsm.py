@@ -68,10 +68,19 @@ def test_low_confidence_is_undecided():
     assert all(not x.accepted for x in d) and e.state == C.STATE_NORMAL
 
 
-def test_reset_ignored_outside_critical():
+def test_reset_clears_warning():
     e = DecisionEngine()
     run(e, [P, P])
-    assert not e.hardware_reset().changed and e.state == C.STATE_WARNING
+    assert e.state == C.STATE_WARNING
+    d = e.hardware_reset()
+    assert d.changed and e.state == C.STATE_NORMAL
+
+
+def test_reset_in_normal_only_clears_counters():
+    e = DecisionEngine()
+    run(e, [P])
+    d = e.hardware_reset()
+    assert not d.changed and e.state == C.STATE_NORMAL and e.consec_non_normal == 0
 
 
 def test_gsr_calibration_threshold():

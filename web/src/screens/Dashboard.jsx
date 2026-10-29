@@ -62,7 +62,7 @@ function HrTrend({ nowHr }) {
   );
 }
 
-function ResetAlarm({ allowed }) {
+function ResetAlarm({ allowed, level }) {
   const [ask, setAsk] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
@@ -81,22 +81,27 @@ function ResetAlarm({ allowed }) {
       setBusy(false);
     }
   };
+  const warn = level === 'WARNING';
   if (!allowed) {
-    return <p className="state-note">Setelah pertolongan datang, tahan tombol reset di alat selama 3 detik untuk menghentikan alarm.</p>;
+    return warn ? null : <p className="state-note">Setelah pertolongan datang, tahan tombol reset di alat selama 3 detik untuk menghentikan alarm.</p>;
   }
   return (
     <div className="reset-alarm">
       {!ask && !busy && (
-        <button type="button" className="btn danger wide" onClick={() => setAsk(true)}>Hentikan alarm</button>
+        <button type="button" className="btn danger wide" onClick={() => setAsk(true)}>{warn ? 'Reset status' : 'Hentikan alarm'}</button>
       )}
       {ask && !busy && (
         <>
-          <p className="state-note strong">Hentikan alarm hanya bila pertolongan sudah datang dan keadaan sudah aman.</p>
-          <button type="button" className="btn danger solid wide" onClick={send}>Ya, hentikan alarm</button>
+          <p className="state-note strong">
+            {warn
+              ? 'Status dikembalikan ke Normal. Pemantauan tetap berjalan dan status bisa naik lagi bila pola tidak biasa muncul.'
+              : 'Hentikan alarm hanya bila pertolongan sudah datang dan keadaan sudah aman.'}
+          </p>
+          <button type="button" className="btn danger solid wide" onClick={send}>{warn ? 'Ya, reset status' : 'Ya, hentikan alarm'}</button>
           <button type="button" className="btn ghost wide" onClick={() => setAsk(false)}>Batal</button>
         </>
       )}
-      {busy && <p className="state-note" role="status">Menghentikan alarm… menunggu alat menanggapi.</p>}
+      {busy && <p className="state-note" role="status">{warn ? 'Mereset status…' : 'Menghentikan alarm… menunggu alat menanggapi.'}</p>}
       {err && <p className="state-note" role="alert">{err}</p>}
       <p className="state-note">Bisa juga dengan menahan tombol reset di alat selama 3 detik.</p>
     </div>
@@ -187,6 +192,7 @@ export default function Dashboard() {
             {firstContact && (
               <a className="btn" href={`tel:${firstContact.phone}`}><Icon name="phone" />Telepon {firstContact.name}</a>
             )}
+            <ResetAlarm allowed={live.remoteReset && linked} level="WARNING" />
             <p className="state-note">
               Keluarga belum dikabari. Mereka dikabari otomatis beserta lokasi Anda bila status menjadi Darurat.
             </p>
@@ -212,7 +218,7 @@ export default function Dashboard() {
             {!linked && (
               <p className="state-note">Bila alat terputus lebih dari 30 detik, alat mengirim SMS berisi lokasi ke keluarga.</p>
             )}
-            <ResetAlarm allowed={live.remoteReset && linked} />
+            <ResetAlarm allowed={live.remoteReset && linked} level="CRITICAL" />
             <details className="state-more">
               <summary>Kenapa status ini Darurat?</summary>
               <p>EKG, denyut jantung, dan keringat Anda sama-sama menunjukkan tanda bahaya pada jantung pada saat yang sama.</p>

@@ -307,10 +307,10 @@ export function startBackend(server) {
     }
   });
 
-  /** Teruskan permintaan "hentikan alarm" ke cloud. Hanya sah saat status CRITICAL dan REMOTE_RESET aktif. */
+  /** Teruskan permintaan reset ke cloud (berlaku di semua state). Hanya sah bila REMOTE_RESET aktif dan status alat sudah diketahui. */
   function remoteReset(dev, user) {
     if (!cfg.remoteReset) return { ok: false, status: 403, error: 'Menghentikan alarm dari aplikasi dimatikan. Tahan tombol reset di alat selama 3 detik.' };
-    if (live(dev).state?.state !== 'CRITICAL') return { ok: false, status: 409, error: 'Status alat saat ini bukan Darurat.' };
+    if (!live(dev).state) return { ok: false, status: 409, error: 'Status alat belum diterima dari server.' };
     if (!mq.connected) return { ok: false, status: 503, error: 'Server belum tersambung ke broker. Coba lagi sebentar lagi.' };
     mq.publish(`device/${dev}/remote`, JSON.stringify({ type: 'remote_reset', by: user.name, user_id: user.id, ts: now() }), { qos: 1 });
     console.warn(`[reset] ${dev}: permintaan hentikan alarm dari ${user.name} diteruskan ke cloud`);
