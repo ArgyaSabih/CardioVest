@@ -1080,17 +1080,56 @@ bool i2c_present(uint8_t addr)
   return Wire.endTransmission() == 0;
 }
 
+void i2c_start()
+{
+  Wire.begin(PIN_I2C_SDA, PIN_I2C_SCL);
+  Wire.setClock(I2C_CLOCK_HZ);
+  Wire.setTimeOut(50);
+}
+
+void i2c_recover()
+{
+  Wire.end();
+  pinMode(PIN_I2C_SDA, INPUT_PULLUP);
+  pinMode(PIN_I2C_SCL, OUTPUT_OPEN_DRAIN);
+  digitalWrite(PIN_I2C_SCL, HIGH);
+  delayMicroseconds(10);
+  int pulses = 0;
+  while (digitalRead(PIN_I2C_SDA) == LOW && pulses < 16)
+  {
+    digitalWrite(PIN_I2C_SCL, LOW);
+    delayMicroseconds(10);
+    digitalWrite(PIN_I2C_SCL, HIGH);
+    delayMicroseconds(10);
+    pulses++;
+  }
+  pinMode(PIN_I2C_SDA, OUTPUT_OPEN_DRAIN);
+  digitalWrite(PIN_I2C_SDA, LOW);
+  delayMicroseconds(10);
+  digitalWrite(PIN_I2C_SCL, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(PIN_I2C_SDA, HIGH);
+  delayMicroseconds(10);
+  bool stuck = digitalRead(PIN_I2C_SDA) == LOW;
+  i2c_start();
+  if (stuck)
+    LOGF("I2C: SDA tetap LOW setelah %d pulsa, cek kabel dan pull-up", pulses);
+  else if (pulses)
+    LOGF("I2C: bus macet, dilepas dengan %d pulsa SCL", pulses);
+}
+
 static char s_i2c_scan[64] = "belum dipindai";
 
-void i2c_scan()
+int i2c_scan()
 {
   char buf[64];
-  int n = 0;
+  int n = 0, found = 0;
   buf[0] = 0;
   for (uint8_t a = 0x08; a < 0x78; a++)
   {
     if (!i2c_present(a))
       continue;
+    found++;
     if (n < (int)sizeof(buf) - 6)
       n += snprintf(buf + n, sizeof(buf) - n, n ? " 0x%02X" : "0x%02X", a);
   }
@@ -1101,6 +1140,7 @@ void i2c_scan()
     memcpy(s_i2c_scan, buf, sizeof(buf));
     LOGF("I2C SDA=GPIO%d SCL=GPIO%d: %s", PIN_I2C_SDA, PIN_I2C_SCL, s_i2c_scan);
   }
+  return found;
 }
 
 bool mpu_begin()
@@ -1123,11 +1163,32 @@ bool mpu_begin()
   return true;
 }
 
+bool mpu_awake()
+{
+  uint8_t pm = 0;
+  return i2c_read(s_has.imu_addr, 0x6B, &pm, 1) && !(pm & 0x40);
+}
+
 bool mpu_read(float &ax, float &ay, float &az)
 {
+  static uint8_t prev[6];
+  static int same = 0;
   uint8_t b[6];
   if (!i2c_read(s_has.imu_addr, 0x3B, b, 6))
     return false;
+  if (memcmp(b, prev, 6) == 0)
+  {
+    if (++same >= 50)
+    {
+      same = 0;
+      return false;
+    }
+  }
+  else
+  {
+    same = 0;
+    memcpy(prev, b, 6);
+  }
   int16_t x = (int16_t)((b[0] << 8) | b[1]);
   int16_t y = (int16_t)((b[2] << 8) | b[3]);
   int16_t z = (int16_t)((b[4] << 8) | b[5]);
@@ -1156,6 +1217,12 @@ bool max_begin()
   ok = ok && i2c_write(0x57, 0x05, 0x00);
   ok = ok && i2c_write(0x57, 0x06, 0x00);
   return ok;
+}
+
+bool max_healthy()
+{
+  uint8_t mode = 0;
+  return i2c_read(0x57, 0x09, &mode, 1) && mode == 0x03;
 }
 
 int max_read_ir(uint32_t *out, int cap, bool *ok)
@@ -1222,6 +1289,7 @@ void task_sensor_aux(void *)
   uint32_t ppg_pause_until = 0;
   uint32_t imu_pause_until = 0;
   uint32_t probe_at = 5000;
+  uint32_t ppg_last_sample = 0;
   for (;;)
   {
     vTaskDelayUntil(&last, pdMS_TO_TICKS(10));
@@ -1230,7 +1298,11 @@ void task_sensor_aux(void *)
     if (t >= probe_at && (!s_has.ppg || !s_has.imu))
     {
       probe_at = t + 5000;
-      i2c_scan();
+      if (i2c_scan() == 0)
+      {
+        i2c_recover();
+        i2c_scan();
+      }
       if (!s_has.ppg && (s_has.ppg = max_begin()))
         LOGF("PPG: MAX30102 terdeteksi, LED merah dan IR menyala");
       if (!s_has.imu && (s_has.imu = mpu_begin()))
@@ -1263,9 +1335,12 @@ void task_sensor_aux(void *)
       {
         imu_fail = 0;
         imu_pause_until = t + 3000;
-        LOGF("IMU: I2C gagal berulang, coba ulang 3 s lagi");
-        if (mpu_begin())
-          LOGF("IMU: tersambung ulang");
+        i2c_recover();
+        s_has.imu = mpu_begin();
+        if (s_has.imu)
+          LOGF("IMU: I2C gagal berulang, bus dipulihkan dan IMU tersambung ulang");
+        else
+          LOGF("IMU: I2C gagal berulang, IMU belum menjawab, dicoba lagi tiap 5 s");
       }
     }
     if (s_has.ppg && (tick % 2 == 0) && t >= ppg_pause_until)
@@ -1274,15 +1349,44 @@ void task_sensor_aux(void *)
       int n = max_read_ir(ir, 32, &ok);
       for (int i = 0; i < n; i++)
         s_ppgp.add(ir[i], t);
+      if (n > 0 || !ppg_last_sample)
+        ppg_last_sample = t;
       if (!ok && ++ppg_fail >= 10)
       {
         ppg_fail = 0;
-        ppg_pause_until = t + 5000;
-        LOGF("PPG: I2C gagal berulang, jeda 5 s");
+        ppg_pause_until = t + 3000;
+        i2c_recover();
+        s_has.ppg = max_begin();
+        ppg_last_sample = t;
+        if (s_has.ppg)
+          LOGF("PPG: I2C gagal berulang, bus dipulihkan dan MAX30102 dikonfigurasi ulang");
+        else
+          LOGF("PPG: I2C gagal berulang, MAX30102 belum menjawab, dicoba lagi tiap 5 s");
+      }
+      else if (ok && t - ppg_last_sample > 3000)
+      {
+        ppg_fail = 0;
+        ppg_last_sample = t;
+        s_has.ppg = max_begin();
+        LOGF("PPG: 3 s tanpa sampel, MAX30102 dikonfigurasi ulang");
       }
       else if (ok)
       {
         ppg_fail = 0;
+      }
+    }
+    if (tick % 100 == 50)
+    {
+      if (s_has.imu && t >= imu_pause_until && !mpu_awake())
+      {
+        s_has.imu = mpu_begin();
+        LOGF("IMU: sempat reset (tegangan turun?), %s", s_has.imu ? "dikonfigurasi ulang" : "belum menjawab");
+      }
+      if (s_has.ppg && t >= ppg_pause_until && !max_healthy())
+      {
+        s_has.ppg = max_begin();
+        ppg_last_sample = t;
+        LOGF("PPG: sempat reset (tegangan turun?), %s", s_has.ppg ? "dikonfigurasi ulang" : "belum menjawab");
       }
     }
     float gsr_adc;
@@ -1331,10 +1435,12 @@ void task_sensor_aux(void *)
 
 void sensors_begin()
 {
-  Wire.begin(PIN_I2C_SDA, PIN_I2C_SCL);
-  Wire.setClock(I2C_CLOCK_HZ);
-  Wire.setTimeOut(50);
-  i2c_scan();
+  i2c_start();
+  if (i2c_scan() == 0)
+  {
+    i2c_recover();
+    i2c_scan();
+  }
   s_has.imu = mpu_begin();
   if (s_has.imu)
     LOGF("IMU: terdeteksi di 0x%02X, WHO_AM_I 0x%02X, rentang 8 g", s_has.imu_addr, s_has.imu_who);
