@@ -22,7 +22,7 @@
 #endif
 
 #ifndef MQTT_HOST
-#define MQTT_HOST "ISI_HOST_BROKER"
+#define MQTT_HOST "icdc5921.ala.asia-southeast1.emqxsl.com"
 #endif
 #define MQTT_USE_TLS 1
 #define MQTT_TLS_INSECURE 1
@@ -43,7 +43,7 @@
 #define GSM_SIM_PIN ""
 
 #define SMS_FALLBACK 1
-#define SMS_NOMOR {"+62ISI_NOMOR_KONTAK_DARURAT_1", "+62ISI_NOMOR_KONTAK_DARURAT_2"}
+#define SMS_NOMOR {"+6282222216470", "+62895364693939"}
 
 #define PIN_LED_A 26
 #define PIN_LED_B 25
