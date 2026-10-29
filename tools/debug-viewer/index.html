@@ -51,6 +51,8 @@
   .btn { cursor: pointer; transition: transform .12s cubic-bezier(.2,.8,.2,1), background .15s; }
   .btn:active { transform: scale(.97); }
   .btn.primary { background: var(--ink); color: var(--bg); border-color: var(--ink); font-weight: 600; }
+  .btn[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); font-weight: 600; }
+  .seg { display: inline-flex; gap: 4px; }
   .btn.danger { border-color: color-mix(in srgb, var(--critical) 60%, var(--line)); color: var(--critical); }
 
   .banner { margin-top: 16px; display: grid; grid-template-columns: minmax(180px, 260px) 1fr auto; gap: 20px;
@@ -99,7 +101,7 @@
     border-bottom: 1px solid var(--line); font-size: 13px; }
   .log time { font-family: var(--mono); color: var(--ink-3); font-size: 12px; }
   .log .tag { font-family: var(--mono); font-size: 11px; color: var(--ink-2); }
-  .log .t-ALERT { color: var(--critical); } .log .t-TRANSISI { color: var(--warning); } .log .t-LWT { color: var(--focus); } .log .t-SINYAL { color: var(--warning); }
+  .log .t-ALERT { color: var(--critical); } .log .t-TRANSISI { color: var(--warning); } .log .t-LWT { color: var(--focus); } .log .t-SINYAL { color: var(--warning); } .log .t-MODE { color: var(--focus); }
   .log .empty { display: block; color: var(--ink-3); padding: 16px; }
   .note { font-size: 12px; color: var(--ink-3); margin-top: 16px; max-width: 90ch; }
   .col { display: grid; gap: 16px; align-content: start; }
@@ -128,6 +130,10 @@
       <button class="btn primary" id="apply">Jalankan</button>
       <button class="btn danger" id="reset" title="Reset di semua state (NORMAL, WARNING, CRITICAL): simulator dan alat asli">Reset hardware</button>
       <button class="btn" id="drop" title="Simulasikan sinyal 4G hilang 45 detik">Putus 45 s</button>
+      <span class="seg" role="group" aria-label="Mode alat">
+        <button class="btn" id="mDemo" aria-pressed="false" title="GPS siaga, hanya aktif saat CRITICAL">Demo</button>
+        <button class="btn" id="mTest" aria-pressed="false" title="Semua sensor aktif termasuk GPS">Test</button>
+      </span>
       <button class="btn" id="theme" aria-label="Ganti tema terang/gelap">Tema</button>
     </div>
   </header>
@@ -179,10 +185,12 @@
           <div><span class="k">Kalibrasi GSR</span><span class="v" id="cal">—</span></div>
           <div><span class="k">Akselerasi</span><span class="v" id="acc">—</span></div>
           <div><span class="k">State lokal</span><span class="v" id="loc">—</span></div>
+          <div><span class="k">Mode</span><span class="v" id="mode">—</span></div>
+          <div><span class="k">Sensor</span><span class="v" id="sens">—</span></div>
         </div>
       </section>
       <section class="sec">
-        <h2>Lokasi GPS (aktif saat CRITICAL) <span id="gpsInfo">standby</span></h2>
+        <h2>Lokasi GPS <span id="gpsInfo">standby</span></h2>
         <div id="mapWrap"><div class="map-empty" id="mapEmpty">GPS Neo-6M hanya dinyalakan pada state CRITICAL.</div></div>
       </section>
     </div>
@@ -304,6 +312,20 @@
     }
   }
 
+  let mode = null, devMode = null;
+  function renderMode() {
+    const m = mode || devMode || "demo";
+    $("mDemo").setAttribute("aria-pressed", String(m === "demo"));
+    $("mTest").setAttribute("aria-pressed", String(m === "test"));
+    $("mode").textContent = devMode && mode && devMode !== mode
+      ? `${devMode}, menunggu alat pindah ke ${mode}`
+      : (devMode || mode || "—");
+    const e = $("mapEmpty");
+    if (e) e.textContent = m === "test"
+      ? "Mode Test: GPS aktif terus, menunggu data lokasi dari perangkat."
+      : "Mode Demo: GPS Neo-6M hanya dinyalakan pada state CRITICAL.";
+  }
+  renderMode();
   // ---------------- state
   let stateObj = null, prevState = null;
   let lastSigOk = null, clockWarned = false;
@@ -362,16 +384,24 @@
     if (kind === "state") {
       if (prevState && prevState !== d.state) addLog("TRANSISI", `${prevState} → ${d.state}: ${d.reason}`);
       prevState = d.state; stateObj = d; renderState();
+      if (d.mode && d.mode !== mode) {
+        if (mode) addLog("MODE", `${mode} → ${d.mode}`);
+        mode = d.mode; renderMode();
+      }
     } else if (kind === "vital") {
       if (d.buffered) return;
       $("vitalTs").textContent = new Date(d.ts).toLocaleTimeString("id-ID", { hour12: false });
       $("hr").innerHTML = d.hr == null ? "—" : `${Math.round(d.hr)} <small>bpm</small>`;
       $("hrSrc").textContent = `${d.hr_source} · SQI ${d.sqi} · PPG ${d.hr_ppg ?? "—"} · ECG ${d.hr_ecg ?? "—"}`;
-      $("gsr").innerHTML = `${d.gsr.toFixed(2)} <small>µS</small>`;
+      $("gsr").innerHTML = d.gsr == null ? "—" : `${(+d.gsr).toFixed(2)} <small>µS</small>`;
       const a = d.accel || {};
-      $("acc").innerHTML = `|a| ${a.mag} g <span class="flag ${d.fall_detected ? "on" : ""}">${d.fall_detected ? "JATUH" : "tidak jatuh"}</span>`;
+      $("acc").innerHTML = `|a| ${a.mag ?? "—"} g <span class="flag ${d.fall_detected ? "on" : ""}">${d.fall_detected ? "JATUH" : "tidak jatuh"}</span>`;
       $("loc").innerHTML = d.local_state + (d.lead_off ? ' <span class="flag on">ELEKTRODA LEPAS</span>' : "");
       showGps(d.gps);
+      const s = d.sensors || {};
+      $("sens").textContent = ["ecg", "ppg", "gsr", "imu"].map((k) => `${k.toUpperCase()} ${s[k] ? "on" : "off"}`).join(" · ")
+        + (d.gps ? " · GPS on" : " · GPS siaga");
+      if (d.mode) { devMode = d.mode; renderMode(); }
     } else if (kind === "inference") {
       if (d.late) return;
       d.probs.forEach((p, i) => {
@@ -435,6 +465,10 @@
     client.publish(`device/${DEV}/remote`, JSON.stringify({ type: "remote_reset", by: "debug viewer", ts: Date.now() }), { qos: 1 });
   };
   $("drop").onclick = () => ctl({ cmd: "putus", detik: 45 });
+  const setMode = (m) => client.publish(`device/${DEV}/remote`,
+    JSON.stringify({ type: "set_mode", mode: m, by: "debug viewer", ts: Date.now() }), { qos: 1 });
+  $("mDemo").onclick = () => setMode("demo");
+  $("mTest").onclick = () => setMode("test");
 })();
 </script>
 </body>
