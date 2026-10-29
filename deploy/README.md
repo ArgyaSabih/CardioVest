@@ -103,14 +103,18 @@ buka aplikasi ±1 menit sebelum mulai.
 
    | Nama | Isi |
    |---|---|
-   | `NEXT_PUBLIC_BACKEND_URL` | `https://<username-hf>-cardiovest.hf.space` atau alamat `onrender.com` |
-   | `PROXY_SECRET` | sama persis dengan di Hugging Face |
+   | `PROXY_SECRET` | sama persis dengan di backend (Render/Hugging Face) |
+   | `NEXT_PUBLIC_BACKEND_URL` | opsional. Kosong = `https://cardiovest.onrender.com` (tertulis di `web/src/backend.js`). Isi alamat `hf.space` bila pindah ke Hugging Face |
+
+   Isi sebagai variabel biasa (jangan centang *Sensitive*), centang ketiga environment (Production,
+   Preview, Development). Bila muncul *already exists*, variabel itu sudah pernah dibuat: cari di
+   **Settings → Environment Variables**, klik **⋯ → Edit**, ubah nilainya, **Save**.
 
 4. **Deploy**. Lalu **Settings → Git → Production Branch** = `faza`, simpan.
 5. Isi `PUBLIC_URL` di Hugging Face dengan alamat Vercel ini (langkah B.4).
 6. Cek `https://<proyek>.vercel.app/api/health` → `{"ok":true,"mqtt":true,"cloud_db":true}`.
 
-`NEXT_PUBLIC_BACKEND_URL` dibaca saat build. Bila diganti, lakukan **Redeploy** di Vercel.
+Setiap kali variabel di Vercel diubah, lakukan **Deployments → ⋯ → Redeploy** supaya nilainya terpakai.
 
 ## D. ESP32 ke flespi
 
@@ -159,7 +163,6 @@ Daftar skenario: `GET /api/scenario`, atau README utama bagian 3.
 | Gejala | Solusi |
 |---|---|
 | Log backend berisi `[mqtt] Not authorized` / `Connection refused` | `FLESPI_TOKEN` salah atau kosong. Perbaiki di Settings; Space menyala ulang sendiri. |
-| Vercel `/api/health` menjawab 503 `NEXT_PUBLIC_BACKEND_URL belum diisi` | Isi variabel di Vercel lalu Redeploy. |
 | Vercel `/api/health` menampilkan halaman HTML | Backend sedang tertidur atau dibangun. Buka alamat `hf.space`/`onrender.com`, tunggu 1–2 menit. |
 | Login gagal "Terlalu banyak percobaan" | `PROXY_SECRET` di Vercel dan HF tidak sama. |
 | Setelah demo kemarin harus daftar ulang | Normal untuk mode demo: Space menyala ulang dan data terhapus. |

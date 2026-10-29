@@ -1,5 +1,5 @@
 export const API_URL = '';
-export const REALTIME_URL = process.env.NEXT_PUBLIC_BACKEND_URL || undefined;
+export { BACKEND_URL as REALTIME_URL } from './backend.js';
 
 let token = null;
 try {

@@ -39,7 +39,7 @@ browser ──────── Socket.IO /data/realtime ──► server/ di H
 
 | Nama | Isi |
 |---|---|
-| `NEXT_PUBLIC_BACKEND_URL` | alamat backend, mis. `https://namaanda-cardiovest.hf.space` |
+| `NEXT_PUBLIC_BACKEND_URL` | opsional, alamat backend. Kosong = nilai di `src/backend.js` (`https://cardiovest.onrender.com`) |
 | `PROXY_SECRET` | sama dengan secret di Hugging Face, supaya pembatas percobaan login memakai IP asli pengguna |
 
 `NEXT_PUBLIC_BACKEND_URL` dibaca saat build: setelah mengubahnya, lakukan Redeploy. Langkah lengkap
