@@ -21,9 +21,11 @@
 #include "rahasia.h"
 #endif
 
-#define MQTT_HOST "mqtt.flespi.io"
-#define MQTT_USE_TLS 0
-#define MQTT_TLS_INSECURE 0
+#ifndef MQTT_HOST
+#define MQTT_HOST "ISI_HOST_BROKER"
+#endif
+#define MQTT_USE_TLS 1
+#define MQTT_TLS_INSECURE 1
 #define MQTT_PORT (MQTT_USE_TLS ? 8883 : 1883)
 #ifndef MQTT_USER
 #define MQTT_USER ""

@@ -97,8 +97,8 @@ bermasalah dapat diisolasi.
    ID yang sama: `POST /api/source {"source":"hardware"}`, atau tombol switch di aplikasi.
 3. Buka `firmware/cardiovest_esp32/cardiovest_esp32.ino`, lalu ubah `config.h`:
    * `CONN_MODE CONN_WIFI`, `WIFI_SSID`, `WIFI_PASS`
-   * `MQTT_HOST` sudah `mqtt.flespi.io`; token flespi diisi di `rahasia.h` (salinan `rahasia.contoh.h`,
-     tidak ikut git)
+   * `MQTT_HOST`, `MQTT_USER`, dan `MQTT_PASS` broker EMQX diisi di `rahasia.h` (salinan
+     `rahasia.contoh.h`, tidak ikut git)
    * `DEVICE_ID` harus sama dengan ID di variabel `DEVICES` Render (default `cv-001`)
    * modul yang belum terpasang boleh dibiarkan aktif (dilewati otomatis bila tidak terdeteksi) atau
      dimatikan dengan `ENABLE_... 0`
@@ -107,8 +107,8 @@ bermasalah dapat diisolasi.
 
 ### Langkah 3: mode 4G (lapangan)
 * `CONN_MODE CONN_4G`, isi `GSM_APN` sesuai operator.
-* Broker flespi sudah dapat diakses dari internet.
-* **Pakai TLS begitu lewat internet.** Isi `MQTT_USE_TLS 1` dan `MQTT_TLS_INSECURE 1`; port otomatis 8883.
+* Broker EMQX sudah dapat diakses dari internet.
+* TLS sudah aktif (`MQTT_USE_TLS 1`, `MQTT_TLS_INSECURE 1`, port 8883), wajib untuk EMQX Serverless.
   * Mode 4G memakai library **GovoroxSSLClient** (Library Manager) di atas TinyGsmClient, karena TinyGSM
     0.12 belum punya TLS untuk SIM7600. Mode WiFi memakai `WiFiClientSecure` bawaan core.
   * Sertifikat broker diverifikasi dengan `ca_cert.h` (default ISRG Root X1 untuk Let's Encrypt). Versi

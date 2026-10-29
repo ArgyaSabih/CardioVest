@@ -7,9 +7,13 @@ BRANCH="${BRANCH:-faza}"
 CHECK_EVERY="${CHECK_EVERY:-60}"
 cd "$APP"
 
-if [ -n "${FLESPI_TOKEN:-}" ]; then
-  export MQTT_HOST=mqtt.flespi.io MQTT_PORT=443 MQTT_TRANSPORT=websockets MQTT_TLS=1 MQTT_MAX_QOS=1
-  export MQTT_URL=wss://mqtt.flespi.io MQTT_USER="$FLESPI_TOKEN" MQTT_PASS=
+if [ -n "${MQTT_HOST:-}" ] && [ -z "${MQTT_URL:-}" ]; then
+  export MQTT_PORT="${MQTT_PORT:-8883}" MQTT_TLS="${MQTT_TLS:-1}"
+  if [ "$MQTT_TLS" = 1 ]; then
+    export MQTT_URL="mqtts://$MQTT_HOST:$MQTT_PORT"
+  else
+    export MQTT_URL="mqtt://$MQTT_HOST:$MQTT_PORT"
+  fi
 fi
 export PYTHONPATH="$APP/common:$APP/cloud:$APP/simulator"
 export PORT="${PORT:-10000}"

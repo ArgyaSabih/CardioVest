@@ -1,7 +1,7 @@
 """Monitor terminal real-time untuk pipeline simulasi.
 
     python tools/monitor.py --host localhost --device-id cv-001
-    MQTT_USER=<token flespi> python tools/monitor.py --host mqtt.flespi.io
+    MQTT_TLS=1 MQTT_USER=<user> MQTT_PASS=<sandi> python tools/monitor.py --host <host EMQX> --port 8883
 
 Menampilkan: state FSM, alasan keputusan, vital (HR/sumber/SQI/GSR/akselerasi/GPS/jatuh),
 hasil CNN terakhir, grafik ECG ringkas, laju data per topik, dan log alert/transisi.

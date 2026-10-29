@@ -8,7 +8,7 @@ Satu folder berisi seluruh sistem:
 - **Aplikasi (UI/UX)**: tampilan Next.js (PWA) untuk User Utama dan Kontak Darurat (`web/`, dipasang di
   Vercel) dan server API + realtime (`server/`).
 - **Deploy** (`deploy/`): demo gratis tanpa kartu kredit. Tampilan dan debug viewer di Vercel, layanan
-  cloud + server + pemutar dataset EKG di Render, broker MQTT di flespi.
+  cloud + server + pemutar dataset EKG di Render, broker MQTT di EMQX Cloud.
 
 Tidak perlu Docker di laptop. Setelah penyiapan sekali-jalan di [`deploy/README.md`](deploy/README.md),
 cukup `git add -A`, `git commit`, `git push`: Vercel dan Render memperbarui diri otomatis.
@@ -18,8 +18,8 @@ Alurnya mengikuti rancangan BAB 1–11:
 ```
  ┌──────────────────────────┐   MQTT (QoS per topik)   ┌──────────────┐        ┌────────────────────────────────┐
  │ Perangkat virtual (ESP32)│ ───────────────────────► │  Mosquitto   │ ─────► │ Layanan cloud                  │
- │ ECG 250 Hz (replay/sint.)│  device/{id}/ecg   (0)   │  1883 (TCP)  │        │  • sliding window 1750/875     │
- │ MAX30102 / GSR / MPU6050 │  device/{id}/vital (1)   │  flespi.io   │        │  • CNN 1D ONNX (44.547 param.) │
+ │ ECG 250 Hz (replay/sint.)│  device/{id}/ecg   (0)   │  8883 (TLS)  │        │  • sliding window 1750/875     │
+ │ MAX30102 / GSR / MPU6050 │  device/{id}/vital (1)   │  EMQX Cloud  │        │  • CNN 1D ONNX (44.547 param.) │
  │ GPS Neo-6M, modem 4G     │  device/{id}/event (1)   │              │ ◄───── │  • decision engine FSM S1/S2/S3│
  │ fall detection 3 fase    │ ◄─ device/{id}/cmd (1)   │              │        │  • SQLite + mock notifikasi    │
  └──────────────────────────┘    device/{id}/lwt (1,R) └──────┬───────┘        └────────────────────────────────┘
@@ -94,7 +94,7 @@ CardioVest/
 
 ## 2. Deploy dan alur kerja harian
 
-Penyiapan sekali-jalan (flespi, Render, Vercel, ESP32) ada di [`deploy/README.md`](deploy/README.md).
+Penyiapan sekali-jalan (EMQX, Render, Vercel, ESP32) ada di [`deploy/README.md`](deploy/README.md).
 Setelah itu:
 
 ```powershell
@@ -109,7 +109,7 @@ git push
 | **Log** keputusan FSM, mock FCM, SMS fallback | tab **Logs** layanan Render |
 | **Status layanan** | `https://<proyek>.vercel.app/api/health` |
 | **Debug viewer** (EKG mentah, CNN, FSM, vital, switch Hardware/Dataset) | `https://<proyek>.vercel.app/debug` |
-| **MQTT Explorer** (opsional) | host `mqtt.flespi.io`, port `1883`, username = token flespi |
+| **MQTT Explorer** (opsional) | host EMQX, port `8883`, *Encryption* aktif, username dan sandi broker |
 
 ### Memilih skenario dan sumber data
 
@@ -148,7 +148,7 @@ mudah diganti dari debug viewer `/debug`.
 ### Uji otomatis semua skenario
 
 ```powershell
-MQTT_HOST=mqtt.flespi.io MQTT_USER=<token> python tools/uji_skenario.py   # ~12-15 menit, PASS/FAIL per skenario
+MQTT_HOST=<host EMQX> MQTT_PORT=8883 MQTT_TLS=1 MQTT_USER=<user> MQTT_PASS=<sandi> python tools/uji_skenario.py   # ~12-15 menit, PASS/FAIL per skenario
 ```
 
 Hasil pada lingkungan pengembangan (τ_conf 0,44, τ_gerak 0,76):
@@ -513,5 +513,5 @@ ada di `firmware/README.md`.
    alat sendiri lebih bisa dipercaya daripada perkiraan di `docs/analisis_alarm_palsu.md`.
 6. Kalibrasi baseline GSR untuk alat sungguhan: `CALIB_SECONDS=600` (10 menit, sesuai 5.5.3). Nilai 30 detik
    hanya untuk demo.
-7. Lewat internet: `MQTT_USE_TLS 1` di firmware (port 8883 flespi).
+7. Lewat internet: firmware sudah `MQTT_USE_TLS 1` (port 8883 EMQX).
 8. `RETENSI_HARI=30` sudah aktif di Render (F-BE-4) agar disk tidak penuh oleh ECG mentah.
