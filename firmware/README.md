@@ -97,7 +97,8 @@ bermasalah dapat diisolasi.
    ID yang sama: `POST /api/source {"source":"hardware"}`, atau tombol switch di aplikasi.
 3. Buka `firmware/cardiovest_esp32/cardiovest_esp32.ino`, lalu ubah `config.h`:
    * `CONN_MODE CONN_WIFI`, `WIFI_SSID`, `WIFI_PASS`
-   * `MQTT_HOST` = `mqtt.flespi.io`, `MQTT_USER` = token flespi, `MQTT_PASS` = `""`
+   * `MQTT_HOST` sudah `mqtt.flespi.io`; token flespi diisi di `rahasia.h` (salinan `rahasia.contoh.h`,
+     tidak ikut git)
    * `DEVICE_ID` harus sama dengan ID di secret `DEVICES` Hugging Face (default `cv-001`)
    * modul yang belum terpasang boleh dibiarkan aktif (dilewati otomatis bila tidak terdeteksi) atau
      dimatikan dengan `ENABLE_... 0`

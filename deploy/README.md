@@ -1,4 +1,4 @@
-# Deploy demo CardioVest: Vercel + Hugging Face + flespi
+# Deploy demo CardioVest: Vercel + Hugging Face/Render + flespi
 
 Semuanya gratis dan tanpa kartu kredit. Setelah penyiapan sekali-jalan di bawah, alur kerja harian cukup:
 
@@ -11,7 +11,7 @@ git push
 | Bagian | Di mana | Setelah `git push` |
 |---|---|---|
 | Tampilan web (`web/`) | **Vercel** | dibangun ulang otomatis, ±1 menit |
-| Layanan cloud CNN + FSM, server API + realtime, simulator dataset | **Hugging Face Space** (Docker, 2 vCPU, 16 GB) | Space mengecek GitHub tiap menit, mengambil commit baru, lalu menyalakan ulang layanan |
+| Layanan cloud CNN + FSM, server API + realtime, simulator dataset | **Hugging Face Space** (2 vCPU, 16 GB) atau **Render** (cadangan, 512 MB) | backend mengecek GitHub tiap menit, mengambil commit baru, lalu menyalakan ulang layanan |
 | Broker MQTT | **flespi** (broker publik gratis, akun pribadi) | tidak berubah |
 
 ```
@@ -46,8 +46,8 @@ Semua topik di akun flespi Anda terpisah dari pengguna flespi lain. Batas paket 
    - **Hardware**: CPU basic (free)
    - **Visibility**: **Public** (Vercel dan browser perlu bisa mengaksesnya; kode dan isi token tetap
      tersembunyi)
-3. Di Space yang baru: **Files → Add file → Upload files**, unggah `deploy/hf/Dockerfile` dan
-   `deploy/hf/README.md` dari repo ini (timpa README bawaan), lalu **Commit**.
+3. Di Space yang baru: **Files → Add file → Upload files**, unggah `deploy/backend/Dockerfile` dan
+   `deploy/backend/README.md` dari repo ini (timpa README bawaan), lalu **Commit**.
 4. **Settings → Variables and secrets**, tambahkan:
 
    | Jenis | Nama | Isi |
@@ -72,6 +72,28 @@ Variabel opsional lain: `SIMULATOR=0` (simulator tidak dijalankan sama sekali), 
 `SCENARIO=serangan`, `TAU_CONF`, `TAU_WARN`, `CALIB_SECONDS`, `SMTP_URL`, dan semua parameter di
 README utama. Setiap perubahan variabel membuat Space menyala ulang.
 
+## B2. Cadangan: backend di Render
+
+Pakai ini bila Hugging Face sedang bermasalah. Dockerfile-nya sama.
+
+1. Daftar di <https://dashboard.render.com/register> dengan GitHub.
+2. **New → Web Service → Public Git Repository**, tempel
+   `https://github.com/ArgyaSabih/CardioVest`, **Connect**.
+3. Isi:
+   - **Name**: `cardiovest`
+   - **Branch**: `faza`
+   - **Language**: Docker
+   - **Dockerfile Path**: `deploy/backend/Dockerfile`
+   - **Instance Type**: Free
+4. **Environment Variables**: `FLESPI_TOKEN`, `PROXY_SECRET`, `DEVICES` (dan nanti `PUBLIC_URL`),
+   sama seperti tabel di langkah B.4.
+5. **Deploy Web Service**. Alamat backend: `https://cardiovest-xxxx.onrender.com` (tertulis di atas
+   halaman layanan). Tab **Logs** menampilkan log yang sama seperti di Hugging Face.
+
+Perbedaannya dengan Hugging Face: Render gratis tertidur setelah **15 menit** tanpa pengunjung (EKG
+realtime di browser yang sedang terbuka membuatnya tetap bangun), dan CPU-nya kecil. Untuk demo cukup:
+buka aplikasi ±1 menit sebelum mulai.
+
 ## C. Tampilan di Vercel (sekali)
 
 1. <https://vercel.com/new> → masuk dengan GitHub → **Import** `ArgyaSabih/CardioVest`
@@ -81,7 +103,7 @@ README utama. Setiap perubahan variabel membuat Space menyala ulang.
 
    | Nama | Isi |
    |---|---|
-   | `NEXT_PUBLIC_BACKEND_URL` | `https://<username-hf>-cardiovest.hf.space` |
+   | `NEXT_PUBLIC_BACKEND_URL` | `https://<username-hf>-cardiovest.hf.space` atau alamat `onrender.com` |
    | `PROXY_SECRET` | sama persis dengan di Hugging Face |
 
 4. **Deploy**. Lalu **Settings → Git → Production Branch** = `faza`, simpan.
@@ -92,18 +114,18 @@ README utama. Setiap perubahan variabel membuat Space menyala ulang.
 
 ## D. ESP32 ke flespi
 
-Di `firmware/cardiovest_c251/cardiovest_c251.ino`:
+`MQTT_HOST` di `firmware/cardiovest_c251/cardiovest_c251.ino` sudah `mqtt.flespi.io`. Token disimpan
+terpisah supaya tidak ikut ter-push ke GitHub (repositorinya publik): salin
+`firmware/cardiovest_c251/rahasia.contoh.h` menjadi `rahasia.h` di folder yang sama, lalu isi tokennya.
+`rahasia.h` sudah masuk `.gitignore`.
 
 ```c
-#define MQTT_HOST "mqtt.flespi.io"
-#define MQTT_USE_TLS 0
-#define MQTT_TLS_INSECURE 0
 #define MQTT_USER "<FLESPI_TOKEN>"
 #define MQTT_PASS ""
 ```
 
-Untuk koneksi terenkripsi, pakai `MQTT_USE_TLS 1` dan `MQTT_TLS_INSECURE 1` (port 8883, sertifikat
-tidak diverifikasi).
+Untuk koneksi terenkripsi, ubah `MQTT_USE_TLS 1` dan `MQTT_TLS_INSECURE 1` di `.ino` (port 8883,
+sertifikat tidak diverifikasi).
 
 Simulator dan ESP32 memakai ID yang sama (`cv-001`), jadi hanya satu yang boleh mengirim data. Pilihan
 sumber disimpan di broker dan tetap berlaku walau Space menyala ulang:
@@ -136,12 +158,12 @@ Daftar skenario: `GET /api/scenario`, atau README utama bagian 3.
 
 | Gejala | Solusi |
 |---|---|
-| Log HF berisi `[mqtt] Not authorized` / `Connection refused` | `FLESPI_TOKEN` salah atau kosong. Perbaiki di Settings; Space menyala ulang sendiri. |
+| Log backend berisi `[mqtt] Not authorized` / `Connection refused` | `FLESPI_TOKEN` salah atau kosong. Perbaiki di Settings; Space menyala ulang sendiri. |
 | Vercel `/api/health` menjawab 503 `NEXT_PUBLIC_BACKEND_URL belum diisi` | Isi variabel di Vercel lalu Redeploy. |
-| Vercel `/api/health` menampilkan halaman HTML | Space sedang tertidur atau dibangun. Buka alamat `hf.space`, tunggu 1–2 menit. |
+| Vercel `/api/health` menampilkan halaman HTML | Backend sedang tertidur atau dibangun. Buka alamat `hf.space`/`onrender.com`, tunggu 1–2 menit. |
 | Login gagal "Terlalu banyak percobaan" | `PROXY_SECRET` di Vercel dan HF tidak sama. |
 | Setelah demo kemarin harus daftar ulang | Normal untuk mode demo: Space menyala ulang dan data terhapus. |
 | Grafik EKG diam, status "Tidak terpantau" | Sumber `hardware` tetapi ESP32 mati, atau sebaliknya. Ganti sumber. |
 | ESP32 tidak tersambung | Cek `MQTT_USER` = token flespi, `MQTT_PASS` kosong. Di flespi **MQTT Board** terlihat koneksi aktif. |
 | Push terakhir belum terlihat | Tunggu 1–2 menit; tab Logs HF menulis `[run] commit baru di faza`. Bila `requirements.txt` berubah, layanan butuh waktu lebih lama menyala. |
-| `Dockerfile` di HF perlu diubah | Jarang. Unggah ulang `deploy/hf/Dockerfile`, atau **Settings → Factory rebuild**. |
+| `Dockerfile` di HF perlu diubah | Jarang. Unggah ulang `deploy/backend/Dockerfile`, atau **Settings → Factory rebuild**. |

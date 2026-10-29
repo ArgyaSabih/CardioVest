@@ -64,6 +64,6 @@ while true; do
     echo "[run] commit baru di $BRANCH, memperbarui"
     stop_all
     git reset -q --hard FETCH_HEAD
-    exec bash "$APP/deploy/hf/run.sh"
+    exec bash "$APP/deploy/backend/run.sh"
   fi
 done

@@ -8,7 +8,7 @@ Satu folder berisi seluruh sistem:
 - **Aplikasi (UI/UX)**: tampilan Next.js (PWA) untuk User Utama dan Kontak Darurat (`web/`, dipasang di
   Vercel) dan server API + realtime (`server/`).
 - **Deploy** (`deploy/`): demo gratis tanpa kartu kredit. Tampilan di Vercel, layanan cloud + server +
-  simulator di Hugging Face Space, broker MQTT di flespi.
+  simulator di Hugging Face Space (atau Render), broker MQTT di flespi.
 
 Tidak perlu Docker di laptop. Setelah penyiapan sekali-jalan di [`deploy/README.md`](deploy/README.md),
 cukup `git add -A`, `git commit`, `git push`: Vercel dan Hugging Face memperbarui diri otomatis.
@@ -44,7 +44,7 @@ Alurnya mengikuti rancangan BAB 1–11:
 
 ```
 CardioVest/
-├── deploy/                     # README penyiapan + hf/ (Dockerfile dan run.sh untuk Hugging Face Space)
+├── deploy/                     # README penyiapan + backend/ (Dockerfile dan run.sh untuk Hugging Face / Render)
 ├── common/heartsim_common/     # modul bersama
 │   ├── config.py               #   konstanta dari dokumen (fs, window, ambang, N, M, tau_conf, ...)
 │   ├── topics.py               #   hierarki topik & QoS

@@ -17,12 +17,20 @@
 #define WIFI_SSID "galaxy"
 #define WIFI_PASS "11111111"
 
-#define MQTT_HOST "10.137.198.48"
+#if __has_include("rahasia.h")
+#include "rahasia.h"
+#endif
+
+#define MQTT_HOST "mqtt.flespi.io"
 #define MQTT_USE_TLS 0
 #define MQTT_TLS_INSECURE 0
 #define MQTT_PORT (MQTT_USE_TLS ? 8883 : 1883)
+#ifndef MQTT_USER
 #define MQTT_USER ""
+#endif
+#ifndef MQTT_PASS
 #define MQTT_PASS ""
+#endif
 
 #define MODEM_TERPASANG 0
 #define MODEM_SIM7600 0
