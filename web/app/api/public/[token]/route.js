@@ -1,4 +1,5 @@
 import { json, route } from '@/lib/api';
+import { denganLayanan } from '@/lib/layanan-darurat.js';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,7 +34,7 @@ export const GET = route(async (r) => {
     ended_at: ev.end_ts,
     end_reason: ev.end_reason ?? null,
     fall_detected: ev.fall_detected,
-    location: fix,
+    location: denganLayanan(fix),
     trail: active ? L.trail : [],
     device_online: L.online,
     hr: active ? L.vital?.hr ?? null : null,

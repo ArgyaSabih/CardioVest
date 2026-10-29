@@ -10,6 +10,7 @@
 // Normal -> Waspada -> Darurat yang sama dengan layanan cloud (2 window untuk Waspada, terkunci sampai
 // tombol reset). Tidak ada model CNN, notifikasi push, atau WhatsApp yang sungguhan.
 import { FS, ecgStream, eventStrip } from './ecg.js';
+import { denganLayanan } from '../../lib/layanan-darurat.js';
 
 const KEY = 'cv_demo_v1';
 const DEVICE = 'cv-001';
@@ -235,7 +236,8 @@ function transition(to, reason, endReason) {
   emit('state', stateObj());
 }
 
-function location(g) {
+function location(p) {
+  const g = denganLayanan(p);
   live.gps = g;
   live.trail = [...live.trail.slice(-359), g];
   emit('location', g);
@@ -600,7 +602,7 @@ export async function demoFetch(method, path, body, token) {
       return ok({
         user_name: owner?.name ?? 'Pemakai CardioVest', user_phone: owner?.phone ?? null, ambulance: AMBULANCE,
         active, started_at: r.start_ts, ended_at: r.end_ts, end_reason: r.end_reason, fall_detected: !!r.fall_detected,
-        location: r.location ?? (r.lat != null ? { lat: r.lat, lng: r.lon } : null), trail: active ? r.trail : [],
+        location: denganLayanan(r.location ?? (r.lat != null ? { lat: r.lat, lng: r.lon } : null)), trail: active ? r.trail : [],
         device_online: true, hr: null, acks: r.acks.map((a) => ({ name: a.name, ts: a.ts })), me: me ? { name: me.name } : null,
       });
     }

@@ -268,7 +268,9 @@ label.consent input { width: 24px; height: 24px; margin: 2px 0 0; }
 .plate-critical .btn.em-secondary { background: transparent; border-color: #fff; color: #fff; }
 .plate-critical .btn.em-secondary:hover { background: rgba(255, 255, 255, 0.14); }
 .em-secondary .rel { font-weight: 400; }
-.em-alt { display: inline-flex; align-items: center; min-height: 44px; font-size: 1rem; color: inherit; }
+.em-alt { margin: 0; padding-block: 6px; font-size: 1rem; line-height: 1.9; color: inherit; }
+.em-alt a { color: inherit; font-weight: 700; padding-block: 10px; text-underline-offset: 3px; }
+.em-alt-km { white-space: nowrap; }
 /* Waspada: tombol telepon memakai tinta papan kuning, merah tetap khusus Darurat */
 .plate-warning .btn.em-call { background: var(--amber-ink); border-color: var(--amber-ink); color: #fff; }
 .plate-warning .btn.em-call:hover { background: #000; }

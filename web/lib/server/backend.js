@@ -20,6 +20,7 @@ import * as cloud from './db.js';
 import { mailConfigured, resetMail, verifyMail } from './mail.js';
 import { dispatch, vapidPublicKey } from './push.js';
 import { sendWhatsApp, waConfigured } from './wa.js';
+import { denganLayanan } from '../layanan-darurat.js';
 import {
   MAX_CONTACTS, acks, checkSecret, contacts, devices, linkOf, notifLog, publicTokenFor, subs, tokens, users,
 } from './store.js';
@@ -49,7 +50,7 @@ const slimState = (s) =>
     state: s.state,
     since: s.since,
     reason: s.reason,
-    gps: s.gps?.fix ? { lat: s.gps.lat, lng: s.gps.lon, acc: s.gps.accuracy_m } : null,
+    gps: s.gps?.fix ? denganLayanan({ lat: s.gps.lat, lng: s.gps.lon, acc: s.gps.accuracy_m }) : null,
     calibration: s.calibration ?? null,
     signal: s.signal ? { ok: s.signal.ok, reason: s.signal.reason } : null,
     ts: s.ts,
@@ -299,7 +300,7 @@ export function startBackend(server) {
       const prev = L.state?.state;
       L.state = s;
       if (s.state !== 'CRITICAL') L.trail = [];
-      else if (s.gps?.fix && !L.trail.length) L.trail.push({ lat: s.gps.lat, lng: s.gps.lon, acc: s.gps.accuracy_m, ts: now() });
+      else if (s.gps?.fix && !L.trail.length) L.trail.push(denganLayanan({ lat: s.gps.lat, lng: s.gps.lon, acc: s.gps.accuracy_m, ts: now() }));
       toFamily(dev).emit('state', slimState(s));
       if (prev && prev !== s.state) io.to(`devpub:${dev}`).emit('state', { state: s.state });
     },
@@ -321,7 +322,7 @@ export function startBackend(server) {
       toFamily(dev).emit('vital', L.vital);
       const g = v.gps;
       if (L.state?.state === 'CRITICAL' && g?.fix) {
-        const p = { lat: g.lat, lng: g.lon, acc: g.accuracy_m, ts: v.ts };
+        const p = denganLayanan({ lat: g.lat, lng: g.lon, acc: g.accuracy_m, ts: v.ts });
         const last = L.trail.at(-1);
         if (!last || Math.hypot(last.lat - p.lat, last.lng - p.lng) > 2e-5 || p.ts - last.ts > 30_000) {
           L.trail.push(p);

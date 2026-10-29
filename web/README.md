@@ -183,6 +183,10 @@ panggilan bantuan dipindah ke server:
   di detail kejadian.
 - **Satu ketuk di aplikasi.** Tombol "Telepon AmbulanMU" dan "WhatsApp AmbulanMU" langsung membuka
   panggilan atau WhatsApp dengan pesan dan lokasi sudah terisi, tanpa dialog di aplikasi.
+- **Cadangan terdekat.** Di bawah tombol keluarga, "Tidak tersambung?" menampilkan layanan ambulans
+  terdekat dari lokasi GPS alat (IGD rumah sakit di Yogyakarta atau PSC 119 kabupaten), lalu 119. Server
+  yang memilihnya; daftar nomor dan sumbernya ada di `lib/layanan-darurat.js`. Tanpa lokasi, atau lebih
+  dari 30 km dari semua layanan, yang tampil hanya 119.
 - **SMS dari alat.** Bila internet alat putus lebih dari 30 detik saat CRITICAL, SIM7600 mengirim SMS
   ke AmbulanMU (nomor di `SMS_NOMOR`, bagian atas `firmware/cardiovest_c251/cardiovest_c251.ino`).
 

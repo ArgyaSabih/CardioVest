@@ -178,7 +178,8 @@ export const mapsUrl = (g) => `https://www.google.com/maps?q=${g.lat.toFixed(6)}
 
 /**
  * Tombol darurat, satu ketuk tanpa dialog di aplikasi: telepon AmbulanMU (tombol terbesar), WhatsApp
- * AmbulanMU dengan pesan dan lokasi sudah terisi, lalu telepon keluarga. 119 hanya cadangan.
+ * AmbulanMU dengan pesan dan lokasi sudah terisi, lalu telepon keluarga. Cadangannya layanan ambulans
+ * terdekat dari lokasi alat (dipilih server, lib/layanan-darurat.js), lalu 119.
  * `who` = nama pasien untuk isi pesan; `self` = dibuka oleh pasien sendiri (kalimat orang pertama).
  */
 export function CallButtons({ ambulance, contacts, who, self = false, gps, callRef }) {
@@ -204,7 +205,19 @@ export function CallButtons({ ambulance, contacts, who, self = false, gps, callR
           ))}
         </div>
       )}
-      <a className="em-alt" href="tel:119">Tidak tersambung? Telepon 119</a>
+      <p className="em-alt">
+        Tidak tersambung?{' '}
+        {gps?.service ? (
+          <>
+            <a href={`tel:${gps.service.tel}`}>Telepon {gps.service.name}</a>
+            <span className="em-alt-km"> · {gps.service.km.toLocaleString('id-ID')} km</span>
+            {' atau '}
+            <a href="tel:119">119</a>
+          </>
+        ) : (
+          <a href="tel:119">Telepon 119</a>
+        )}
+      </p>
     </div>
   );
 }
