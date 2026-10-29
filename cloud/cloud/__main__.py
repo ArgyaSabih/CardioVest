@@ -16,7 +16,7 @@ def main() -> None:
     ap.add_argument("--host", default=C.MQTT_HOST)
     ap.add_argument("--port", type=int, default=C.MQTT_PORT)
     ap.add_argument("--db", default=C.env_str("DB_PATH", "data/cardiovest.db"))
-    ap.add_argument("--model", default=None, help="path model .keras (default: cloud/model/artifacts)")
+    ap.add_argument("--model", default=None, help="path model .onnx atau .keras")
     a = ap.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)-10s %(levelname)-8s %(message)s",
                         datefmt="%H:%M:%S", stream=sys.stdout)

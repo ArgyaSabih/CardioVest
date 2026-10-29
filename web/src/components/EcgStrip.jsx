@@ -1,7 +1,4 @@
 'use client';
-// Grafik EKG (satuan mV) di atas kertas EKG standar: 25 mm/detik, 10 mm/mV, kotak kecil 1 mm, kotak besar 5 mm.
-// Mode live menampilkan sapuan seperti monitor bedside: data datang per 3,5 detik lalu
-// "diputar" dengan kecepatan nyata, ada celah hapus di depan kursor.
 import { useEffect, useRef } from 'react';
 import { onEcg } from '../realtime.js';
 
@@ -56,9 +53,9 @@ export function LiveEcg({ fs = 250, height = 168, leadOff = false, paused = fals
   staleRef.current = stale;
 
   useEffect(() => onEcg((p) => {
-    if (p.lead_off) return; // nol dari firmware selama elektroda lepas: jangan digambar sebagai garis datar
+    if (p.lead_off) return;
     queue.current.push(...p.mv);
-    if (queue.current.length > fs * 12) queue.current.splice(0, queue.current.length - fs * 4); // tertinggal jauh: lompat
+    if (queue.current.length > fs * 12) queue.current.splice(0, queue.current.length - fs * 4);
   }), [fs]);
 
   useEffect(() => {
@@ -68,7 +65,7 @@ export function LiveEcg({ fs = 250, height = 168, leadOff = false, paused = fals
 
     const layout = () => {
       w = wrap.current.clientWidth;
-      pxPerMm = Math.max(2.2, Math.min(4, w / 125)); // ±5 detik terlihat di layar ponsel
+      pxPerMm = Math.max(2.2, Math.min(4, w / 125));
       ctx = setupCanvas(canvas.current, w, height);
       grid = document.createElement('canvas');
       const g = setupCanvas(grid, w, height);
@@ -85,13 +82,13 @@ export function LiveEcg({ fs = 250, height = 168, leadOff = false, paused = fals
       const dt = Math.min(0.25, (now - last) / 1000);
       last = now;
       const q = queue.current;
-      if (!started && q.length >= fs * 4) started = true; // penyangga awal agar sapuan mulus
+      if (!started && q.length >= fs * 4) started = true;
       if (started && !paused) {
         const rate = q.length > fs * 6 ? 1.3 : 1;
         carry += dt * fs * rate;
         let k = Math.floor(carry);
         carry -= k;
-        if (reduce) k = Math.min(q.length, n); // tanpa animasi: tampilkan blok sekaligus
+        if (reduce) k = Math.min(q.length, n);
         while (k-- > 0 && q.length) {
           buf[wi] = q.shift();
           wi = (wi + 1) % n;
@@ -102,7 +99,7 @@ export function LiveEcg({ fs = 250, height = 168, leadOff = false, paused = fals
       const dx = w / n;
       const gap = Math.round(fs * 0.12);
       ctx.strokeStyle = INK;
-      ctx.globalAlpha = staleRef.current || leadOffRef.current ? 0.3 : 1; // data lama / elektroda lepas: redup
+      ctx.globalAlpha = staleRef.current || leadOffRef.current ? 0.3 : 1;
       ctx.lineWidth = 1.6;
       ctx.lineJoin = 'round';
       ctx.beginPath();
@@ -130,7 +127,6 @@ export function LiveEcg({ fs = 250, height = 168, leadOff = false, paused = fals
     };
   }, [fs, height, paused]);
 
-  // pesan (elektroda lepas, data lama) ditulis di DOM supaya terbaca pembaca layar, bukan di kanvas
   return (
     <div className="ecg-live">
       <div ref={wrap} className="ecg-paper" role="img" aria-label={stale ? 'EKG terakhir sebelum alat terputus' : 'EKG langsung dari alat'}>
@@ -141,7 +137,6 @@ export function LiveEcg({ fs = 250, height = 168, leadOff = false, paused = fals
   );
 }
 
-/** Rekaman statis yang bisa digeser (riwayat event). markAt = indeks sampel awal kejadian. */
 export function StaticEcg({ samples, fs = 250, pxPerMm = 3, height = 180, markAt = null }) {
   const canvas = useRef(null);
   useEffect(() => {
@@ -156,7 +151,7 @@ export function StaticEcg({ samples, fs = 250, pxPerMm = 3, height = 180, markAt
     let pen = false;
     samples.forEach((s, i) => {
       if (s == null) {
-        pen = false; // celah data (paket hilang): garis diputus, bukan disambung lurus
+        pen = false;
         return;
       }
       const y = Math.max(2, Math.min(height - 2, mid - s * MM_PER_MV * pxPerMm));
@@ -167,7 +162,7 @@ export function StaticEcg({ samples, fs = 250, pxPerMm = 3, height = 180, markAt
     ctx.stroke();
     ctx.font = '12px "Atkinson Hyperlegible", system-ui';
     for (let s = 0; s * fs < samples.length; s += 5) {
-      ctx.fillStyle = '#5C2A2A'; // kontras cukup juga di atas garis kisi besar
+      ctx.fillStyle = '#5C2A2A';
       ctx.fillText(`${s} s`, s * fs * dx + 3, 14);
     }
     if (markAt != null) {

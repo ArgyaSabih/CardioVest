@@ -1,5 +1,4 @@
 'use client';
-// Undangan kontak darurat: menyalakan notifikasi darurat di ponsel kontak tanpa membuat akun.
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { api } from '../api.js';

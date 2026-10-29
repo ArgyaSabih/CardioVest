@@ -1,7 +1,7 @@
 """Kalibrasi tau / N dari data alat CardioVest sendiri (dijalankan setelah uji pakai).
 
-    # salinan database yang konsisten (termasuk isi WAL) ke data/export/:
-    docker compose exec cloud python -c "import sqlite3; sqlite3.connect('/data/cardiovest.db').execute(\"VACUUM INTO '/export/cardiovest.db'\")"
+    # di VM: salinan database yang konsisten (termasuk isi WAL), lalu unduh dengan scp ke data/export/
+    cd /opt/cardiovest && docker compose -f deploy/docker-compose.yml exec cloud python -c "import sqlite3; sqlite3.connect('/data/cardiovest.db').execute(\"VACUUM INTO '/data/export/cardiovest.db'\")"
     python tools/kalibrasi_lapangan.py --db data/export/cardiovest.db --dari "2026-11-02 08:00" --sampai "2026-11-02 14:00"
 
 Pakai rentang waktu ketika pemakai SEHAT (tidak ada kejadian jantung): setiap WARNING/CRITICAL di

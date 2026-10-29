@@ -1,37 +1,28 @@
 {
   "name": "cardiovest-web",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "private": true,
-  "description": "Aplikasi keluarga CardioVest: Next.js (halaman + API) dengan server realtime MQTT, Socket.IO, dan Web Push",
   "type": "module",
   "engines": {
     "node": ">=22.13"
   },
   "scripts": {
-    "dev": "node --disable-warning=ExperimentalWarning server.mjs --dev",
+    "dev": "node scripts/build-sw.mjs && next dev",
     "build": "node scripts/build-sw.mjs && next build",
-    "start": "node --disable-warning=ExperimentalWarning server.mjs",
-    "test": "node --disable-warning=ExperimentalWarning --test test/*.test.js",
-    "alat": "node --disable-warning=ExperimentalWarning lib/server/alat.js"
+    "start": "next start"
   },
   "dependencies": {
     "@fontsource/atkinson-hyperlegible": "5.1.1",
     "@reduxjs/toolkit": "2.5.0",
     "chart.js": "4.4.7",
-    "jsonwebtoken": "9.0.2",
     "jspdf": "2.5.2",
     "jsqr": "1.4.0",
     "leaflet": "1.9.4",
-    "mqtt": "5.10.3",
     "next": "16.4.2",
-    "nodemailer": "6.9.16",
-    "qrcode": "1.5.4",
     "react": "19.3.1",
     "react-dom": "19.3.1",
     "react-redux": "9.2.0",
-    "socket.io": "4.8.1",
     "socket.io-client": "4.8.1",
-    "web-push": "3.6.7",
     "workbox-background-sync": "7.3.0",
     "workbox-expiration": "7.3.0",
     "workbox-routing": "7.3.0",

@@ -1,7 +1,7 @@
 """Monitor terminal real-time untuk pipeline simulasi.
 
     python tools/monitor.py --host localhost --device-id cv-001
-    (Docker) docker compose run --rm monitor
+    MQTT_USER=web MQTT_PASS=<dari deploy/.env> python tools/monitor.py --host <ip>.sslip.io
 
 Menampilkan: state FSM, alasan keputusan, vital (HR/sumber/SQI/GSR/akselerasi/GPS/jatuh),
 hasil CNN terakhir, grafik ECG ringkas, laju data per topik, dan log alert/transisi.
@@ -204,7 +204,7 @@ def main() -> None:
     a = ap.parse_args()
     m = Monitor(a.device_id)
     c = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=f"monitor-{os.getpid()}")
-    if os.getenv("MQTT_USER"):                 # broker produksi (lihat mosquitto/produksi)
+    if os.getenv("MQTT_USER"):                 # broker produksi (lihat deploy/mosquitto)
         c.username_pw_set(os.getenv("MQTT_USER"), os.getenv("MQTT_PASS") or None)
     if os.getenv("MQTT_TLS") == "1":
         c.tls_set(ca_certs=os.getenv("MQTT_CA") or None)

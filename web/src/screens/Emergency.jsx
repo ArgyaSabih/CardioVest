@@ -1,7 +1,4 @@
 'use client';
-// Halaman 6: tampilan notifikasi Critical untuk kontak darurat (F-APP-5, F-APP-7). Dibuka dari notifikasi
-// atau tautan yang dibagikan, tanpa akun. Parameter ?k=<kode undangan> menandai siapa yang membuka,
-// sehingga tombol "Saya sudah menerima kabar ini" tercatat atas nama kontak tersebut.
 import { useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import { io } from 'socket.io-client';

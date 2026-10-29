@@ -1,14 +1,9 @@
-// Hanya berperan di Vercel. Vercel tidak bisa menjalankan MQTT, Socket.IO, maupun SQLite, jadi semua
-// permintaan /api diteruskan ke server CardioVest (VPS/Docker) yang alamatnya ada di CARDIOVEST_API.
-// IP asli pengguna ikut dikirim bersama PROXY_SECRET, supaya pembatas percobaan login di server tidak
-// menganggap semua pengguna sebagai satu alamat IP milik Vercel.
-// Di server CardioVest sendiri CARDIOVEST_API kosong, dan berkas ini tidak melakukan apa-apa.
 import { NextResponse } from 'next/server';
 
-const upstream = process.env.CARDIOVEST_API?.replace(/\/$/, '');
+const upstream = process.env.NEXT_PUBLIC_BACKEND_URL?.replace(/\/$/, '');
 
 export function proxy(request) {
-  if (!upstream) return NextResponse.next();
+  if (!upstream) return NextResponse.json({ error: 'NEXT_PUBLIC_BACKEND_URL belum diisi di Vercel.' }, { status: 503 });
   const url = new URL(request.nextUrl.pathname + request.nextUrl.search, upstream);
   const headers = new Headers(request.headers);
   headers.delete('x-cv-client-ip');

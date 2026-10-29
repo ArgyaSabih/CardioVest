@@ -1,6 +1,7 @@
 .env
 .env.*
 !.env.example
+deploy/.env
 
 _lokal/
 .impeccable/
@@ -11,15 +12,13 @@ __pycache__/
 .venv/
 venv/
 *.egg-info/
-.coverage
-htmlcov/
 
 node_modules/
 web/.next/
-web/public/sw.js
-web/data/
 web/.vercel/
+web/public/sw.js
 web/next-env.d.ts
+server/data/
 *.tsbuildinfo
 npm-debug.log*
 
@@ -27,7 +26,6 @@ data/*
 !data/export/
 data/export/*
 !data/export/.gitkeep
-web/cloud-dev.db*
 *.db-journal
 *.db-wal
 *.db-shm
@@ -36,10 +34,6 @@ firmware/.pio/
 firmware/**/build/
 *.elf
 *.bin.tmp
-
-mosquitto/produksi/passwd
-mosquitto/produksi/certs/
-mosquitto/produksi/ca/
 
 .vscode/
 .idea/

@@ -1,5 +1,4 @@
 'use client';
-// Halaman berat (Chart.js + jsPDF, jsQR + kamera) dimuat saat dibuka supaya beranda cepat tampil.
 import dynamic from 'next/dynamic';
 
 const loading = () => <p className="muted">Memuat…</p>;

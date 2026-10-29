@@ -1,6 +1,0 @@
-**/node_modules
-.next
-public/sw.js
-test
-docs
-**/*.tmp.mjs

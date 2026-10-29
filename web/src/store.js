@@ -1,5 +1,3 @@
-// State aplikasi (Redux Toolkit, Subbab 8.5.5): sesi User Utama + data langsung dari alat.
-// State FSM memakai nama dari cloud (NORMAL / WARNING / CRITICAL).
 import { configureStore, createSlice } from '@reduxjs/toolkit';
 
 const auth = createSlice({
@@ -43,6 +41,7 @@ const liveInit = {
   leadOff: false,
   event: null,
   contacts: [],
+  source: null,
 };
 
 const live = createSlice({
@@ -74,7 +73,11 @@ const live = createSlice({
         event: d.event,
         contacts: d.contacts || [],
         remoteReset: d.remote_reset !== false,
+        source: d.source ?? null,
       });
+    },
+    source: (s, a) => {
+      s.source = a.payload;
     },
     state: (s, a) => {
       const d = a.payload;

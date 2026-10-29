@@ -3,13 +3,15 @@
 
 Satu folder berisi seluruh sistem:
 
-- **Software alat**: firmware ESP32 (`firmware/`), layanan cloud CNN 1D + FSM (`cloud/`), broker MQTT
-  (`mosquitto/`), simulator perangkat (`simulator/`), dan alat uji (`tools/`, `tests/`).
-- **Aplikasi (UI/UX)**: aplikasi Next.js (PWA) untuk User Utama dan Kontak Darurat (`web/`, lihat
-  [`web/README.md`](web/README.md)).
+- **Software alat**: firmware ESP32 (`firmware/`), layanan cloud CNN 1D + FSM (`cloud/`), simulator
+  perangkat (`simulator/`), dan alat uji (`tools/`, `tests/`).
+- **Aplikasi (UI/UX)**: tampilan Next.js (PWA) untuk User Utama dan Kontak Darurat (`web/`, dipasang di
+  Vercel) dan server API + realtime (`server/`).
+- **Deploy** (`deploy/`): broker MQTT, layanan cloud, server, dan simulator berjalan 24 jam di VM Oracle
+  Cloud gratis; tampilan di Vercel.
 
-Keduanya menyala bersama dengan satu perintah `docker compose up -d --build`. Berkas `.env` sudah
-disertakan dan siap dipakai di laptop.
+Tidak perlu Docker di laptop. Setelah penyiapan sekali-jalan di [`deploy/README.md`](deploy/README.md),
+cukup `git add -A`, `git commit`, `git push`: Vercel dan VM memperbarui diri otomatis.
 
 Alurnya mengikuti rancangan BAB 1–11:
 
@@ -17,13 +19,13 @@ Alurnya mengikuti rancangan BAB 1–11:
  ┌──────────────────────────┐   MQTT (QoS per topik)   ┌──────────────┐        ┌────────────────────────────────┐
  │ Perangkat virtual (ESP32)│ ───────────────────────► │  Mosquitto   │ ─────► │ Layanan cloud                  │
  │ ECG 250 Hz (replay/sint.)│  device/{id}/ecg   (0)   │  1883 (TCP)  │        │  • sliding window 1750/875     │
- │ MAX30102 / GSR / MPU6050 │  device/{id}/vital (1)   │  9001 (WS)   │        │  • CNN 1D (44.547 parameter)   │
+ │ MAX30102 / GSR / MPU6050 │  device/{id}/vital (1)   │  8883 (TLS)  │        │  • CNN 1D ONNX (44.547 param.) │
  │ GPS Neo-6M, modem 4G     │  device/{id}/event (1)   │              │ ◄───── │  • decision engine FSM S1/S2/S3│
  │ fall detection 3 fase    │ ◄─ device/{id}/cmd (1)   │              │        │  • SQLite + mock notifikasi    │
  └──────────────────────────┘    device/{id}/lwt (1,R) └──────┬───────┘        └────────────────────────────────┘
                                                               │ device/{id}/state (1,R) · alert (2) · inference (0)
                                                               ▼
-                                   Monitor terminal · Debug viewer (localhost:8251) · Aplikasi CardioVest (localhost:8252)
+                                   server/ (API + Socket.IO + Web Push) ──► web/ di Vercel ──► ponsel keluarga
 ```
 
 > **Pembaruan menjelang uji alat:** daftar perubahan, bug yang ditemukan, dan alasannya ada di
@@ -42,12 +44,7 @@ Alurnya mengikuti rancangan BAB 1–11:
 
 ```
 CardioVest/
-├── docker-compose.yml          # mosquitto, cloud, simulator, viewer, web (+ monitor/uji/trainer sebagai "tools")
-├── docker-compose.produksi.yml # tambahan untuk server internet: TLS, akun per alat, ACL, HTTPS (Caddy)
-├── .env                        # siap pakai untuk laptop (tanpa rahasia)
-├── .env.example                # salinan bersih .env beserta penjelasan tiap variabel
-├── mosquitto/mosquitto.conf    # broker pengembangan: 1883 (MQTT), 9001 (WebSocket), anonim
-├── mosquitto/produksi/         # broker produksi: TLS 8883/9443, akun per alat, ACL, skrip akun & sertifikat
+├── deploy/                     # VM: docker-compose, Caddy (HTTPS), Mosquitto (akun + ACL + TLS), setup.sh, update.sh, cv.sh
 ├── common/heartsim_common/     # modul bersama
 │   ├── config.py               #   konstanta dari dokumen (fs, window, ambang, N, M, tau_conf, ...)
 │   ├── topics.py               #   hierarki topik & QoS
@@ -64,7 +61,7 @@ CardioVest/
 │   ├── cloud/                  # LAYANAN CLOUD
 │   │   ├── service.py          #   subscriber MQTT + antrean + orkestrasi
 │   │   ├── windowing.py        #   sliding window overlap 50 %
-│   │   ├── inference.py        #   Z-score -> CNN 1D -> softmax
+│   │   ├── inference.py        #   Z-score -> CNN 1D (ONNX Runtime) -> softmax
 │   │   ├── signal_quality.py   #   gerbang kualitas sinyal (lead-off, datar, derau) sebelum FSM
 │   │   ├── decision_engine.py  #   FSM + persistence + histeresis + cross-validation + kalibrasi GSR
 │   │   ├── notifier.py         #   dispatcher notifikasi tiruan (aturan penerima + retry backoff)
@@ -85,9 +82,10 @@ CardioVest/
 │   ├── analisis_sqi.py         # uji gerbang kualitas pada CUDB, VFDB, BUT QDB
 │   ├── uji_alarm_palsu.py      # alarm palsu per jam pada rekaman wearable BUT QDB
 │   ├── uji_sensitivitas.py     # episode VT/VF kontinu + recall per window vs tau
-│   └── debug-viewer/           # viewer browser (bukan PWA): index.html, vendor/ (mqtt.js, Leaflet), Dockerfile
+│   └── debug-viewer/           # viewer browser lama (butuh broker WebSocket lokal)
 ├── firmware/                   # FIRMWARE ESP32: cardiovest_esp32/ (Arduino IDE / PlatformIO) + 8 sketch uji komponen + uji di PC
-├── web/                        # APLIKASI: Next.js 16, halaman + API + realtime (localhost:8252), lihat web/README.md
+├── web/                        # TAMPILAN: Next.js 16 untuk Vercel, lihat web/README.md
+├── server/                     # API + Socket.IO + MQTT + Web Push (Node.js 22), lihat server/README.md
 ├── docs/                       # penyesuaian_laporan.md, analisis_sqi.md, analisis_alarm_palsu.md, analisis_lead.md (+ angka mentah .json)
 ├── tests/                      # unit + integrasi: FSM, codec, fall detection, layanan cloud, gerbang sinyal (pytest)
 └── data/export/                # hasil ekspor CSV (dibuat otomatis)
@@ -95,60 +93,38 @@ CardioVest/
 
 ---
 
-## 2. Menjalankan dengan Docker (disarankan)
+## 2. Deploy dan alur kerja harian
 
-**Prasyarat:** Docker Desktop untuk Windows (backend WSL 2) sudah berjalan. Image cloud memuat TensorFlow CPU,
-jadi build pertama mengunduh sekitar 1–1,5 GB dan butuh beberapa menit.
-
-Buka PowerShell di folder `CardioVest` (folder hasil ekstrak zip):
+Penyiapan sekali-jalan (VM Oracle Cloud, Vercel, ESP32, git) ada di [`deploy/README.md`](deploy/README.md).
+Setelah itu:
 
 ```powershell
-cd "D:\Kuliah\Semester 7\Capstone\C-251\CardioVest"   # sesuaikan dengan lokasi folder
-docker compose up -d --build          # broker + cloud + simulator + viewer + aplikasi
-docker compose logs -f cloud          # log inferensi & transisi state (Ctrl+C untuk keluar dari log)
-
-docker compose down # exit server
+git add -A
+git commit -m "feat: ..."
+git push
 ```
 
-cara pull:
-git pull origin main
+| Yang dilihat | Di mana |
+|---|---|
+| **Aplikasi CardioVest** | `https://<proyek>.vercel.app`. Daftar akun, lalu pasangkan alat `cv-001` dengan kode dari `cv info` di VM |
+| **Log** keputusan FSM, mock FCM, SMS fallback | `cv logs cloud simulator` di VM |
+| **Status layanan** | `cv info` di VM |
+| **MQTT Explorer** (opsional) | host `<ip>.sslip.io`, port `1883`, akun `web` dan kata sandinya dari `deploy/.env` di VM |
 
-cara push:
-git add .
-git commit -m "fix: file .ino"
-git push origin inge
+### Memilih skenario dan sumber data
 
-Setelah jalan, ada lima cara melihat hasil:
+Di VM:
 
-| Cara | Perintah / alamat | Isi |
-|---|---|---|
-| **Aplikasi CardioVest** | buka `http://localhost:8252` | tampilan untuk pemakai & keluarga. Daftar akun, lalu pasangkan alat `cv-001` kode `482913` |
-| **Debug viewer** | buka `http://localhost:8251` | grafik ECG sweep, state, vital, probabilitas CNN, peta GPS, tombol skenario |
-| **Monitor terminal** | `docker compose run --rm monitor` | tampilan penuh di terminal (Ctrl+C keluar) |
-| **Log** | `docker compose logs -f cloud simulator` | alasan tiap keputusan FSM, mock FCM, SMS fallback |
-| **MQTT Explorer** (opsional) | host `localhost`, port `1883` | seluruh pesan mentah per topik |
-
-Menghentikan: `docker compose down` (data SQLite tetap tersimpan di volume `cloud-data`; hapus dengan `docker compose down -v`).
-
-### Memilih skenario
-
-Tersedia tiga cara, pilih yang paling nyaman:
-
-```powershell
-# 1) tombol "Jalankan" di debug viewer (http://localhost:8251)
-
-# 2) CLI
-docker compose exec simulator python -m simulator.ctl daftar
-docker compose exec simulator python -m simulator.ctl skenario serangan_jatuh
-docker compose exec simulator python -m simulator.ctl reset          # tombol hardware reset (tahan 2 s)
-docker compose exec simulator python -m simulator.ctl putus 45       # sinyal 4G hilang 45 s
-
-# 3) prompt interaktif di dalam simulator
-docker attach c251-simulator        # ketik: daftar | skenario pra_serangan | reset | putus 45 | status
-                                    # keluar TANPA mematikan simulator: Ctrl+P lalu Ctrl+Q
+```sh
+cv skenario serangan_jatuh
+cv reset                     # tombol hardware reset
+cv sumber hardware           # data dari ESP32, simulator berhenti
+cv sumber dataset            # data dari simulator (rekaman PTB-XL/MIT-BIH)
 ```
 
-Skenario awal saat start diatur lewat `SCENARIO=` di `.env`.
+Dari aplikasi: `POST /api/source` dengan `{"source":"hardware"}` atau `{"source":"dataset"}`.
+
+Skenario awal saat start diatur lewat `SCENARIO=` di `deploy/.env` (`cv set SCENARIO serangan`).
 
 ---
 
@@ -168,12 +144,12 @@ Skenario awal saat start diatur lewat `SCENARIO=` di `.env`.
 | `reset_offline` | CRITICAL, sinyal hilang, tombol reset ditekan **saat offline** | alat langsung NORMAL; saat tersambung, event reset sampai lebih dulu dan cloud ikut NORMAL tanpa mengunci alat lagi |
 | `elektroda_lepas` | elektroda lepas 25 s (flag LO+/LO-, sinyal 0) | tetap NORMAL; window ditandai "kualitas sinyal" dan tidak menggerakkan FSM |
 
-Tombol **Reset hardware** (viewer), **Reset status** / **Hentikan alarm** (beranda web), dan tombol fisik di alat mengembalikan sistem ke NORMAL dari state mana pun. BAB 4.5 hanya menyebut tombol fisik untuk keluar dari CRITICAL; jalur web dan viewer adalah tambahan dan bisa dimatikan dengan `REMOTE_RESET=0`.
+`cv reset`, **Reset status** / **Hentikan alarm** (beranda web), dan tombol fisik di alat mengembalikan sistem ke NORMAL dari state mana pun. BAB 4.5 hanya menyebut tombol fisik untuk keluar dari CRITICAL; jalur web adalah tambahan dan bisa dimatikan dengan `REMOTE_RESET=0`.
 
 ### Uji otomatis semua skenario
 
 ```powershell
-docker compose run --rm uji          # ~12-15 menit, mencetak PASS/FAIL dan penilaian klinis per skenario
+cv uji          # di VM, ~12-15 menit, mencetak PASS/FAIL dan penilaian klinis per skenario
 ```
 
 Hasil pada lingkungan pengembangan (τ_conf 0,44, τ_gerak 0,76):
@@ -398,7 +374,7 @@ Menjalankan ulang (±3 menit, CPU; lingkungan Python yang sama dengan 6.5):
 python cloud\model\kalibrasi_tau.py --data ..\datasets\ecg_c251_250hz.npz
 # opsi: --spec-min 0.88 (target ideal), --fa-max 0.5 (WARNING palsu per jam), --fa-motion 0.05 (artefak)
 ```
-Nilai terpilih dicetak di akhir. Pasang dengan mengubah `TAU_CONF` dan `TAU_CONF_MOTION` di `.env`, lalu jalankan `docker compose up -d`.
+Nilai terpilih dicetak di akhir. Pasang dengan `cv set TAU_CONF <nilai>` dan `cv set TAU_CONF_MOTION <nilai>` di VM.
 
 ### 6.4 Riwayat eksperimen (pemilihan model berdasarkan macro-F1 **validasi**, bukan uji)
 | Percobaan | Perubahan | Val macro-F1 | Uji akurasi | Sensitivity Serangan (uji) |
@@ -417,9 +393,9 @@ pip install -r cloud\model\requirements-train.txt
 python cloud\model\datasets\prepare.py --ptbxl ..\datasets\ptbxl --mitdb ..\datasets\mitdb --out ..\datasets\ecg_c251_250hz.npz
 # 2) latih + evaluasi (~15 menit CPU); menulis model, metrik, grafik, dan bank replay simulator
 python cloud\model\train_real.py --data ..\datasets\ecg_c251_250hz.npz --ptbxl-dir ..\datasets\ptbxl
-# 3) pakai model baru
-docker compose restart cloud
-docker compose up -d --build simulator     # bank replay baru ikut masuk image simulator
+# 3) ekspor ke ONNX (dipakai layanan cloud), lalu push; VM membangun ulang cloud dan simulator
+python cloud\model\ekspor_model.py
+git add -A; git commit -m "model: latih ulang"; git push
 ```
 `--eval-only` mengevaluasi ulang model tersimpan tanpa melatih. `--cap-per-patient` dan `--oversample-rare`
 mengatur penyeimbangan data. Untuk eksperimen tanpa menimpa model produksi, pakai `--out <folder>
@@ -444,28 +420,28 @@ tampil di log simulator dan di viewer.
 
 ## 7. Data dummy dan ekspor CSV
 
-Seluruh data tersimpan di SQLite `cardiovest.db` di dalam volume Docker `cloud-data`. Volume dipakai
-alih-alih folder Windows karena mode WAL SQLite tidak andal pada bind mount Windows. Untuk mengekspornya ke CSV:
+Seluruh data tersimpan di SQLite `/srv/cardiovest/cloud/cardiovest.db` di VM. Untuk mengekspornya ke CSV:
 
-```powershell
-docker compose exec cloud python -m cloud.export --db /data/cardiovest.db --out /export
+```sh
+cv ekspor
 ```
 
-Hasilnya muncul di `CardioVest\data\export\`: `vitals.csv`, `inferences.csv`, `transitions.csv`, `events.csv`,
+Hasilnya muncul di `/srv/cardiovest/cloud/export/` (unduh dengan `scp`): `vitals.csv`, `inferences.csv`, `transitions.csv`, `events.csv`,
 `notifications.csv`, `device_status.csv`, `ecg_samples.csv` (30 menit terakhir, count dan mV), serta `ringkasan.txt`
 (laju data per topik, rata-rata latensi, jumlah transisi). File ini dapat dipakai untuk grafik laporan BAB pengujian.
 
 ---
 
-## 8. Menjalankan tanpa Docker (opsional)
+## 8. Menjalankan di laptop (opsional)
 
-Butuh Python 3.11 dan broker Mosquitto terpasang di Windows.
+Tidak diperlukan untuk deploy. Berguna untuk mencoba layanan cloud atau simulator tanpa push. Butuh
+Python 3.11 dan Mosquitto untuk Windows.
 
 ```powershell
 py -3.11 -m venv .venv; .\.venv\Scripts\Activate.ps1
-pip install -r cloud\requirements.txt rich pytest
+pip install -r cloud\requirements.txt -r simulator\requirements.txt rich pytest
 $env:PYTHONPATH = "$PWD\common;$PWD\simulator;$PWD\cloud"
-# terminal 1: mosquitto -c mosquitto\mosquitto.conf   (hapus baris persistence_location atau sesuaikan path)
+# terminal 1: mosquitto -v
 # terminal 2:
 python -m cloud --db data\cardiovest.db
 # terminal 3:
@@ -476,6 +452,8 @@ python tools\monitor.py
 python -m pytest tests -q
 ```
 
+Untuk tampilan saja, `cd web; npm install; npm run dev` memakai backend asli di VM (lihat `web/README.md`).
+
 ---
 
 ## 9. Aplikasi CardioVest (`web/`)
@@ -484,16 +462,9 @@ Aplikasi untuk User Utama dan Kontak Darurat (Halaman 1–6 di Bab 8.5.5): dafta
 lewat QR, kontak darurat dengan tautan undangan, notifikasi berlapis (WARNING hanya ke pemakai,
 CRITICAL ke pemakai dan semua kontak), halaman darurat dengan peta, riwayat, dan PDF untuk dokter.
 
-Ikut menyala bersama `docker compose up -d --build`. Buka http://localhost:8252, daftar akun, lalu
-pasangkan alat dengan ID `cv-001` dan kode `482913` (dari `DEVICES` di `.env`). Rincian fitur, endpoint,
-CLI admin, dan produksi ada di [`web/README.md`](web/README.md).
-
-Aplikasinya dibangun dengan Next.js 16 (App Router). Di laptop dan VPS semuanya berjalan dari satu
-container. Tampilannya juga bisa dipasang di Vercel; MQTT, Socket.IO, dan database tetap di VPS, dan
-caranya ada di bagian Vercel di `web/README.md`.
-
-Debug viewer (8251) tetap ada untuk tim: isinya lebih teknis (probabilitas per window, validator,
-kualitas sinyal).
+Tampilan (`web/`) dipasang di Vercel; API, Socket.IO, MQTT, dan Web Push ada di `server/` di VM.
+Rincian fitur ada di [`web/README.md`](web/README.md), endpoint dan CLI admin di
+[`server/README.md`](server/README.md).
 
 ---
 
@@ -501,17 +472,13 @@ kualitas sinyal).
 
 | Gejala | Penyebab / solusi |
 |---|---|
-| `localhost:8251` terus loading / tidak terbuka | Port dipakai aplikasi lain. Cek dengan `netstat -ano \| findstr :8251`, lalu ganti `VIEWER_PORT` di `.env` (mis. 8261) dan jalankan `docker compose up -d viewer`. |
-| Viewer "broker: terputus" | Pastikan `c251-mosquitto` jalan dan port 9001 tidak dipakai aplikasi lain. |
+| Aplikasi atau ESP32 tidak tersambung ke server | Lihat tabel pemecahan masalah di `deploy/README.md`. |
 | State tidak pernah WARNING di awal | Cloud baru start: kalibrasi GSR 30 s berjalan, dan window pertama butuh 2 paket (7 s). |
-| `model tidak ditemukan` | Folder `cloud/model/artifacts` kosong. Jalankan `docker compose run --rm trainer`. |
-| Tetap CRITICAL | Memang terkunci (latching). Tekan **Hentikan alarm** di beranda web, tombol reset dari viewer, atau `simulator.ctl reset`. |
+| `model tidak ditemukan` | `cloud/model/artifacts/cnn1d_ecg.onnx` hilang. Jalankan `python cloud\model\ekspor_model.py` lalu push. |
+| Tetap CRITICAL | Memang terkunci (latching). Tekan **Hentikan alarm** di beranda web atau `cv reset`. |
 | Peta tidak muncul | GPS hanya aktif saat CRITICAL dan butuh 12–40 s untuk fix. Tile OpenStreetMap perlu internet. |
-| Build cloud lama / gagal | Unduhan TensorFlow besar. Ulangi `docker compose build cloud` saat koneksi stabil. |
-| Viewer/web tidak menerima data padahal broker jalan, log Mosquitto berisi "Address family not supported" | Host tanpa IPv6. Konfigurasi sekarang sudah memaksa IPv4 (`socket_domain ipv4`); pastikan memakai `mosquitto.conf` terbaru. |
-| Alat asli tersambung tetapi state tidak pernah berubah | Lihat debug viewer: bila "Kualitas sinyal: DIABAIKAN", elektroda lepas atau sinyal datar. Bila log cloud berisi "jam perangkat belum tersinkron", itu normal di menit pertama (cloud memakai waktu terima). |
+| Alat asli tersambung tetapi state tidak pernah berubah | Lihat `cv logs cloud`: bila "kualitas sinyal" ditolak, elektroda lepas atau sinyal datar. Bila log cloud berisi "jam perangkat belum tersinkron", itu normal di menit pertama (cloud memakai waktu terima). |
 | Alarm palsu sering saat alat dipakai | Lihat `docs/analisis_alarm_palsu.md`, lalu jalankan `tools/kalibrasi_lapangan.py` dengan data alat sendiri. |
-| `container name "/c251-cloud" is already in use` | Stack lama dari folder `Rencana` masih ada (nama container sama). Bila data lama masih dibutuhkan, ekspor dulu dari folder `Rencana`: `docker compose exec cloud python -m cloud.export --db /data/heartwatch.db --out /export` (hasil di `Rencana\data\export`). Lalu jalankan `docker compose down` di folder `Rencana`, dan ulangi `docker compose up -d --build` di folder `CardioVest`. Database CardioVest memakai volume baru, jadi riwayat lama tidak ikut pindah. |
 | Notifikasi web tidak muncul | Wajib HTTPS (kecuali localhost) dan izin notifikasi. iPhone: tambahkan ke Layar Utama dulu (iOS 16.4+). |
 
 ---
@@ -522,10 +489,11 @@ Folder `firmware/` berisi firmware Arduino IDE untuk ESP32 + AD8232 + MAX30102 +
 SIM7600E-H. Topik, QoS, dan format payload-nya identik dengan simulator, sehingga perangkat asli dapat
 langsung menggantikan simulator:
 
-```powershell
-docker compose up -d
-docker compose stop simulator      # perangkat asli memakai DEVICE_ID yang sama (cv-001)
+```sh
+cv sumber hardware      # di VM: simulator berhenti, perangkat asli memakai DEVICE_ID yang sama (cv-001)
 ```
+
+Alamat broker dan akun MQTT untuk firmware ada di `deploy/README.md` bagian C.
 
 Panduan pemasangan library, rangkaian, urutan uji per komponen (`firmware/uji_komponen/`), dan hasil verifikasi
 ada di `firmware/README.md`.
@@ -539,11 +507,11 @@ ada di `firmware/README.md`.
 2. Firmware: `DEVICE_ID`, `MQTT_HOST`, WiFi/APN diisi; Serial Monitor `s` menunjukkan `waktu_sinkron=1`
    setelah ±1 menit.
 3. Uji elektroda dulu tanpa cloud: Serial Plotter (`p`) harus menampilkan QRS jelas saat duduk diam.
-   Lepas satu elektroda: debug viewer harus menunjukkan "ELEKTRODA LEPAS" dan state tetap NORMAL.
+   Lepas satu elektroda: `cv logs cloud` harus menunjukkan window ditolak karena kualitas sinyal dan state tetap NORMAL.
 4. Tekan reset saat WiFi dimatikan, nyalakan lagi: alat harus tetap NORMAL (skenario `reset_offline`).
 5. Pakai alat 6–8 jam saat sehat, lalu jalankan `tools/kalibrasi_lapangan.py`. Angka alarm palsu dari
    alat sendiri lebih bisa dipercaya daripada perkiraan di `docs/analisis_alarm_palsu.md`.
 6. Kalibrasi baseline GSR untuk alat sungguhan: `CALIB_SECONDS=600` (10 menit, sesuai 5.5.3). Nilai 30 detik
    hanya untuk demo.
-7. Sebelum lewat internet: broker produksi (`mosquitto/produksi/README.md`) + TLS di firmware.
-8. Bila server dipakai lama, isi `RETENSI_HARI` (minimal 30, F-BE-4) agar disk tidak penuh oleh ECG mentah.
+7. Lewat internet: `MQTT_USE_TLS 1` di firmware (port 8883, sertifikat Let's Encrypt otomatis di VM).
+8. `RETENSI_HARI=30` sudah aktif di VM (F-BE-4) agar disk tidak penuh oleh ECG mentah.

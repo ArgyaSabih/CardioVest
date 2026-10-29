@@ -1,4 +1,3 @@
-// Muat akun; bila sudah dipasangkan dengan alat, muat status dan buka koneksi real-time.
 import { api, getToken } from './api.js';
 import { connectRealtime, disconnectRealtime } from './realtime.js';
 import { authActions, liveActions } from './store.js';

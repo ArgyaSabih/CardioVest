@@ -1,6 +1,4 @@
 'use client';
-// Halaman 3: Manajemen kontak darurat (F-APP-4), maksimal 5. Perubahan saat offline diantrekan Service
-// Worker (Background Sync) dan dikirim otomatis begitu ada koneksi.
 import { useEffect, useState } from 'react';
 import { api } from '../api.js';
 import { ErrorNote, SignBar } from '../components/ui.jsx';
@@ -11,11 +9,11 @@ const fullUrl = (u) => (u.startsWith('http') ? u : `${window.location.origin}${u
 export default function Contacts() {
   const [list, setList] = useState(null);
   const [form, setForm] = useState(empty);
-  const [editing, setEditing] = useState(null); // id | 'new' | null
+  const [editing, setEditing] = useState(null);
   const [err, setErr] = useState('');
   const [note, setNote] = useState('');
   const [copied, setCopied] = useState(null);
-  const [confirm, setConfirm] = useState(null); // { id, kind: 'hapus' | 'tautan' }
+  const [confirm, setConfirm] = useState(null);
 
   const load = () => api('/contacts').then(setList).catch((e) => setErr(e.message));
   useEffect(() => {

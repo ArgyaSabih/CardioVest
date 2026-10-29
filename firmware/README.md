@@ -89,28 +89,26 @@ bermasalah dapat diisolasi.
 | `05_gps_neo6m` | NMEA, fix, satelit, HDOP | di luar ruangan, cold start ≤ 60 s |
 | `06_sim7600_4g` | AT, sinyal, registrasi, data, SMS | perintah `i g t s a` |
 | `07_buzzer_led_tombol` | pola alarm, tombol 3 s, VBUS | perintah `0 1 2 3` |
-| `08_wifi_mqtt` | jalur WiFi → broker → cloud tanpa sensor | vital tiruan muncul di viewer `localhost:8251` |
+| `08_wifi_mqtt` | jalur WiFi → broker → cloud tanpa sensor | vital tiruan muncul di `cv logs cloud` di VM |
 
 ### Langkah 2: firmware utama
-1. Jalankan pipeline di laptop: `docker compose up -d` di folder `CardioVest` (lihat README utama).
-2. **Hentikan simulator** agar tidak bentrok dengan perangkat asli yang memakai ID yang sama:
-   `docker compose stop simulator`.
+1. Server sudah berjalan di VM (lihat `deploy/README.md`).
+2. **Pilih sumber hardware** agar simulator berhenti dan tidak bentrok dengan perangkat asli yang memakai
+   ID yang sama: `cv sumber hardware` di VM, atau tombol switch di aplikasi.
 3. Buka `firmware/cardiovest_esp32/cardiovest_esp32.ino`, lalu ubah `config.h`:
    * `CONN_MODE CONN_WIFI`, `WIFI_SSID`, `WIFI_PASS`
-   * `MQTT_HOST` = IP laptop di jaringan yang sama (PowerShell: `ipconfig` → IPv4 Address). Izinkan port
-     1883 di Windows Firewall bila diminta.
-   * `DEVICE_ID` harus sama dengan `.env` (default `cv-001`)
+   * `MQTT_HOST` = `<ip>.sslip.io`, `MQTT_USER` = `cv-001`, `MQTT_PASS` = kata sandi dari `cv info` di VM
+   * `DEVICE_ID` harus sama dengan `DEVICE_ID` di `deploy/.env` (default `cv-001`)
    * modul yang belum terpasang boleh dibiarkan aktif (dilewati otomatis bila tidak terdeteksi) atau
      dimatikan dengan `ENABLE_... 0`
 4. Upload, buka Serial Monitor 115200, lalu ketik `s` untuk status.
-5. Buka debug viewer `http://localhost:8251`. ECG, vital, dan keputusan CNN dari perangkat asli akan tampil.
+5. Buka aplikasi di Vercel. ECG, vital, dan keputusan CNN dari perangkat asli akan tampil.
 
 ### Langkah 3: mode 4G (lapangan)
 * `CONN_MODE CONN_4G`, isi `GSM_APN` sesuai operator.
-* Broker harus dapat diakses dari internet, misalnya Mosquitto di VPS (sesuai rancangan BAB 5.6) atau
-  port-forward router ke laptop. Isi `MQTT_HOST` dengan IP publik atau domain.
-* **Pakai TLS + akun begitu lewat internet.** Ikuti `mosquitto/produksi/README.md` (akun per alat, ACL,
-  sertifikat), lalu isi `MQTT_USE_TLS 1`, `MQTT_USER` (= `DEVICE_ID`), dan `MQTT_PASS`. Port otomatis 8883.
+* Broker di VM sudah dapat diakses dari internet dengan akun per alat dan ACL.
+* **Pakai TLS begitu lewat internet.** Isi `MQTT_USE_TLS 1`; port otomatis 8883 dan sertifikat Let's
+  Encrypt dipasang otomatis di VM.
   * Mode 4G memakai library **GovoroxSSLClient** (Library Manager) di atas TinyGsmClient, karena TinyGSM
     0.12 belum punya TLS untuk SIM7600. Mode WiFi memakai `WiFiClientSecure` bawaan core.
   * Sertifikat broker diverifikasi dengan `ca_cert.h` (default ISRG Root X1 untuk Let's Encrypt). Versi
@@ -185,7 +183,7 @@ terburuk menjadi ±7,4 s, masih di bawah batas 10 s. Beban komputasinya sekitar 
 
 **Belum diuji:** perilaku pada ESP32 dan sensor fisik, yaitu kalibrasi `ECG_GAIN` dan `GSR_ADC_NO_SKIN`,
 kestabilan timer 250 Hz saat WiFi/4G aktif, konsumsi daya, serta TLS di ESP32 (konfigurasi broker
-TLS + ACL sudah diuji dari sisi klien Python, lihat `mosquitto/produksi/README.md`). Uji ini perlu dilakukan dengan
+TLS + ACL sudah diuji dari sisi klien Python, lihat `deploy/mosquitto/`). Uji ini perlu dilakukan dengan
 `uji_komponen/` lalu firmware utama.
 
 **Keterbatasan yang diketahui:**

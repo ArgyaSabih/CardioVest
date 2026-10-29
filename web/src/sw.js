@@ -1,12 +1,3 @@
-// Service Worker CardioVest (Subbab 8.5.6, F-APP-8). Dibundel esbuild menjadi public/sw.js
-// (scripts/build-sw.mjs) setiap kali `npm run build`.
-//  - halaman: network-first; salinan terakhir disimpan supaya aplikasi tetap terbuka tanpa sinyal.
-//    Saat dipasang, halaman utama dan berkas JS/CSS-nya langsung diunduh ke cache.
-//  - berkas /_next/static, ikon, dan font: cache-first (namanya sudah berisi hash)
-//  - /api/history, /api/users/me, /api/contacts, /api/status, /api/trend: network-first, cadangan 24 jam
-//  - perubahan kontak saat offline: Background Sync, dikirim ulang otomatis saat koneksi pulih
-//  - push: CRITICAL memakai requireInteraction + getar panjang; kontak mendapat tombol "Saya terima"
-//    yang langsung mengonfirmasi penerimaan tanpa membuka aplikasi
 import { BackgroundSyncPlugin } from 'workbox-background-sync';
 import { ExpirationPlugin } from 'workbox-expiration';
 import { registerRoute, setCatchHandler } from 'workbox-routing';
@@ -30,7 +21,6 @@ async function warmUp() {
       for (const m of html.matchAll(/["'(](\/_next\/static\/[^"'()\s]+)/g)) assets.add(m[1]);
       await pages.put(path, res);
     } catch {
-      /* tanpa sinyal saat dipasang: cache terisi saat halaman dibuka */
     }
   }));
   await Promise.all([...assets].map((u) => statics.add(u).catch(() => {})));
@@ -67,8 +57,6 @@ for (const method of ['POST', 'PUT', 'DELETE']) {
   registerRoute(({ url }) => /^\/api\/contacts(\/\d+)?$/.test(url.pathname), new NetworkOnly({ plugins: [contactSync] }), method);
 }
 
-// halaman yang belum pernah dibuka saat offline: tampilkan beranda dari cache, aplikasi lalu
-// menampilkan data terakhir yang tersimpan
 setCatchHandler(async ({ request }) => {
   if (request.mode === 'navigate') {
     const page = await caches.open(PAGES);

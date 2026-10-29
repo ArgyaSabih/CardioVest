@@ -1,7 +1,4 @@
 'use client';
-// Halaman 2: Beranda real-time (F-APP-3) untuk User Utama.
-// Urutannya mengikuti kebutuhan pemakai, bukan urutan pipeline: status dan tindakan dulu, lalu sinyal,
-// lalu angka yang ia pahami. Probabilitas model dan alasan teknis ada di detail kejadian (Riwayat).
 import { useEffect, useRef, useState } from 'react';
 import { useSelector } from 'react-redux';
 import Link from 'next/link';
@@ -11,9 +8,9 @@ import Icon from '../components/icons.jsx';
 import { ModeSwitch, TestPanel } from '../components/TestMode.jsx';
 import { AckList, CallButtons, Connection, StateBanner, StickyCall, Wordmark, displayState, since } from '../components/ui.jsx';
 
-const HR_HIGH = 120; // sama dengan HR_HIGH / HR_LOW di layanan cloud (Tabel 4.3)
+const HR_HIGH = 120;
 const HR_LOW = 40;
-const REST_LO = 60; // pita "wajar saat istirahat" di grafik tren
+const REST_LO = 60;
 const REST_HI = 100;
 
 function HrTrend({ nowHr }) {
@@ -26,7 +23,7 @@ function HrTrend({ nowHr }) {
   }, []);
   const hr = (pts || []).filter((p) => p.hr != null);
   if (hr.length < 5) return null;
-  if (nowHr) hr.push({ t: Date.now(), hr: nowHr }); // ujung grafik = angka di atas, bukan data 30 detik lalu
+  if (nowHr) hr.push({ t: Date.now(), hr: nowHr });
   const W = 320;
   const H = 96;
   const t0 = hr[0].t;
@@ -37,7 +34,7 @@ function HrTrend({ nowHr }) {
   const y = (v) => H - ((v - lo) / (hi - lo)) * H;
   let d = '';
   hr.forEach((p, i) => {
-    const gap = i && p.t - hr[i - 1].t > 5 * 60_000; // alat mati > 5 menit: putus garis
+    const gap = i && p.t - hr[i - 1].t > 5 * 60_000;
     d += `${!i || gap ? 'M' : 'L'}${x(p.t).toFixed(1)},${y(p.hr).toFixed(1)}`;
   });
   const max = Math.max(...hr.map((p) => p.hr));
@@ -129,7 +126,6 @@ export default function Dashboard() {
     return () => clearInterval(t);
   }, []);
 
-  // penutup kejadian: setelah Waspada/Darurat kembali Normal, beri tahu bahwa kejadiannya tersimpan
   useEffect(() => {
     if (live.state === 'NORMAL' && (prevState.current === 'WARNING' || prevState.current === 'CRITICAL')) setEndedAt(Date.now());
     if (live.state !== 'NORMAL') setEndedAt(null);
@@ -146,7 +142,6 @@ export default function Dashboard() {
   const fresh = linked && v && !v.stale;
   const firstContact = live.contacts?.[0];
 
-  // bilah 119 menempel bila tombol utama sudah tergulir keluar layar
   useEffect(() => {
     if (!critical || !callRef.current) {
       setCallHidden(false);

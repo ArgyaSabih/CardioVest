@@ -1,6 +1,4 @@
 'use client';
-// Halaman 5: Detail event (F-APP-6). Rekaman EKG yang bisa digeser & diperbesar, denyut & GSR,
-// urutan status, lokasi (khusus Critical), log notifikasi, konfirmasi kontak, ekspor PDF.
 import { Chart, Filler, LineController, LineElement, LinearScale, PointElement, Tooltip } from 'chart.js';
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
@@ -98,7 +96,7 @@ async function exportPdf(ev, name) {
       doc.setLineWidth(mm % 5 ? 0.05 : 0.15);
       doc.line(left, top + mm, left + 250, top + mm);
     }
-    const start = Math.max(0, mark - 20 * fs); // baris pertama = 20 detik sebelum kejadian
+    const start = Math.max(0, mark - 20 * fs);
     const s0 = start + r * 10 * fs;
     const y = (v) => Math.max(top, Math.min(top + rowH, top + rowH / 2 - v * 10));
     doc.setDrawColor(26, 36, 51);

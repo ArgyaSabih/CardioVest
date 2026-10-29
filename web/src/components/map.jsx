@@ -1,5 +1,4 @@
 'use client';
-// Leaflet menyentuh window saat dimuat, jadi peta hanya dirender di browser.
 import dynamic from 'next/dynamic';
 
 export const LocationMap = dynamic(() => import('./LocationMap.jsx'), {

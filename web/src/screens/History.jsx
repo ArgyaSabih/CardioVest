@@ -1,6 +1,4 @@
 'use client';
-// Halaman 4: Riwayat event Warning & Critical (F-APP-6) dengan filter jenis dan rentang tanggal.
-// Ditampilkan seperti buku catatan: dikelompokkan per hari, jam di kiri, supaya mudah dibacakan ke dokter.
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { api } from '../api.js';

@@ -1,5 +1,4 @@
 'use client';
-// Peta lokasi (Leaflet + OpenStreetMap). Titik terakhir ditandai, jejak lokasi digambar tipis.
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { useEffect, useRef } from 'react';
@@ -18,7 +17,6 @@ export default function LocationMap({ lat, lng, acc, trail = [], height = 260 })
     L.control.layers({ 'Google Maps': road, 'Google Satelit': sat, OpenStreetMap: osm }).addTo(map.current);
     layer.current = L.layerGroup().addTo(map.current);
     return () => map.current.remove();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {

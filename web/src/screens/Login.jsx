@@ -1,5 +1,4 @@
 'use client';
-// Halaman 1: Masuk / Daftar (F-APP-1), plus lupa kata sandi, atur ulang, dan verifikasi email.
 import { useEffect, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import Link from 'next/link';
@@ -24,7 +23,6 @@ export default function Login() {
   const [busy, setBusy] = useState(false);
   const dispatch = useDispatch();
   const router = useRouter();
-  // ?dari= diisi penjaga halaman privat; hanya jalur di aplikasi ini yang diterima
   const dari = useSearchParams().get('dari');
   const from = dari?.startsWith('/') && !dari.startsWith('//') ? dari : '/';
   const loggedIn = !!getToken();

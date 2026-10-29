@@ -1,3 +1,6 @@
 node_modules/
 .next/
 public/sw.js
+.vercel/
+.env*.local
+next-env.d.ts

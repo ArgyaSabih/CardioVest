@@ -1,5 +1,3 @@
-// Piktogram CardioVest. Digambar dengan grid 24 px dan garis seragam, seperti piktogram papan penunjuk
-// rumah sakit: bentuk sederhana yang tetap terbaca dari jauh dan oleh mata yang rabun.
 const P = {
   heart: 'M12 20s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7a4.3 4.3 0 0 1 7.5 2.8C19.5 15.4 12 20 12 20z',
   pulse: 'M2.5 12.5h4.5l2.2-5 3.6 10 2.4-5h6.3',

@@ -1,5 +1,3 @@
-// Socket.IO ke server CardioVest di /data/realtime (Subbab 8.5.5). EKG (250 sampel/detik) tidak lewat Redux,
-// tetapi langsung ke kanvas lewat listener agar render tetap ringan.
 import { io } from 'socket.io-client';
 import { REALTIME_URL } from './api.js';
 import { liveActions } from './store.js';
@@ -27,6 +25,7 @@ export function connectRealtime(dispatch, token) {
   socket.on('online', (p) => dispatch(liveActions.online(p)));
   socket.on('alert', (p) => dispatch(liveActions.alert(p)));
   socket.on('ack', (p) => dispatch(liveActions.acks(p.acks)));
+  socket.on('source', (p) => dispatch(liveActions.source(p.source)));
   socket.on('ecg', (p) => ecgListeners.forEach((fn) => fn(p)));
   return socket;
 }

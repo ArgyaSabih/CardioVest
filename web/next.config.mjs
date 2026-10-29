@@ -1,7 +1,3 @@
-// Konfigurasi Next.js CardioVest. Penerusan /api ke server CardioVest saat dipasang di Vercel ada di
-// proxy.js, karena perlu menambahkan header IP pengguna.
-
-/** @type {import('next').NextConfig} */
 const nextConfig = {
   poweredByHeader: false,
   reactStrictMode: true,

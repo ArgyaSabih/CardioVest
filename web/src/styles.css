@@ -1,13 +1,8 @@
-/* CardioVest PWA: papan penunjuk rumah sakit.
-   Pemakainya lansia yang matanya mulai rabun, sering dibuka siang hari di rumah. Bahasanya diambil dari
-   rambu rumah sakit yang sudah dipercaya: strip biru dengan huruf putih untuk arah, pelat berwarna penuh
-   untuk status (warnanya sama dengan LED tiga warna di alat), piktogram tebal, kontras tinggi. Merah hanya
-   untuk Darurat. Satu-satunya ornamen adalah kertas EKG, dan ornamen itu berguna. */
 :root {
-  --sign: #0b3d91;          /* biru papan penunjuk */
+  --sign: #0b3d91;
   --sign-press: #072c6b;
   --sign-tint: #dde6f5;
-  --ground: #e9ebee;        /* lantai/dinding beton terang */
+  --ground: #e9ebee;
   --surface: #ffffff;
   --ink: #111827;
   --ink-2: #4b5563;
@@ -15,19 +10,19 @@
   --line-strong: #9aa3af;
   --hover: #f1f3f6;
 
-  --ok: #12723f;            /* LED hijau */
+  --ok: #12723f;
   --ok-bg: #e3f1e8;
   --ok-line: #9fd0b2;
-  --amber: #f2b705;         /* LED kuning, pelat rambu peringatan */
+  --amber: #f2b705;
   --amber-ink: #241a00;
-  --warn: #6b4a00;          /* teks kuning di atas dasar terang */
+  --warn: #6b4a00;
   --warn-bg: #fff4cf;
   --warn-line: #e8cd73;
-  --crit: #c8102e;          /* LED merah, papan IGD */
+  --crit: #c8102e;
   --crit-dark: #9e0c24;
   --crit-bg: #fdecee;
   --crit-line: #f1b5bf;
-  --idle: #4b5563;          /* pelat abu: alat tidak terhubung */
+  --idle: #4b5563;
 
   --paper: #fff4f4;
   --grid-minor: #f6d3d3;
@@ -82,7 +77,6 @@ svg { flex: none; }
 .link.back { text-decoration: none; }
 .link.back:hover { text-decoration: underline; }
 
-/* ---------- strip papan penunjuk (judul halaman) */
 .signbar {
   display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; min-height: 60px;
   margin: 0 calc(-1 * var(--pad)) 16px; padding: 10px var(--pad);
@@ -97,7 +91,6 @@ svg { flex: none; }
 .wordmark { display: inline-flex; align-items: center; gap: 10px; font-weight: 700; font-size: 1.25rem; letter-spacing: 0.01em; }
 .wordmark.small { font-size: 1.05rem; gap: 8px; }
 
-/* ---------- pesan: latar berwarna lembut + garis tipis senada */
 .error, .note-warn, .note-info, .empty, .note-ok {
   padding: 10px 14px; border-radius: var(--r); font-size: 0.95rem; margin: 12px 0; border: 1px solid;
 }
@@ -110,7 +103,6 @@ svg { flex: none; }
 .empty { background: var(--surface); border-color: var(--line); color: var(--ink-2); }
 .empty strong { display: block; color: var(--ink); margin-bottom: 2px; }
 
-/* ---------- tombol: pelat yang bisa ditekan */
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 10px;
   min-height: 52px; padding: 10px 18px;
@@ -142,7 +134,6 @@ svg { flex: none; }
 .text-btn:hover { text-decoration-color: currentColor; background: var(--hover); }
 .text-btn.danger { color: var(--ink); text-decoration-color: var(--ink-2); }
 
-/* ---------- formulir */
 .form { display: grid; gap: 16px; }
 .form label, label.inline { display: grid; gap: 6px; font-weight: 700; font-size: 0.95rem; }
 input {
@@ -170,7 +161,6 @@ label.consent input { width: 24px; height: 24px; margin: 2px 0 0; }
 .tabs button[aria-selected='true'], .seg button[aria-pressed='true'] { background: var(--sign); color: #fff; }
 .seg.small button { min-height: 44px; font-size: 0.9rem; padding: 0 10px; }
 
-/* ---------- masuk / daftar / undangan */
 .login { padding-bottom: 32px; }
 .brand-panel {
   margin: 0 calc(-1 * var(--pad)) 20px; padding: 28px var(--pad) 22px;
@@ -181,12 +171,11 @@ label.consent input { width: 24px; height: 24px; margin: 2px 0 0; }
 .brand-panel p { margin: 0; color: #fff; opacity: 0.95; max-width: 30ch; }
 .login h2 { margin-top: 8px; }
 
-/* ---------- pelat status (Beranda) */
 .plate {
   position: relative; margin: 0 calc(-1 * var(--pad)); padding: 20px var(--pad) 18px;
   color: #fff;
 }
-.plate::before { /* garis tepi dalam seperti rambu */
+.plate::before {
   content: ''; position: absolute; inset: 7px; border: 2px solid rgba(255, 255, 255, 0.85); border-radius: 3px; pointer-events: none;
 }
 .plate-normal { background: var(--ok); }
@@ -215,13 +204,11 @@ label.consent input { width: 24px; height: 24px; margin: 2px 0 0; }
 .plate-critical :focus-visible, .plate-normal :focus-visible, .plate-unmonitored :focus-visible { outline-color: #fff; }
 .plate-warning :focus-visible { outline-color: var(--amber-ink); }
 
-/* papan putar: pelat berputar sekali saat status berubah */
 @media (prefers-reduced-motion: no-preference) {
   .plate-face { animation: flip 320ms cubic-bezier(0.2, 0.7, 0.2, 1) both; transform-origin: 50% 0; }
   @keyframes flip { from { transform: perspective(700px) rotateX(-75deg); opacity: 0.2; } to { transform: none; opacity: 1; } }
 }
 
-/* penanda koneksi di strip atas: piktogram EKG berdenyut mengikuti denyut pemakai (--beat) */
 .conn { display: inline-flex; flex-wrap: nowrap; align-items: center; gap: 8px; font-weight: 700; font-size: 1rem; white-space: nowrap; line-height: 1.2; }
 .signbar-side { display: flex; align-items: center; }
 @media (max-width: 360px) {
@@ -239,7 +226,6 @@ label.consent input { width: 24px; height: 24px; margin: 2px 0 0; }
   42% { transform: scale(1); }
 }
 
-/* isi pelat: langkah, tindakan */
 .state-steps { margin: 12px 0 0; padding-left: 1.4em; }
 .state-steps li { margin-bottom: 4px; padding-left: 2px; }
 .state-steps li::marker { font-weight: 700; }
@@ -260,7 +246,6 @@ label.consent input { width: 24px; height: 24px; margin: 2px 0 0; }
 .state-more p { margin: 6px 0 0; }
 .state-stranger { margin: 16px 0 0; padding-top: 12px; border-top: 2px solid rgba(255, 255, 255, 0.5); font-size: 0.95rem; font-weight: 700; }
 
-/* tombol telepon darurat */
 .em-actions { display: grid; gap: 10px; margin: 16px 0; }
 .btn.em-call { min-height: 72px; font-size: 1.3rem; background: var(--crit-dark); border-color: var(--crit-dark); color: #fff; }
 .btn.em-call:hover { background: #860a1e; }
@@ -280,7 +265,6 @@ label.consent input { width: 24px; height: 24px; margin: 2px 0 0; }
 }
 .sticky-call:hover { background: #860a1e; }
 
-/* konfirmasi "sudah menerima kabar" */
 .acks { list-style: none; padding: 0; margin: 12px 0; display: grid; gap: 6px; }
 .acks li {
   display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
@@ -295,7 +279,6 @@ label.consent input { width: 24px; height: 24px; margin: 2px 0 0; }
 .ack-box { margin: 16px 0 0; }
 .ack-box .form { margin-bottom: 10px; }
 
-/* ---------- EKG: kertas EKG dalam bingkai tinta, seperti monitor yang dipasang di dinding */
 .ecg-live { position: relative; margin: 0 calc(-1 * var(--pad)); border-block: 4px solid var(--ink); }
 .ecg-paper { background: var(--paper); line-height: 0; }
 .ecg-scroll { overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin; scrollbar-color: var(--grid-major) var(--paper); border-block: 3px solid var(--ink); margin: 0 calc(-1 * var(--pad)); }
@@ -308,7 +291,6 @@ label.consent input { width: 24px; height: 24px; margin: 2px 0 0; }
   padding: 10px 14px; text-align: center; font-weight: 700; font-size: 0.95rem; color: var(--ink);
 }
 
-/* ---------- pelat tanda vital: kepala biru + isi putih */
 .vitals { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0 0; }
 .vital {
   flex: 1 1 6rem; display: grid; grid-template-rows: auto auto 1fr; background: var(--surface);
@@ -330,7 +312,6 @@ label.consent input { width: 24px; height: 24px; margin: 2px 0 0; }
 .vitals.is-stale .vital-label { background: var(--idle); }
 .vitals.is-stale .vital-value { color: var(--ink-2); }
 
-/* ---------- tren denyut */
 .trend-wrap { position: relative; padding-left: 40px; }
 .trend { display: block; width: 100%; height: 96px; background: var(--surface); border: 2px solid var(--line-strong); border-radius: var(--r); }
 .trend-band { fill: #dfe3e8; }
@@ -338,10 +319,8 @@ label.consent input { width: 24px; height: 24px; margin: 2px 0 0; }
 .inline-action { display: inline-flex; align-items: center; min-height: 44px; }
 .offline-note { position: fixed; left: 0; right: 0; bottom: calc(66px + env(safe-area-inset-bottom)); margin: 0; padding: 8px; text-align: center; background: var(--ink); color: #fff; font-size: 0.9rem; }
 
-/* ---------- peta */
 .map { width: 100%; border-radius: var(--r); border: 2px solid var(--ink); z-index: 0; }
 
-/* ---------- kontak: papan direktori */
 .contacts { list-style: none; padding: 0; margin: 16px 0 8px; background: var(--surface); border: 2px solid var(--sign); border-radius: var(--r); }
 .contacts:empty { display: none; }
 .contact { display: grid; gap: 10px; padding: 14px; }
@@ -362,7 +341,6 @@ label.consent input { width: 24px; height: 24px; margin: 2px 0 0; }
 .confirm p { margin-bottom: 10px; }
 .confirm.neutral { background: var(--sign-tint); border-color: var(--sign); }
 
-/* ---------- riwayat: papan direktori per hari */
 .filters { display: grid; gap: 10px; margin-bottom: 8px; }
 .date-range { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 4px; }
 .date-range label { font-size: 0.875rem; }
@@ -388,7 +366,6 @@ label.consent input { width: 24px; height: 24px; margin: 2px 0 0; }
 .ev-warning .ev-chip { background: var(--amber); color: var(--amber-ink); }
 .ev-meta { font-size: 1rem; color: var(--ink-2); grid-column: 2; }
 
-/* ---------- detail kejadian */
 .facts { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; margin: 8px 0; padding: 12px 14px; background: var(--surface); border: 2px solid var(--line-strong); border-radius: var(--r); }
 .facts dt { font-weight: 700; color: var(--ink-2); font-size: 1rem; }
 .facts dd { margin: 0; font-variant-numeric: tabular-nums; }
@@ -418,22 +395,18 @@ details.tech summary::before { content: ''; width: 8px; height: 8px; border: sol
 details.tech[open] summary::before { transform: rotate(45deg); }
 details.tech p, details.tech li { color: var(--ink-2); overflow-wrap: anywhere; }
 
-/* ---------- halaman darurat untuk kontak */
 .emergency { padding-top: 0; }
 .emergency .plate { margin-bottom: 4px; }
 
-/* ---------- akun: kelompok berkepala piktogram */
 .group { padding: 8px 0 18px; }
 .group-title { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; padding: 8px 12px; background: var(--sign); color: #fff; font-size: 1.15rem; border-radius: 3px; }
 .group > p.muted { font-size: 0.95rem; }
 .group-end { border-top: 2px solid var(--line); padding-top: 20px; }
 
-/* ---------- pemindai QR */
 .scanner { position: relative; margin: 8px 0; }
 .scanner video { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: var(--r); background: #000; display: block; }
 .scan-frame { position: absolute; inset: 14% 14% auto; aspect-ratio: 1; border: 3px solid #fff; border-radius: 6px; box-shadow: 0 0 0 999px rgba(0, 0, 0, 0.38); pointer-events: none; }
 
-/* ---------- navigasi bawah: papan penunjuk */
 .bottom-nav {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 10;
   display: grid; grid-template-columns: repeat(4, 1fr);
@@ -447,7 +420,7 @@ details.tech p, details.tech li { color: var(--ink-2); overflow-wrap: anywhere; 
 .bottom-nav a.active { color: var(--sign); background: #fff; box-shadow: inset 0 -4px 0 var(--sign); }
 .bottom-nav :focus-visible { outline: 3px solid #fff; outline-offset: -5px; }
 .bottom-nav a.active:focus-visible { outline-color: var(--sign); }
-/* layar lebar: papan dan pelat tetap selebar dinding, isi tetap di kolom 480 px */
+
 @media (min-width: 520px) {
   .signbar, .brand-panel { box-shadow: 0 0 0 100vmax var(--sign); clip-path: inset(0 -100vmax); }
   .signbar.critical { box-shadow: 0 0 0 100vmax var(--crit); }

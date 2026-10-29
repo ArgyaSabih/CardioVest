@@ -3,14 +3,10 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import Icon from './icons.jsx';
 
-// Teks status untuk User Utama (pemakai alat), Tabel 7.1. Kontak darurat membaca versi orang ketiga di
-// halaman darurat. Kalimat pertama selalu tindakan; penjelasan menyusul. Kata "serangan jantung" tidak
-// dipakai di layar pemakai karena sistem ini bukan alat diagnosis (7.3.1).
 export const STATE_TEXT = {
   NORMAL: { cls: 'normal', icon: 'heart', word: 'Normal', line: 'Jantung Anda sedang dipantau. Tidak ada tanda bahaya.' },
   WARNING: { cls: 'warning', icon: 'alert', word: 'Waspada', line: 'Pola detak jantung Anda tidak biasa. Lakukan ini sekarang:' },
   CRITICAL: { cls: 'critical', icon: 'cross', word: 'Darurat', line: 'Telepon 119 sekarang. Keluarga sudah dikabari beserta lokasi Anda.' },
-  // bukan state FSM: alat tidak mengirim data, jadi status jantung tidak diketahui
   UNMONITORED: { cls: 'unmonitored', icon: 'unlinked', word: 'Tidak terpantau', line: 'Alat tidak mengirim data. Jantung Anda sedang tidak dipantau.' },
 };
 
@@ -31,18 +27,12 @@ export function since(ts) {
   return fmtTime(ts);
 }
 
-/** Status yang ditampilkan: Normal tanpa data dari alat bukan Normal, melainkan "Tidak terpantau". */
 export function displayState(state, connection) {
   const linked = connection === 'online' || connection === 'buffering';
   if (!linked && (state ?? 'NORMAL') === 'NORMAL') return 'UNMONITORED';
   return STATE_TEXT[state] ? state : 'NORMAL';
 }
 
-/**
- * Pelat status: seperti papan penunjuk rumah sakit, satu pelat berwarna penuh dengan piktogram dan satu
- * kata. Warna mengikuti LED tiga warna di alat (hijau, kuning, merah). Saat status berubah, pelat
- * "berputar" seperti papan putar (key berubah memicu animasi; mati bila reduced motion).
- */
 export function StateBanner({ state, connection, sinceTs, lastSeen, children }) {
   const shown = displayState(state, connection);
   const t = STATE_TEXT[shown];
@@ -52,7 +42,6 @@ export function StateBanner({ state, connection, sinceTs, lastSeen, children }) 
       <div className="plate-face" key={shown}>
         <div className="plate-head">
           <span className="plate-icon"><Icon name={t.icon} size={34} stroke={2.6} /></span>
-          {/* hanya kata status yang diumumkan pembaca layar; teks waktu berubah tiap 15 detik */}
           <h1 className="plate-word" id="status-word" aria-live={shown === 'CRITICAL' ? 'assertive' : 'polite'} aria-atomic="true">{t.word}</h1>
         </div>
         <p className="plate-line">{t.line}</p>
@@ -66,10 +55,6 @@ export function StateBanner({ state, connection, sinceTs, lastSeen, children }) 
   );
 }
 
-/**
- * Penanda koneksi di strip atas Beranda: piktogram + kata, bersudut seperti rambu. Garis EKG kecilnya
- * berdenyut mengikuti denyut pemakai (dibatasi 40–180 bpm) dan diam saat alat tidak terhubung.
- */
 export function Connection({ connection, hr }) {
   const linked = connection === 'online' || connection === 'buffering';
   const beat = linked && hr ? `${(60 / Math.min(180, Math.max(40, hr))).toFixed(2)}s` : undefined;
@@ -81,7 +66,6 @@ export function Connection({ connection, hr }) {
   );
 }
 
-/** Strip judul halaman: papan penunjuk biru dengan piktogram, menggantikan judul halaman biasa. */
 export function SignBar({ icon, title, children, tone = '', as: Tag = 'h1' }) {
   return (
     <header className={`signbar ${tone}`}>
@@ -92,7 +76,6 @@ export function SignBar({ icon, title, children, tone = '', as: Tag = 'h1' }) {
   );
 }
 
-/** Tanda merek: garis EKG + nama, dipakai di strip atas Beranda dan halaman masuk. */
 export function Wordmark({ small }) {
   return (
     <span className={`wordmark ${small ? 'small' : ''}`}>
@@ -128,7 +111,6 @@ export function BottomNav() {
   );
 }
 
-/** Disclaimer permanen di halaman aplikasi (Subbab 7.3.1). */
 export function Disclaimer() {
   return (
     <p className="disclaimer" role="note">
@@ -162,10 +144,6 @@ export const fmtDuration = (s) => {
 
 const PhoneIcon = () => <Icon name="phone" size={24} stroke={2.2} />;
 
-/**
- * Tombol telepon saat darurat. 119 (ambulans) satu-satunya tombol besar; kontak keluarga tombol
- * sekunder; 112 hanya tautan karena memilih di antara dua nomor darurat adalah keputusan yang tidak perlu.
- */
 export function CallButtons({ contacts, ambulance = true, callRef }) {
   return (
     <div className="em-actions">
@@ -188,7 +166,6 @@ export function CallButtons({ contacts, ambulance = true, callRef }) {
   );
 }
 
-/** Bilah 119 yang menempel di atas navigasi saat tombol utama sudah tergulir keluar layar. */
 export function StickyCall() {
   return (
     <a className="sticky-call" href="tel:119">
@@ -211,10 +188,6 @@ export function AckList({ acks }) {
   );
 }
 
-/**
- * Alasan transisi dari decision engine ditulis untuk tim ("gerbang cross-validation terpenuhi ...").
- * Pemakai dan dokter keluarga cukup membaca versi ini; teks asli tetap tersedia di "Catatan sistem".
- */
 export function transitionText(to, reason = '') {
   const r = String(reason);
   const n = r.match(/persisten (\d+)\/(\d+)/);
@@ -236,7 +209,6 @@ export function transitionText(to, reason = '') {
   return '';
 }
 
-// nilai end_reason yang ditulis layanan cloud -> bahasa pengguna
 export const END_TEXT = {
   'eskalasi ke CRITICAL': 'meningkat menjadi darurat',
   'berubah ke WARNING': 'turun menjadi waspada',

@@ -1,0 +1,10 @@
+[Unit]
+Description=CardioVest: cek GitHub tiap menit
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=1min
+Unit=cardiovest-update.service
+
+[Install]
+WantedBy=timers.target

@@ -1,7 +1,4 @@
 'use client';
-// Lapisan klien seluruh aplikasi: Redux, sesi login, dan service worker.
-// Token login ada di localStorage, yang baru terbaca di browser; karena itu isi halaman baru dirender
-// setelah komponen terpasang, supaya tampilan pertama tidak berbeda antara server dan browser.
 import { useEffect, useState } from 'react';
 import { Provider, useDispatch } from 'react-redux';
 import { useRouter } from 'next/navigation';
@@ -22,7 +19,6 @@ function Session() {
       setToken(null);
       dispatch(authActions.clear());
       dispatch(liveActions.reset());
-      // halaman privat sendiri yang mengarahkan ke /masuk
     };
     const unpaired = () => {
       dispatch(authActions.device(null));

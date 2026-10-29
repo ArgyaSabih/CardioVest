@@ -91,7 +91,11 @@ class VirtualDevice:
         self._phase_start = time.monotonic()
         self._phase_events_done: set[str] = set()
         self._running = True
+        self.active = C.env_str("SIM_SOURCE", "dataset").lower() != "hardware"
+        self._started = False
+        self._ctl_ready = threading.Event()
         self._client = self._make_client()
+        self._ctl = self._make_ctl_client()
         self.set_scenario(scenario)
 
     # ============================================================ MQTT
@@ -109,6 +113,50 @@ class VirtualDevice:
         c.reconnect_delay_set(1, 30)   # spesifikasi reconnect <= 30 s
         return c
 
+    def _make_ctl_client(self) -> mqtt.Client:
+        c = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=f"sim-{self.device_id}", clean_session=True)
+        mqtt_auth.apply(c, user=C.env_str("MQTT_USER", "") or None)
+        c.on_connect = self._on_ctl_connect
+        c.on_message = self._on_message
+        c.reconnect_delay_set(1, 30)
+        return c
+
+    def _on_ctl_connect(self, c, userdata, flags, reason_code, props):
+        if reason_code.is_failure:
+            log.error("kanal kendali simulator gagal terhubung: %s", reason_code)
+            return
+        c.subscribe([(T.sim_control(self.device_id), 1), (T.sim_source(self.device_id), 1)])
+        self._publish_status()
+        self._ctl_ready.set()
+
+    def set_source(self, source: str) -> None:
+        if source not in ("hardware", "dataset"):
+            log.warning("sumber tidak dikenal: %s (pilih hardware atau dataset)", source)
+            return
+        active = source == "dataset"
+        if active == self.active:
+            return
+        self.active = active
+        if not self._started:
+            return
+        if active:
+            log.info("SUMBER -> dataset: simulator mengirim data sebagai %s", self.device_id)
+            self.buffer.clear()
+            self._connect_device()
+        else:
+            log.info("SUMBER -> hardware: simulator berhenti, ESP32 %s yang mengirim data", self.device_id)
+            if self._client.is_connected():
+                self._client.publish(T.t(self.device_id, "lwt"),
+                                     json.dumps({"status": "offline", "reason": "beralih ke hardware", "ts": now_ms()}),
+                                     qos=1, retain=True).wait_for_publish(2)
+            self._client.disconnect()
+            self._client.loop_stop()
+        self._publish_status()
+
+    def _connect_device(self) -> None:
+        self._client.connect_async(self.host, self.port, keepalive=15)
+        self._client.loop_start()
+
     def _on_connect(self, c, userdata, flags, reason_code, props):
         if reason_code.is_failure:
             log.error("gagal terhubung ke broker: %s", reason_code)
@@ -117,14 +165,16 @@ class VirtualDevice:
         c.publish(T.t(self.device_id, "lwt"),
                   json.dumps({"status": "online", "ts": now_ms()}), qos=1, retain=True)
         self._send_pending_reset(c)    # harus mendahului subscribe cmd, sama seperti firmware
-        c.subscribe([(T.t(self.device_id, "cmd"), 1), (T.sim_control(self.device_id), 1)])
-        self._publish_status()
+        c.subscribe(T.t(self.device_id, "cmd"), 1)
 
     def _on_disconnect(self, c, userdata, flags, reason_code, props):
         if time.monotonic() >= self.offline_until:
             log.warning("terputus dari broker (%s); mencoba ulang...", reason_code)
 
     def _on_message(self, c, userdata, msg):
+        if msg.topic == T.sim_source(self.device_id):
+            self.commands.put(("control", {"cmd": "sumber", "value": msg.payload.decode(errors="ignore").strip().lower()}))
+            return
         try:
             data = json.loads(msg.payload or b"{}")
         except json.JSONDecodeError:
@@ -185,10 +235,12 @@ class VirtualDevice:
             "ecg_source": self.ecg_source,
             "ecg_record": getattr(self.ecg, "current_rec", "sintetis"),
             "scenarios": {k: v.title for k, v in SCENARIOS.items()},
+            "source": "dataset" if self.active else "hardware",
             "ts": now_ms(),
         }
-        if self._client.is_connected():
-            self._client.publish(T.sim_status(self.device_id), json.dumps(st), qos=1, retain=True)
+        ctl = getattr(self, "_ctl", None)
+        if ctl is not None and ctl.is_connected():
+            ctl.publish(T.sim_status(self.device_id), json.dumps(st), qos=1, retain=True)
 
     # ============================================================ skenario
     @property
@@ -352,6 +404,8 @@ class VirtualDevice:
             self.press_reset()
         elif cmd in ("putus", "disconnect"):
             self.drop_link(float(data.get("detik", data.get("seconds", 45))))
+        elif cmd in ("source", "sumber"):
+            self.set_source(str(data.get("value", data.get("nilai", ""))).lower())
         elif cmd == "status":
             self._publish_status()
             self.print_status()
@@ -433,8 +487,16 @@ class VirtualDevice:
 
     # ============================================================ loop utama
     def run(self) -> None:
-        self._client.connect_async(self.host, self.port, keepalive=15)
-        self._client.loop_start()
+        self._ctl.connect_async(self.host, self.port, keepalive=30)
+        self._ctl.loop_start()
+        if self._ctl_ready.wait(10):
+            time.sleep(1)
+        while not self.commands.empty():
+            self._handle_command(*self.commands.get_nowait())
+        self._started = True
+        if self.active:
+            self._connect_device()
+        self._publish_status()
         t_next_accel = t_next_vital = time.monotonic()
         t_next_ecg = time.monotonic() + C.HOP_SECONDS
         t_next_status = time.monotonic() + 10
@@ -443,6 +505,11 @@ class VirtualDevice:
                 now = time.monotonic()
                 while not self.commands.empty():
                     self._handle_command(*self.commands.get_nowait())
+                if not self.active:
+                    time.sleep(0.2)
+                    t_next_accel = t_next_vital = time.monotonic()
+                    t_next_ecg = t_next_accel + C.HOP_SECONDS
+                    continue
                 if self.offline_since is not None and now >= self.offline_until:
                     self._restore_link()
                 self._update_phase()
@@ -467,6 +534,8 @@ class VirtualDevice:
                                                  "ts": now_ms()}), qos=1, retain=True).wait_for_publish(2)
                 self._client.disconnect()
             self._client.loop_stop()
+            self._ctl.disconnect()
+            self._ctl.loop_stop()
 
     def stop(self) -> None:
         self._running = False

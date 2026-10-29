@@ -1,6 +1,4 @@
 'use client';
-// Pairing alat (F-APP-2): ketik ID + kode pairing dari label, atau pindai QR label dengan kamera.
-// QR berisi "CARDIOVEST:<id>:<kode>" (dibuat oleh `npm run alat -- tambah <id>` di gateway).
 import jsQR from 'jsqr';
 import { useEffect, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
@@ -61,7 +59,6 @@ function Scanner({ onResult, onClose }) {
   }, [onResult]);
   return (
     <div className="scanner">
-      {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
       <video ref={video} playsInline muted aria-label="Pratinjau kamera untuk memindai QR" />
       <div className="scan-frame" aria-hidden="true" />
       <ErrorNote error={err} />

@@ -1,5 +1,3 @@
-// Web Push standar (VAPID) dari server CardioVest. Service worker kita (src/sw.js) yang menampilkan
-// notifikasi, sehingga peringatan tetap muncul walau aplikasi tertutup (F-APP-5).
 import { api } from './api.js';
 
 export const pushSupported = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
@@ -45,14 +43,12 @@ const label = () => {
   return (m?.[2] || m?.[1] || 'ponsel').slice(0, 60);
 };
 
-/** User Utama (sudah login). */
 export async function enablePush() {
   const sub = await subscribe();
   await api('/push/subscribe', { method: 'POST', body: { subscription: sub.toJSON(), label: label() } });
   return sub;
 }
 
-/** Kontak darurat lewat tautan undangan, tanpa akun. */
 export async function enablePushForContact(code) {
   const sub = await subscribe();
   await api(`/join/${code}/push`, { method: 'POST', auth: false, body: { subscription: sub.toJSON(), label: label() } });

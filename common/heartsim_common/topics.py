@@ -15,6 +15,7 @@ Ekstensi (tidak ada di tabel dokumen, ditambahkan untuk simulasi):
 | device/{id}/remote       | 1   | web    -> cloud | reset alarm dari aplikasi (akun web)         |
 | sim/{id}/control         | 1   | alat -> simulator | pilih skenario, reset, putus koneksi        |
 | sim/{id}/status          | 1 R | simulator -> alat | skenario aktif                              |
+| sim/{id}/source          | 1 R | web -> simulator  | sumber EKG: "dataset" atau "hardware"       |
 """
 
 QOS = {
@@ -36,6 +37,10 @@ def t(device_id: str, kind: str) -> str:
 
 def sim_control(device_id: str) -> str:
     return f"sim/{device_id}/control"
+
+
+def sim_source(device_id: str) -> str:
+    return f"sim/{device_id}/source"
 
 
 def sim_status(device_id: str) -> str:

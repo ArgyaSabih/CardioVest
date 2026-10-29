@@ -1,8 +1,5 @@
-// Klien REST ke /api di origin yang sama. Di server CardioVest (Docker) /api dilayani Route Handlers;
-// di Vercel /api diteruskan ke server CardioVest oleh rewrites di next.config.mjs.
 export const API_URL = '';
-// Socket.IO tidak bisa lewat rewrites Vercel, jadi di sana klien langsung ke server CardioVest.
-export const REALTIME_URL = process.env.NEXT_PUBLIC_REALTIME_URL || undefined;
+export const REALTIME_URL = process.env.NEXT_PUBLIC_BACKEND_URL || undefined;
 
 let token = null;
 try {
@@ -17,7 +14,6 @@ export function setToken(t) {
     if (t) localStorage.setItem('cv_token', t);
     else localStorage.removeItem('cv_token');
   } catch {
-    /* penyimpanan diblokir: sesi hanya bertahan di memori */
   }
 }
 export const getToken = () => token;
@@ -30,10 +26,6 @@ export class ApiError extends Error {
   }
 }
 
-/**
- * queueable: perubahan kontak saat offline diantrekan Service Worker (Background Sync, Subbab 8.5.6)
- * dan dikirim otomatis saat koneksi pulih; fungsi ini lalu mengembalikan { queued: true }.
- */
 export async function api(path, { method = 'GET', body, auth = true, queueable = false } = {}) {
   let res;
   try {

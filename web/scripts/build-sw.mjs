@@ -1,4 +1,3 @@
-// Bundel src/sw.js (Workbox) menjadi public/sw.js. Dijalankan otomatis oleh `npm run build`.
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';

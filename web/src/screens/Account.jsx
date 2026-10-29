@@ -1,5 +1,4 @@
 'use client';
-// Akun: profil (F-APP-1), notifikasi (F-APP-5), status pairing (F-APP-2), pemasangan PWA, keluar.
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useRouter } from 'next/navigation';

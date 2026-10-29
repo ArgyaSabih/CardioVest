@@ -1,5 +1,4 @@
 'use client';
-// Halaman 2–5: hanya untuk User Utama yang sudah masuk. Beranda dan Riwayat juga butuh alat terpasang.
 import { useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { usePathname, useRouter } from 'next/navigation';
@@ -7,7 +6,6 @@ import { getToken } from '@/src/api.js';
 import { BottomNav, Disclaimer } from '@/src/components/ui.jsx';
 
 const WITHOUT_DEVICE = ['/pasangkan', '/kontak', '/akun'];
-// setelah masuk lagi, pengguna kembali ke halaman yang tadi dibuka (kecuali Akun, tempat tombol Keluar)
 const backTo = (path) => (path === '/' || path === '/akun' ? '' : `?dari=${encodeURIComponent(path)}`);
 
 export default function PrivateLayout({ children }) {

@@ -112,7 +112,7 @@ def main():
     names = sys.argv[1:] or list(CASES)
     rec = Recorder()
     c = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=f"uji-{os.getpid()}")
-    if os.getenv("MQTT_USER"):                 # broker produksi (lihat mosquitto/produksi)
+    if os.getenv("MQTT_USER"):                 # broker produksi (lihat deploy/mosquitto)
         c.username_pw_set(os.getenv("MQTT_USER"), os.getenv("MQTT_PASS") or None)
     if os.getenv("MQTT_TLS") == "1":
         c.tls_set(ca_certs=os.getenv("MQTT_CA") or None)
