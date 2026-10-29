@@ -1,6 +1,8 @@
+import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
+import { BACKEND_URL } from '../src/backend.js';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 await build({
@@ -14,4 +16,5 @@ await build({
   legalComments: 'none',
   logLevel: 'warning',
 });
-console.log('[sw] public/sw.js siap');
+fs.writeFileSync(path.join(root, 'public/debug/config.js'), `window.CV_BACKEND = ${JSON.stringify(BACKEND_URL)};\n`);
+console.log(`[prebuild] public/sw.js dan public/debug/config.js siap (backend ${BACKEND_URL})`);

@@ -42,6 +42,7 @@ const liveInit = {
   event: null,
   contacts: [],
   source: null,
+  rekaman: null,
 };
 
 const live = createSlice({
@@ -74,10 +75,12 @@ const live = createSlice({
         contacts: d.contacts || [],
         remoteReset: d.remote_reset !== false,
         source: d.source ?? null,
+        rekaman: d.rekaman ?? null,
       });
     },
     source: (s, a) => {
-      s.source = a.payload;
+      s.source = a.payload.source;
+      s.rekaman = a.payload.rekaman ?? null;
     },
     state: (s, a) => {
       const d = a.payload;

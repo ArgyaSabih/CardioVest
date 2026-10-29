@@ -30,9 +30,9 @@ browser ──────── Socket.IO /data/realtime ──► server/ di H
 │   ├── push.js, session.js
 │   ├── styles.css           #   seluruh gaya, lihat DESIGN.md
 │   └── sw.js                #   service worker (Workbox), dibundel ke public/sw.js saat build
-├── public/debug/            # debug viewer tim (/debug): HTML + mqtt.js + Leaflet, langsung ke flespi
+├── public/debug/            # debug viewer tim (/debug): HTML + Socket.IO + Leaflet, data dari backend
 ├── proxy.js                 # meneruskan /api ke backend + IP asli pengguna
-├── scripts/build-sw.mjs
+├── scripts/prebuild.mjs     # bundel service worker + public/debug/config.js (alamat backend)
 └── next.config.mjs, vercel.json, jsconfig.json
 ```
 
@@ -63,13 +63,12 @@ Buka http://localhost:3000. Halaman lokal ini memakai backend asli di Hugging Fa
 
 ## Sumber data EKG
 
-`state.live.source` di Redux berisi `"dataset"` (simulator) atau `"hardware"` (ESP32), dan ikut
-diperbarui lewat Socket.IO. Untuk tombol switch:
+`state.live.source` di Redux berisi `"hardware"` (EKG dari ESP32) atau `"dataset"` (EKG dari rekaman,
+jenisnya di `state.live.rekaman`), dan ikut diperbarui lewat Socket.IO. Vital tetap dari ESP32.
 
 ```js
+await api('/source', { method: 'POST', body: { source: 'dataset', rekaman: 'stemi' } });
 await api('/source', { method: 'POST', body: { source: 'hardware' } });
-await api('/scenario', { method: 'POST', body: { name: 'serangan' } });
-const { scenario, scenarios } = await api('/scenario');
 ```
 
 ## Alur pemakaian

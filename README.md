@@ -108,7 +108,7 @@ git push
 | **Aplikasi CardioVest** | `https://<proyek>.vercel.app`. Daftar akun, lalu pasangkan alat `cv-001` dengan kode dari secret `DEVICES` di Hugging Face |
 | **Log** keputusan FSM, mock FCM, SMS fallback | tab **Logs** di Space Hugging Face |
 | **Status layanan** | `https://<proyek>.vercel.app/api/health` |
-| **Debug viewer** (EKG mentah, CNN, FSM, vital) | `https://<proyek>.vercel.app/debug` + token flespi |
+| **Debug viewer** (EKG mentah, CNN, FSM, vital, switch Hardware/Dataset) | `https://<proyek>.vercel.app/debug` |
 | **MQTT Explorer** (opsional) | host `mqtt.flespi.io`, port `1883`, username = token flespi |
 
 ### Memilih skenario dan sumber data

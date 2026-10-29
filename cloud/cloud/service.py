@@ -63,6 +63,8 @@ class DeviceCtx:
     restored_why: str = ""              # alasan state ditahan: "layanan cloud restart" / "perangkat tersambung lagi"
     clock_warned: bool = False
     quality: dict | None = None
+    ecg_source: str = "hardware"
+    ecg_rekaman: str | None = None
     reset_source: str = "device"
     remote_clear_at: int = 0            # waktu reset jarak jauh; >0 = menunggu alat melepas latch
     remote_clear_sent: int = 0
@@ -91,9 +93,10 @@ class CloudService:
         if reason_code.is_failure:
             log.error("gagal terhubung ke broker: %s", reason_code)
             return
-        log.info("terhubung ke broker %s:%s; berlangganan device/+/{ecg,vital,event,lwt,remote}", self.host, self.port)
-        c.subscribe([("device/+/ecg", 0), ("device/+/vital", 1), ("device/+/event", 1),
-                     ("device/+/lwt", 1), ("device/+/remote", 1)])
+        log.info("terhubung ke broker %s:%s; berlangganan device/+/{ecg,ecg_dataset,source,vital,event,lwt,remote}",
+                 self.host, self.port)
+        c.subscribe([("device/+/ecg", 0), ("device/+/ecg_dataset", 0), ("device/+/source", 1),
+                     ("device/+/vital", 1), ("device/+/event", 1), ("device/+/lwt", 1), ("device/+/remote", 1)])
 
     def _on_message(self, c, userdata, msg):
         try:
@@ -142,6 +145,8 @@ class CloudService:
             "gps": d.last_gps if d.engine.state == C.STATE_CRITICAL or d.mode == C.MODE_TEST else None,
             "calibration": d.validators.calibration_info(),
             "signal": d.quality,
+            "ecg_source": d.ecg_source,
+            "ecg_rekaman": d.ecg_rekaman,
             "ts": now_ms(),
         }
 
@@ -256,6 +261,7 @@ class CloudService:
             "class": C.CLASSES[cls], "class_idx": cls, "probs": probs, "p_conf": round(conf, 4),
             "infer_ms": infer_ms, "late": late, "payload_format": fmt, "payload_bytes": len(payload),
             "signal_ok": quality.ok, "quality": quality.dict(), "clock_unsynced": clock_bad,
+            "ecg_source": d.ecg_source, "ecg_rekaman": d.ecg_rekaman,
         }
         before_reset = (recv_ms - 2 * dur_ms < d.reset_recv) if clock_bad else (w_t0 < d.reset_ts)
         if late:
@@ -289,6 +295,25 @@ class CloudService:
         log.info("%s seq=%d %-12s p=%.2f [%s] %5.1f ms | %s%s", device_id, pkt.seq, C.CLASSES[cls],
                  conf, ",".join(f"{p:.2f}" for p in probs), infer_ms, row["state"],
                  " (late)" if late else "")
+
+    def handle_source(self, device_id: str, payload: bytes) -> None:
+        d = self.ctx(device_id)
+        try:
+            v = json.loads(payload or b"{}")
+        except json.JSONDecodeError:
+            v = {"source": payload.decode(errors="ignore").strip()}
+        if not isinstance(v, dict):
+            v = {}
+        src = "dataset" if v.get("source") == "dataset" else "hardware"
+        rek = str(v.get("rekaman") or "normal") if src == "dataset" else None
+        if (src, rek) == (d.ecg_source, d.ecg_rekaman):
+            return
+        d.ecg_source, d.ecg_rekaman = src, rek
+        d.live.reset()
+        d.late.reset()
+        d.last_reason = f"sumber EKG: {src}" + (f" ({rek})" if rek else "")
+        log.warning("%s: %s", device_id, d.last_reason)
+        self._publish_state(d)
 
     def handle_vital(self, device_id: str, payload: bytes) -> None:
         d = self.ctx(device_id)
@@ -502,7 +527,13 @@ class CloudService:
             dev, kind = p
             try:
                 if kind == "ecg":
-                    self.handle_ecg(dev, payload, recv)
+                    if self.ctx(dev).ecg_source != "dataset":
+                        self.handle_ecg(dev, payload, recv)
+                elif kind == "ecg_dataset":
+                    if self.ctx(dev).ecg_source == "dataset":
+                        self.handle_ecg(dev, payload, recv)
+                elif kind == "source":
+                    self.handle_source(dev, payload)
                 elif kind == "vital":
                     self.handle_vital(dev, payload)
                 elif kind == "event":

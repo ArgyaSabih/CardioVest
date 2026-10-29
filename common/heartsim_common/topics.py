@@ -15,7 +15,8 @@ Ekstensi (tidak ada di tabel dokumen, ditambahkan untuk simulasi):
 | device/{id}/remote       | 1   | web    -> cloud | reset alarm dari aplikasi (akun web)         |
 | sim/{id}/control         | 1   | alat -> simulator | pilih skenario, reset, putus koneksi        |
 | sim/{id}/status          | 1 R | simulator -> alat | skenario aktif                              |
-| sim/{id}/source          | 1 R | web -> simulator  | sumber EKG: "dataset" atau "hardware"       |
+| device/{id}/source       | 1 R | web -> cloud      | sumber EKG: {"source":"hardware"|"dataset","rekaman":...} |
+| device/{id}/ecg_dataset  | 0   | dataset -> cloud  | EKG rekaman dataset saat sumber = dataset   |
 """
 
 import os
@@ -30,6 +31,8 @@ QOS = {
     "event": 1,
     "inference": 0,
     "remote": 1,
+    "ecg_dataset": 0,
+    "source": 1,
 }
 MAX_QOS = int(os.getenv("MQTT_MAX_QOS", "2"))
 QOS = {k: min(v, MAX_QOS) for k, v in QOS.items()}

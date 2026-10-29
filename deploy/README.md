@@ -19,7 +19,7 @@ ESP32 ──MQTT 1883/8883──► flespi ◄──WSS 443── backend Render
                                                         ▲  https://<user>-cardiovest.hf.space
                                                         │  /api diteruskan, EKG realtime lewat WebSocket
        browser teman ──► https://<proyek>.vercel.app ───┘
-                         https://<proyek>.vercel.app/debug ──WSS 443──► flespi (debug viewer, langsung)
+                         https://<proyek>.vercel.app/debug ──WebSocket──► backend (debug viewer)
 ```
 
 Secara bawaan **tidak ada data simulasi**: dashboard dan debug viewer hanya bergerak bila ESP32 benar-benar
@@ -148,40 +148,40 @@ await api('/source', { method: 'POST', body: { source: 'dataset' } });
 
 ## Debug viewer (`/debug`)
 
-`https://<proyek>.vercel.app/debug` menampilkan data mentah alat secara realtime: EKG 250 Hz, vital
-(HR, SQI, GSR, akselerasi, sensor, I2C), probabilitas CNN tiap window, keputusan FSM, kualitas sinyal,
-GPS, dan log LWT/alert. Halaman ini tersambung **langsung ke flespi**, tidak lewat backend, jadi tetap
-jalan walau backend Render sedang tidur (keputusan CNN baru muncul setelah backend bangun).
+`https://<proyek>.vercel.app/debug` menampilkan data alat secara realtime: EKG 250 Hz, vital (HR, SQI,
+GSR, akselerasi, sensor, I2C), probabilitas CNN tiap window, keputusan FSM, kualitas sinyal, GPS, dan log
+LWT/alert/transisi. Tidak perlu login atau token: data diambil dari backend. Selama halaman ini terbuka,
+backend Render tidak tertidur.
 
-1. Buka `/debug`, tempel token flespi di kolom **Token MQTT flespi**, klik **Hubungkan**.
-   Token disimpan hanya di browser itu (localStorage), tidak ada di kode.
-2. Klik **Jalankan**. Titik "perangkat" hijau berarti ESP32 online.
-3. Tombol **Demo/Test** mengirim perintah mode ke alat lewat layanan cloud. **Token** untuk mengganti token.
+| Tombol | Fungsi |
+|---|---|
+| **Demo / Test** | mode alat (Test: semua sensor termasuk GPS aktif) |
+| **Hardware / Dataset** | sumber sinyal EKG. Hardware = EKG dari ESP32. Dataset = EKG dari rekaman PTB-XL/MIT-BIH (pilih jenisnya di kotak sebelahnya); HR, GSR, akselerasi, dan GPS **tetap dari ESP32** |
+| **Jalankan** | menerapkan pilihan di atas lalu mulai menampilkan data |
 
-Token flespi memberi akses penuh ke broker. Bagikan ke teman satu tim saja. Untuk teman yang hanya
-menonton, buat token terpisah di flespi (**Tokens → +**) dengan ACL hanya `subscribe` ke `device/#`.
-Alamat lain: tambahkan `?device=cv-002` untuk alat lain.
+Setiap kali Demo/Test, Hardware/Dataset, atau jenis rekaman diganti, tampilan berhenti dan pilihan baru
+**belum dikirim**. Pilihan baru diterapkan saat **Jalankan** ditekan.
 
-## Mengendalikan demo
+EKG dari Dataset diperlakukan seperti EKG alat: dinilai CNN + FSM, tersimpan di riwayat, dan bisa memicu
+notifikasi Waspada/Darurat ke aplikasi keluarga. Pilihan sumber tersimpan di broker, jadi tetap berlaku
+walau backend menyala ulang; kembalikan ke **Hardware** setelah selesai menguji.
 
-Selama tombolnya belum ada di aplikasi, perintah bisa diketik di **Console** browser (F12) saat sudah
-masuk ke aplikasi di Vercel:
+Alat lain: tambahkan `?device=cv-002` di belakang alamat.
+
+## Mengendalikan dari aplikasi
+
+Sumber EKG juga bisa diganti lewat API (misalnya untuk tombol di aplikasi PWA nanti):
 
 ```js
 const kirim = (p, body) => fetch('/api' + p, { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + localStorage.cv_token }, body: JSON.stringify(body) }).then((r) => r.json());
 
+kirim('/source', { source: 'dataset', rekaman: 'stemi' });
+kirim('/source', { source: 'hardware' });
 kirim('/reset', { confirm: true });
 ```
 
-Perintah berikut hanya berlaku bila `SIMULATOR=1`:
-
-```js
-kirim('/source', { source: 'hardware' });
-kirim('/source', { source: 'dataset' });
-kirim('/scenario', { name: 'serangan' });
-```
-
-Daftar skenario: `GET /api/scenario`, atau README utama bagian 3.
+Jenis rekaman: `normal`, `st_depression`, `af`, `pvc`, `cd`, `svt`, `stemi`, `vt`, `vf`.
+`/scenario` hanya berlaku bila simulator alat penuh dinyalakan (`SIMULATOR=1`).
 
 ## Pemecahan masalah
 
@@ -191,7 +191,7 @@ Daftar skenario: `GET /api/scenario`, atau README utama bagian 3.
 | Vercel `/api/health` menampilkan halaman HTML | Backend sedang tertidur atau dibangun. Buka alamat `hf.space`/`onrender.com`, tunggu 1–2 menit. |
 | Login gagal "Terlalu banyak percobaan" | `PROXY_SECRET` di Vercel dan HF tidak sama. |
 | Setelah demo kemarin harus daftar ulang | Normal untuk mode demo: Space menyala ulang dan data terhapus. |
-| Grafik EKG diam, status "Tidak terpantau" | ESP32 belum tersambung. Cek di `/debug` apakah titik "perangkat" hijau, dan di flespi **MQTT Board** apakah ada koneksi `dev-cv-001`. |
+| Grafik EKG diam, status "Tidak terpantau" | ESP32 belum tersambung. Cek di `/debug` apakah titik "perangkat" hijau, dan di flespi **MQTT Board** apakah ada koneksi `dev-cv-001`. Pastikan sumber EKG = Hardware bila memakai ESP32. |
 | ESP32 tidak tersambung | Cek `MQTT_USER` = token flespi, `MQTT_PASS` kosong. Di flespi **MQTT Board** terlihat koneksi aktif. |
 | Push terakhir belum terlihat | Tunggu 1–2 menit; tab Logs HF menulis `[run] commit baru di faza`. Bila `requirements.txt` berubah, layanan butuh waktu lebih lama menyala. |
 | `Dockerfile` di HF perlu diubah | Jarang. Unggah ulang `deploy/backend/Dockerfile`, atau **Settings → Factory rebuild**. |

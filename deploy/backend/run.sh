@@ -54,6 +54,7 @@ mkdir -p "$DATA/cloud" "$DATA/server"
 keep server env DATA_DIR="$DATA/server" CLOUD_DB="$DATA/cloud/cardiovest.db" \
   node --disable-warning=ExperimentalWarning server/main.js &
 keep cloud python -m cloud --db "$DATA/cloud/cardiovest.db" &
+keep dataset python -m simulator.dataset &
 if [ "${SIMULATOR:-0}" = 1 ]; then
   keep simulator python -m simulator &
 fi

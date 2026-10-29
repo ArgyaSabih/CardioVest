@@ -250,7 +250,7 @@ test('router: endpoint tidak dikenal 404, metode salah 405, body terlalu besar 4
   assert.equal(big.status, 413);
 });
 
-test('sumber data: dataset/hardware diteruskan ke simulator lewat topik retained', async () => {
+test('sumber EKG: hardware/dataset lewat device/<id>/source (retained), EKG yang diteruskan mengikuti sumber', async () => {
   const login = await anon('/api/auth/login', { method: 'POST', body: { email: 'uji@contoh.id', password: 'sandibaru123' } });
   const tok = login.body.token;
   await call('/api/devices/pair', { method: 'POST', body: { device_id: 'cv-001', pairing_code: '246810' } }, tok);
@@ -261,16 +261,37 @@ test('sumber data: dataset/hardware diteruskan ke simulator lewat topik retained
   Object.defineProperty(mq, 'connected', { value: true, configurable: true });
   try {
     assert.equal((await call('/api/source', { method: 'POST', body: { source: 'wifi' } }, tok)).status, 400);
-    assert.equal((await call('/api/source', { method: 'POST', body: { source: 'hardware' } }, tok)).status, 202);
-    assert.deepEqual(sent[0], { topic: 'sim/cv-001/source', payload: 'hardware', opt: { qos: 1, retain: true } });
-    mq.emit('message', 'sim/cv-001/status', Buffer.from(JSON.stringify({ source: 'hardware' })));
-    assert.equal((await call('/api/source', {}, tok)).body.source, 'hardware');
-    assert.equal((await call('/api/status', {}, tok)).body.source, 'hardware');
+    assert.equal((await call('/api/source', { method: 'POST', body: { source: 'dataset', rekaman: 'xx' } }, tok)).status, 400);
+    assert.equal((await call('/api/source', { method: 'POST', body: { source: 'dataset', rekaman: 'stemi' } }, tok)).status, 202);
+    const m = sent.at(-1);
+    assert.equal(m.topic, 'device/cv-001/source');
+    assert.deepEqual(m.opt, { qos: 1, retain: true });
+    assert.equal(JSON.parse(m.payload).rekaman, 'stemi');
+    mq.emit('message', 'device/cv-001/source', Buffer.from(m.payload));
+    assert.deepEqual((await call('/api/source', {}, tok)).body, { source: 'dataset', rekaman: 'stemi' });
+    assert.equal((await call('/api/status', {}, tok)).body.source, 'dataset');
   } finally {
     mq.publish = orig;
     if (was) Object.defineProperty(mq, 'connected', was);
     else delete mq.connected;
   }
+});
+
+test('debug viewer: namespace /debug tanpa login, hanya EKG dari sumber aktif yang diteruskan', async () => {
+  const fx = fs.readFileSync(new URL('./fixtures/json_flag.bin', import.meta.url));
+  const s = ioc(`${base}/debug`, { path: '/data/realtime', transports: ['websocket'] });
+  const got = [];
+  s.on('m', (topic) => got.push(topic));
+  await new Promise((res) => s.on('connect', res));
+  s.emit('watch', 'cv-001');
+  await new Promise((r) => setTimeout(r, 100));
+  assert.ok(got.includes('device/cv-001/source'));
+  got.length = 0;
+  mq.emit('message', 'device/cv-001/ecg', fx);
+  mq.emit('message', 'device/cv-001/ecg_dataset', fx);
+  await new Promise((r) => setTimeout(r, 100));
+  assert.deepEqual(got, ['device/cv-001/ecg']);
+  s.close();
 });
 
 test('skenario simulator: daftar dari status simulator, perintah diteruskan ke sim/<id>/control', async () => {

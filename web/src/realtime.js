@@ -25,7 +25,7 @@ export function connectRealtime(dispatch, token) {
   socket.on('online', (p) => dispatch(liveActions.online(p)));
   socket.on('alert', (p) => dispatch(liveActions.alert(p)));
   socket.on('ack', (p) => dispatch(liveActions.acks(p.acks)));
-  socket.on('source', (p) => dispatch(liveActions.source(p.source)));
+  socket.on('source', (p) => dispatch(liveActions.source(p)));
   socket.on('ecg', (p) => ecgListeners.forEach((fn) => fn(p)));
   return socket;
 }

@@ -13,6 +13,7 @@ import {
 } from './store.js';
 
 const now = () => Date.now();
+export const REKAMAN = ['normal', 'st_depression', 'af', 'pvc', 'cd', 'svt', 'stemi', 'vt', 'vf'];
 
 export function seedDevices() {
   for (const d of cfg.devices) {
@@ -26,7 +27,7 @@ export function seedDevices() {
 
 const liveMap = new Map();
 export const live = (id) => {
-  if (!liveMap.has(id)) liveMap.set(id, { state: null, online: null, onlineSince: null, vital: null, inference: null, trail: [], buffering: 0, source: null, sim: null });
+  if (!liveMap.has(id)) liveMap.set(id, { state: null, online: null, onlineSince: null, vital: null, inference: null, trail: [], buffering: 0, source: 'hardware', rekaman: null, sim: null });
   return liveMap.get(id);
 };
 
@@ -99,6 +100,7 @@ export function statusOf(dev, user) {
     cloud_db: cloud.cloudDbReady(),
     remote_reset: cfg.remoteReset,
     source: L.source,
+    rekaman: L.rekaman,
   };
 }
 
@@ -210,10 +212,9 @@ export function startBackend(server) {
       for (const d of devices.all()) {
         for (const k of ['status', 'source']) mq.publish(`sim/${d.device_id}/${k}`, '', { qos: 1, retain: true });
         live(d.device_id).sim = null;
-        live(d.device_id).source = null;
       }
     }
-    mq.subscribe([...['state', 'alert', 'vital', 'ecg', 'inference', 'lwt'].map((k) => `device/+/${k}`), 'sim/+/status'], { qos: 1 });
+    mq.subscribe([...['state', 'alert', 'vital', 'ecg', 'ecg_dataset', 'source', 'inference', 'lwt'].map((k) => `device/+/${k}`), 'sim/+/status'], { qos: 1 });
   });
   mq.on('error', (e) => console.warn('[mqtt]', e.message));
 
@@ -295,18 +296,33 @@ export function startBackend(server) {
         if (!devices.get(dev)) return;
         const L = live(dev);
         L.sim = { scenario: st.scenario ?? null, title: st.scenario_title ?? null, scenarios: st.scenarios ?? {} };
-        if ((st.source ?? null) !== L.source) {
-          L.source = st.source ?? null;
-          toFamily(dev).emit('source', { source: L.source });
-        }
+        debug.relay(topic, buf);
       } catch {
         return;
       }
       return;
     }
     if (!devices.get(dev)) return;
+    const L = live(dev);
+    if (kind === 'source') {
+      let v = {};
+      try {
+        v = buf.length ? JSON.parse(buf.toString()) : {};
+      } catch {
+        v = { source: buf.toString().trim() };
+      }
+      L.source = v?.source === 'dataset' ? 'dataset' : 'hardware';
+      L.rekaman = L.source === 'dataset' ? String(v.rekaman || 'normal') : null;
+      toFamily(dev).emit('source', { source: L.source, rekaman: L.rekaman });
+      debug.relay(topic, buf);
+      return;
+    }
+    if (kind === 'ecg' || kind === 'ecg_dataset') {
+      if ((kind === 'ecg_dataset') !== (L.source === 'dataset')) return;
+      debug.relay(`device/${dev}/ecg`, buf);
+    } else debug.relay(topic, buf);
     try {
-      if (kind === 'ecg') {
+      if (kind === 'ecg' || kind === 'ecg_dataset') {
         const p = decodeEcg(buf);
         if (p.buffered) live(dev).buffering = now();
         else toFamily(dev).emit('ecg', { t0: p.t0, fs: p.fs, mv: toMv(p.samples), lead_off: p.leadOff });
@@ -328,11 +344,13 @@ export function startBackend(server) {
     return { ok: true, status: 202 };
   }
 
-  function setSource(dev, user, source) {
+  function setSource(dev, user, source, rekaman) {
     if (source !== 'dataset' && source !== 'hardware') return { ok: false, status: 400, error: 'Sumber harus dataset atau hardware.' };
+    if (rekaman != null && !REKAMAN.includes(rekaman)) return { ok: false, status: 400, error: 'Rekaman dataset tidak dikenal.' };
     if (!mq.connected) return { ok: false, status: 503, error: 'Server belum tersambung ke broker. Coba lagi sebentar lagi.' };
-    mq.publish(`sim/${dev}/source`, source, { qos: 1, retain: true });
-    console.log(`[sumber] ${dev}: ${source} dipilih oleh ${user.name}`);
+    const body = { source, rekaman: source === 'dataset' ? rekaman || 'normal' : null, by: user.name, ts: now() };
+    mq.publish(`device/${dev}/source`, JSON.stringify(body), { qos: 1, retain: true });
+    console.log(`[sumber] ${dev}: ${source}${body.rekaman ? ` (${body.rekaman})` : ''} dipilih oleh ${user.name}`);
     return { ok: true, status: 202 };
   }
 
@@ -341,6 +359,41 @@ export function startBackend(server) {
     mq.publish(`sim/${dev}/control`, JSON.stringify(cmd), { qos: 1 });
     console.log(`[simulator] ${dev}: ${JSON.stringify(cmd)} oleh ${user.name}`);
     return { ok: true, status: 202 };
+  }
+
+  const debug = startDebug();
+
+  function startDebug() {
+    const nsp = io.of('/debug');
+    const last = new Map();
+    const KEEP = new Set(['state', 'lwt', 'source', 'vital', 'inference', 'status']);
+    nsp.on('connection', (socket) => {
+      socket.on('watch', (dev) => {
+        if (typeof dev !== 'string' || !devices.get(dev)) return socket.emit('galat', 'Alat tidak terdaftar di server.');
+        for (const r of socket.rooms) if (r !== socket.id) socket.leave(r);
+        socket.join(`dbg:${dev}`);
+        socket.data.dev = dev;
+        for (const [t, b] of last) if (t.split('/')[1] === dev) socket.emit('m', t, b);
+      });
+      socket.on('cmd', (c) => {
+        const dev = socket.data.dev;
+        if (!dev || !c || typeof c !== 'object') return;
+        const who = { name: 'debug viewer', id: null };
+        if (c.type === 'mode') setMode(dev, who, c.mode);
+        else if (c.type === 'source') setSource(dev, who, c.source, c.rekaman ?? null);
+        else if (c.type === 'sim' && cfg.simulator && c.cmd && typeof c.cmd === 'object') simCommand(dev, who, c.cmd);
+      });
+    });
+    return {
+      relay(topic, buf) {
+        const [, dev, kind] = topic.split('/');
+        if (KEEP.has(kind)) {
+          if (buf.length) last.set(topic, buf);
+          else last.delete(topic);
+        }
+        nsp.to(`dbg:${dev}`).emit('m', topic, buf);
+      },
+    };
   }
 
   function setMode(dev, user, mode) {

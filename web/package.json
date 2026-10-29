@@ -7,8 +7,8 @@
     "node": ">=22.13"
   },
   "scripts": {
-    "dev": "node scripts/build-sw.mjs && next dev",
-    "build": "node scripts/build-sw.mjs && next build",
+    "dev": "node scripts/prebuild.mjs && next dev",
+    "build": "node scripts/prebuild.mjs && next build",
     "start": "next start"
   },
   "dependencies": {

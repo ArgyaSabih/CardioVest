@@ -45,7 +45,7 @@
   .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; min-width: 0; max-width: 100%; }
   .controls select { min-width: 0; max-width: 100%; flex: 1 1 260px; }
   .controls label { font-size: 12px; color: var(--ink-3); }
-  select, .btn, .token input { min-height: 40px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel);
+  select, .btn { min-height: 40px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel);
     color: var(--ink); padding: 0 12px; }
   .btn { cursor: pointer; transition: transform .12s cubic-bezier(.2,.8,.2,1), background .15s; }
   .btn:active { transform: scale(.97); }
@@ -56,10 +56,6 @@
   .btn.icon svg { width: 18px; height: 18px; }
   .hint { margin: 16px 0 0; padding: 12px 16px; border: 1px dashed var(--line); border-radius: 8px; color: var(--ink-2); }
   .hint[hidden] { display: none; }
-  .token { margin: 16px 0 0; display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
-  .token[hidden] { display: none; }
-  .token label { font-family: var(--mono); font-size: 13px; color: var(--ink-2); }
-  .token input { flex: 1 1 280px; font-family: var(--mono); }
   .alarm { margin-top: 16px; padding: 14px 20px; border-radius: 8px; background: var(--critical); color: #fff;
     font-weight: 700; font-size: 20px; letter-spacing: .02em; animation: pulse 0.6s ease-in-out infinite; }
   .alarm[hidden] { display: none; }
@@ -132,7 +128,7 @@
     <div class="brand">
       <h1>Debug Viewer — Early Warning Serangan Jantung</h1>
       <span class="sub" id="devLabel">cv-001</span>
-      <span class="conn"><span class="dot" id="brokerDot"></span><span id="brokerTxt">broker: menghubungkan</span></span>
+      <span class="conn"><span class="dot" id="brokerDot"></span><span id="brokerTxt">server: menghubungkan</span></span>
       <span class="conn"><span class="dot" id="devDot"></span><span id="devTxt">perangkat: ?</span></span>
     </div>
     <div class="controls">
@@ -142,16 +138,25 @@
         <button class="btn" id="mDemo" aria-pressed="false" title="GPS siaga, hanya aktif saat CRITICAL">Demo</button>
         <button class="btn" id="mTest" aria-pressed="false" title="Semua sensor aktif termasuk GPS">Test</button>
       </span>
-      <button class="btn" id="tokenBtn" type="button" hidden>Token</button>
+      <span class="seg" role="group" aria-label="Sumber EKG">
+        <button class="btn" id="sHw" aria-pressed="false" title="Sinyal EKG dari ESP32">Hardware</button>
+        <button class="btn" id="sDs" aria-pressed="false" title="Sinyal EKG dari rekaman dataset; vital tetap dari ESP32">Dataset</button>
+      </span>
+      <select id="rekaman" hidden aria-label="Rekaman dataset">
+        <option value="normal">Normal</option>
+        <option value="st_depression">Depresi ST (pra-serangan)</option>
+        <option value="af">Fibrilasi atrium (pra-serangan)</option>
+        <option value="pvc">PVC (pra-serangan)</option>
+        <option value="cd">Gangguan konduksi (pra-serangan)</option>
+        <option value="svt">SVT (pra-serangan)</option>
+        <option value="stemi">STEMI (serangan)</option>
+        <option value="vt">Takikardia ventrikel (serangan)</option>
+        <option value="vf">Fibrilasi ventrikel (serangan)</option>
+      </select>
       <button class="btn primary" id="run">Jalankan</button>
       <button class="btn icon" id="theme" aria-label="Ganti ke tema terang" title="Ganti tema"></button>
     </div>
   </header>
-  <form class="token" id="tokenForm" hidden>
-    <label for="token">Token MQTT flespi</label>
-    <input id="token" type="password" autocomplete="off" placeholder="tempel token flespi, disimpan hanya di browser ini">
-    <button class="btn primary" type="submit">Hubungkan</button>
-  </form>
   <p class="hint" id="runHint">Tekan <b>Jalankan</b> untuk mulai menerima dan menampilkan data dari alat.</p>
   <div class="alarm" id="fallAlarm" role="alert" hidden>JATUH TERDETEKSI</div>
 
@@ -212,19 +217,19 @@
       </section>
     </div>
   </div>
-  <p class="note">Alat debug tim, bukan aplikasi PWA. Data yang tampil adalah data mentah dari alat dan keputusan layanan
-    cloud, tidak bernilai diagnostik. Viewer terhubung langsung ke broker MQTT (flespi) lewat WebSocket.</p>
+  <p class="note">Alat debug tim, bukan aplikasi PWA. Data yang tampil adalah data mentah dari alat (atau rekaman dataset bila
+    sumber EKG = Dataset) dan keputusan layanan cloud, tidak bernilai diagnostik.</p>
 </div>
 
-<script src="/debug/vendor/mqtt.min.js"></script>
+<script src="/debug/config.js"></script>
+<script src="/debug/vendor/socket.io.min.js"></script>
 <script src="/debug/vendor/leaflet.js"></script>
 <script>
 (() => {
   const qs = new URLSearchParams(location.search);
   const DEV = qs.get("device") || "cv-001";
-  const LOCAL = !location.hostname || location.hostname === "localhost" || location.hostname === "127.0.0.1";
-  const WS = qs.get("ws") || (LOCAL ? `ws://${location.hostname || "localhost"}:9001` : "wss://mqtt.flespi.io");
-  const TOKEN_KEY = "cv-flespi-token";
+  const BACKEND = (qs.get("backend") || window.CV_BACKEND || "https://cardiovest.onrender.com").replace(/\/$/, "");
+  const REKAMAN = Object.fromEntries([...document.querySelectorAll("#rekaman option")].map((o) => [o.value, o.textContent]));
   const FS = 250;
   const $ = (id) => document.getElementById(id);
   $("devLabel").textContent = DEV;
@@ -365,6 +370,7 @@
   }
   function clearView() {
     trace.fill(NaN); queue = []; head = 0;
+    $("ecgInfo").textContent = "menunggu data EKG";
     for (const id of ["hr", "hrSrc", "gsr", "acc", "loc", "sens", "vitalTs", "dAcc", "dVal", "dPer", "dSig", "infInfo"]) $(id).textContent = "—";
     for (let i = 0; i < 3; i++) {
       const row = $("p" + i);
@@ -375,6 +381,7 @@
     running = false;
     clearView();
     $("run").textContent = "Jalankan";
+    $("runHint").innerHTML = "Tekan <b>Jalankan</b> untuk mulai menerima dan menampilkan data dari alat.";
     $("runHint").hidden = false;
   }
   function startRun() {
@@ -385,9 +392,19 @@
     if (!$("scenario").hidden && $("scenario").value) ctl({ cmd: "scenario", name: $("scenario").value });
   }
 
-  let mode = null, devMode = null;
+  let mode = null, devMode = null, src = null, rek = null;
+  const pending = { mode: null, source: null, rekaman: null };
+  const srcLabel = () => (src === "dataset" ? `Dataset: ${REKAMAN[rek] || rek}` : "Hardware");
+  function renderSource() {
+    const s = pending.source || src || "hardware";
+    $("sHw").setAttribute("aria-pressed", String(s === "hardware"));
+    $("sDs").setAttribute("aria-pressed", String(s === "dataset"));
+    $("rekaman").hidden = s !== "dataset";
+    const r = pending.rekaman || rek || "normal";
+    if ($("rekaman").value !== r) $("rekaman").value = r;
+  }
   function renderMode() {
-    const m = mode || devMode || "demo";
+    const m = pending.mode || mode || devMode || "demo";
     $("mDemo").setAttribute("aria-pressed", String(m === "demo"));
     $("mTest").setAttribute("aria-pressed", String(m === "test"));
     $("mode").textContent = devMode && mode && devMode !== mode
@@ -425,26 +442,22 @@
     $("rate").textContent = Object.entries(agg).map(([k, n]) => `${k} ${(n / 30).toFixed(0)} B/s`).join("  ·  ") || "—";
   }, 2000);
 
-  const opts = { reconnectPeriod: 2000, connectTimeout: 5000 };
-  let savedToken = "";
-  try { savedToken = localStorage.getItem(TOKEN_KEY) || ""; } catch (e) {}
-  if (qs.get("user")) { opts.username = qs.get("user"); opts.password = qs.get("pass") || ""; }
-  else if (savedToken) { opts.username = savedToken; opts.password = ""; }
-  const needsToken = !LOCAL && !opts.username;
-  let client = null;
+  let sock = null;
   function connect() {
-  client = mqtt.connect(WS, { ...opts, clientId: "viewer-" + Math.random().toString(16).slice(2, 8) });
-  client.on("reconnect", () => { $("brokerTxt").textContent = "broker: menghubungkan ulang"; });
-  client.on("offline", () => { $("brokerDot").className = "dot off"; $("brokerTxt").textContent = "broker: offline, mencoba lagi"; });
-  client.on("connect", () => {
-    $("brokerDot").className = "dot on"; $("brokerTxt").textContent = "broker: terhubung";
-    client.subscribe([`device/${DEV}/#`, `sim/${DEV}/status`], { qos: 1 });
-  });
-  client.on("close", () => { $("brokerDot").className = "dot off"; $("brokerTxt").textContent = "broker: terputus"; });
-  client.on("error", (e) => { $("brokerTxt").textContent = "broker: " + e.message; });
+    sock = io(BACKEND + "/debug", { path: "/data/realtime", transports: ["websocket", "polling"] });
+    sock.on("connect", () => {
+      $("brokerDot").className = "dot on"; $("brokerTxt").textContent = "server: terhubung";
+      sock.emit("watch", DEV);
+    });
+    sock.on("disconnect", () => { $("brokerDot").className = "dot off"; $("brokerTxt").textContent = "server: terputus, mencoba lagi"; });
+    sock.on("connect_error", () => { $("brokerDot").className = "dot off"; $("brokerTxt").textContent = "server: membangunkan backend, tunggu ±1 menit"; });
+    sock.on("galat", (m) => addLog("SERVER", m));
+    sock.on("m", (topic, data) => onMessage(topic, new Uint8Array(data)));
+  }
+  const send = (c) => sock?.emit("cmd", c);
 
   let simStatus = {};
-  client.on("message", (topic, buf) => {
+  function onMessage(topic, buf) {
     const kind = topic.split("/").pop();
     bytes.push([Date.now(), kind, buf.length]);
     if (!running && (kind === "ecg" || kind === "vital" || kind === "inference")) return;
@@ -453,7 +466,7 @@
       if (kind === "ecg") {
         const p = decodeEcg(buf);
         if (!p.buffered) pushEcg(p.samples);
-        $("ecgInfo").textContent = `250 Hz · payload ${p.fmt} ${buf.length} B/paket`;
+        $("ecgInfo").textContent = `${srcLabel()} · 250 Hz · payload ${p.fmt} ${buf.length} B/paket`;
         return;
       }
       d = JSON.parse(new TextDecoder().decode(buf));
@@ -535,44 +548,53 @@
       $("scenario").hidden = false; $("scenLabel").hidden = false;
       $("scen").textContent = `${d.scenario} · fase ${d.phase + 1}: ${d.phase_label} — ekspektasi: ${d.expected}` +
         (d.ecg_source ? ` — ECG: ${d.ecg_source === "replay" ? "rekaman " + d.ecg_record : "sintetis"}` : "");
+    } else if (kind === "source") {
+      const ns = d.source === "dataset" ? "dataset" : "hardware";
+      const nr = ns === "dataset" ? (d.rekaman || "normal") : null;
+      if (ns !== (src || "hardware") || nr !== rek) addLog("SUMBER", ns === "dataset" ? `EKG dari dataset: ${REKAMAN[nr] || nr}` : "EKG dari hardware (ESP32)");
+      src = ns; rek = nr; renderSource();
+      $("ecgInfo").textContent = `${srcLabel()} · menunggu data EKG`;
     }
-  });
-
   }
 
-  const tokenForm = $("tokenForm");
-  $("tokenBtn").hidden = LOCAL;
-  $("tokenBtn").onclick = () => { tokenForm.hidden = !tokenForm.hidden; if (!tokenForm.hidden) $("token").focus(); };
-  tokenForm.onsubmit = (ev) => {
-    ev.preventDefault();
-    const t = $("token").value.trim();
-    if (!t) return;
-    try { localStorage.setItem(TOKEN_KEY, t); } catch (e) {}
-    opts.username = t; opts.password = "";
-    $("token").value = ""; tokenForm.hidden = true;
-    try { client?.end(true); } catch (e) {}
-    connect();
-  };
-  if (needsToken) { tokenForm.hidden = false; $("brokerTxt").textContent = "broker: isi token flespi"; }
-  else connect();
+  connect();
 
-  function ctl(m) { client?.publish(`sim/${DEV}/control`, JSON.stringify(m), { qos: 1 }); }
+  function ctl(m) { send({ type: "sim", cmd: m }); }
   $("scenario").onchange = () => { if (running) ctl({ cmd: "scenario", name: $("scenario").value }); };
-  $("run").onclick = () => {
-    if (!running) return startRun();
-    clearView();
-    if (!opts.username && !LOCAL) { tokenForm.hidden = false; return; }
-    try { client?.end(true); } catch (e) {}
-    $("brokerDot").className = "dot"; $("brokerTxt").textContent = "broker: menghubungkan";
-    connect();
-  };
-  const setMode = (m) => {
-    if (m === (mode || devMode)) return;
+  function choose(key, value) {
+    pending[key] = value;
     stopRun();
-    client?.publish(`device/${DEV}/remote`, JSON.stringify({ type: "set_mode", mode: m, by: "debug viewer", ts: Date.now() }), { qos: 1 });
+    $("runHint").innerHTML = "Pilihan berubah. Klik <b>Jalankan</b> untuk menerapkan.";
+    renderMode(); renderSource();
+  }
+  function applyPending() {
+    if (pending.mode && pending.mode !== (mode || devMode)) {
+      send({ type: "mode", mode: pending.mode });
+      mode = pending.mode;
+    }
+    const cur = src || "hardware";
+    const ns = pending.source || cur;
+    const nr = ns === "dataset" ? (pending.rekaman || rek || "normal") : null;
+    if (ns !== cur || (ns === "dataset" && nr !== rek)) send({ type: "source", source: ns, rekaman: nr });
+    pending.mode = pending.source = pending.rekaman = null;
+    renderMode(); renderSource();
+  }
+  $("run").onclick = () => {
+    if (!running) {
+      applyPending();
+      clearView();
+      return startRun();
+    }
+    clearView();
+    $("brokerDot").className = "dot"; $("brokerTxt").textContent = "server: menghubungkan ulang";
+    sock.disconnect(); sock.connect();
   };
-  $("mDemo").onclick = () => setMode("demo");
-  $("mTest").onclick = () => setMode("test");
+  $("mDemo").onclick = () => choose("mode", "demo");
+  $("mTest").onclick = () => choose("mode", "test");
+  $("sHw").onclick = () => choose("source", "hardware");
+  $("sDs").onclick = () => choose("source", "dataset");
+  $("rekaman").onchange = () => choose("rekaman", $("rekaman").value);
+  renderSource();
 })();
 </script>
 </body>
