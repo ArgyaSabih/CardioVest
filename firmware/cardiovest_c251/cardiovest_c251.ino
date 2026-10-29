@@ -14,8 +14,8 @@
 #define CONN_4G 2
 #define CONN_MODE CONN_WIFI
 
-#define WIFI_SSID "galaxy"
-#define WIFI_PASS "11111111"
+#define WIFI_SSID "Wokwi 2.4G"
+#define WIFI_PASS "wokwiwokwok24"
 
 #if __has_include("rahasia.h")
 #include "rahasia.h"
