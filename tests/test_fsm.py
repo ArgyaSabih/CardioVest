@@ -68,6 +68,14 @@ def test_low_confidence_is_undecided():
     assert all(not x.accepted for x in d) and e.state == C.STATE_NORMAL
 
 
+def test_low_confidence_abnormal_does_not_warn():
+    e = DecisionEngine()
+    d = run(e, [P, P, P, A, A], conf=e.tau_warn - 0.01)
+    assert all(not x.accepted for x in d) and e.state == C.STATE_NORMAL
+    run(e, [P, P], conf=e.tau_warn)
+    assert e.state == C.STATE_WARNING
+
+
 def test_reset_clears_warning():
     e = DecisionEngine()
     run(e, [P, P])
@@ -100,11 +108,11 @@ def test_gsr_calibration_threshold():
 def test_motion_raises_tau():
     """p_conf di antara tau_conf dan tau_gerak: diputuskan saat diam, tidak diputuskan saat bergerak."""
     p = (C.TAU_CONF + C.TAU_CONF_MOTION) / 2
-    rest = DecisionEngine()
+    rest = DecisionEngine(tau_warn=C.TAU_CONF)
     for _ in range(3):
         rest.step(A, p, False, True, True, motion=False)
     assert rest.state == C.STATE_WARNING
-    moving = DecisionEngine()
+    moving = DecisionEngine(tau_warn=C.TAU_CONF)
     d = [moving.step(A, p, False, True, True, motion=True) for _ in range(3)]
     assert moving.state == C.STATE_NORMAL and not any(x.accepted for x in d)
     assert "tau_gerak" in d[-1].reason

@@ -139,9 +139,11 @@ class Decision:
 class DecisionEngine:
     def __init__(self, tau_conf: float = C.TAU_CONF, n: int = C.PERSIST_N,
                  n_degraded: int = C.PERSIST_N_DEGRADED, m: int = C.HYSTERESIS_M,
-                 tau_motion: float | None = None, n_pre: int | None = None):
+                 tau_motion: float | None = None, n_pre: int | None = None,
+                 tau_warn: float | None = None):
         self.tau_conf = tau_conf
         self.tau_motion = max(tau_conf, C.TAU_CONF_MOTION if tau_motion is None else tau_motion)
+        self.tau_warn = max(tau_conf, C.TAU_WARN if tau_warn is None else tau_warn)
         self.n = n
         self.n_pre = C.PERSIST_N_PRE if n_pre is None else n_pre   # 0 = sama dengan n
         self.n_degraded = n_degraded
@@ -164,6 +166,10 @@ class DecisionEngine:
             return self._decision(prev, False,
                                   f"tidak diputuskan: p_conf {p_conf:.2f} < {name} {tau:.2f}"
                                   + (" (pengguna bergerak)" if motion else ""), n_req)
+        if cls != C.CLS_NORMAL and p_conf < self.tau_warn:
+            return self._decision(prev, False,
+                                  f"tidak diputuskan: {C.CLASSES[cls]} p_conf {p_conf:.2f} < tau_warn {self.tau_warn:.2f}",
+                                  n_req)
 
         if cls == C.CLS_NORMAL:
             self.consec_normal += 1

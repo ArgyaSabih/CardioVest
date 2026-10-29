@@ -28,6 +28,7 @@ services:
     environment:
       <<: *common-env
       TAU_CONF: ${TAU_CONF:-0.44}
+      TAU_WARN: ${TAU_WARN:-0.80}
       TAU_CONF_MOTION: ${TAU_CONF_MOTION:-0.76}         # tau saat IMU mendeteksi gerak
       MOTION_SD_G: ${MOTION_SD_G:-0.08}
       REMOTE_RESET: ${REMOTE_RESET:-1}                  # 1 = tombol reset di aplikasi web diizinkan

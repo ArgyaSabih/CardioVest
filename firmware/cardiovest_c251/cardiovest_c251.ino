@@ -17,7 +17,7 @@
 #define WIFI_SSID "galaxy"
 #define WIFI_PASS "11111111"
 
-#define MQTT_HOST "10.137.198.54"
+#define MQTT_HOST "10.137.198.48"
 #define MQTT_USE_TLS 0
 #define MQTT_TLS_INSECURE 0
 #define MQTT_PORT (MQTT_USE_TLS ? 8883 : 1883)
@@ -716,7 +716,7 @@ void state_begin()
   s_reset_pending = s_nvs.getBool("reset_pend", false);
   if (s_reset_pending)
     LOGF("STATE: event reset sebelumnya belum terkirim, dikirim saat online");
-
+  
   // SELALU PAKSA KE ST_NORMAL SAAT POWER ON / REBOOT
   s_nvs.putBool("crit_latch", false);
   g_state = ST_NORMAL;
@@ -743,7 +743,7 @@ void state_apply_cloud(DevState s)
 bool state_remote_clear()
 {
   s_nvs.putBool("crit_latch", false);
-  if (g_state == ST_NORMAL)
+  if (g_state != ST_CRITICAL)
     return false;
   set_state(ST_NORMAL);
   return true;
@@ -996,10 +996,10 @@ void task_ecg_filter(void *)
   DcBlocker dc(ECG_FS, 0.05f);
   Biquad nt;
   nt.notch(ECG_FS, NOTCH_HZ, 30.0f);
-
+  
   // BANDPASS FIR: 0.5 Hz - 30 Hz untuk meredam muscle artifact
   s_fir.design(ECG_FS, 0.5f, 30.0f, ECG_FIR_TAPS);
-
+  
   // ADAPTIVE KALMAN FILTER
   AdaptiveKalman kf(KALMAN_Q, KALMAN_R0, KALMAN_R_MOTION);
   uint64_t group_delay_ms = (uint64_t)s_fir.delaySamples() * 1000ULL / ECG_FS;
@@ -2052,7 +2052,7 @@ bool network_ensure()
     esp_wifi_set_country_code("ID", true);
     WiFi.setSleep(false);
     WiFi.setAutoReconnect(true);
-
+    
     wifi_scan_report();
     last_scan = millis();
     LOGF("WIFI: menyambung ke %s", WIFI_SSID);
@@ -2134,10 +2134,10 @@ void on_mqtt_message(String &topic, String &payload)
   const char *p = payload.c_str();
   if (strstr(p, "\"clear_latch\""))
   {
-    bool dibersihkan = state_remote_clear();
-    if (dibersihkan)
+    bool was_critical = state_remote_clear();
+    if (was_critical)
       alert_beep(3000, 150);
-    LOGF("CMD: reset dari aplikasi: %s", dibersihkan ? "status dikembalikan ke NORMAL" : "status sudah NORMAL");
+    LOGF("CMD: clear_latch dari cloud (reset dari aplikasi): %s", was_critical ? "CRITICAL dibersihkan" : "tidak ada latch");
     return;
   }
   if (!strstr(p, "\"set_state\""))
@@ -2255,42 +2255,15 @@ void handle_vital()
   bool signal_valid = !v.lead_off && (v.sqi >= TAU_SQI) && (v.amag_sd < 0.6f);
   if (signal_valid && !isnan(hr_ecg))
   {
-    // 1. Kondisi CRITICAL: Terdeteksi Anomali Sangat Ekstrem (Serangan Jantung/Aritmia Berbahaya)
+    // Jika sinyal bersih & HR terdeteksi di luar batas ekstrem -> Pemicuan Darurat Seketika (0 Detik Delay)
     if (hr_ecg < 40.0f || hr_ecg > 160.0f)
     {
       if (g_state != ST_CRITICAL)
       {
         set_state(ST_CRITICAL);
-        s_nvs.putBool("crit_latch", true); // Status Critical dikunci demi keselamatan
-        LOGF("ANOMALI CRITICAL: HR = %.1f BPM. State -> CRITICAL", hr_ecg);
+        s_nvs.putBool("crit_latch", true);
+        LOGF("ANOMALI INSTAN: Deteksi Serangan Jantung (HR=%.1f BPM). State -> CRITICAL", hr_ecg);
       }
-    }
-    // 2. Kondisi WARNING: Detak Jantung Agak Tinggi / Rendah
-    else if ((hr_ecg >= 40.0f && hr_ecg < 50.0f) || (hr_ecg > 100.0f && hr_ecg <= 160.0f))
-    {
-      if (g_state == ST_NORMAL)
-      {
-        set_state(ST_WARNING);
-        LOGF("ANOMALI WARNING: HR = %.1f BPM. State -> WARNING", hr_ecg);
-      }
-    }
-    // 3. Kondisi NORMAL: Auto-Recovery dari WARNING jika sinyal kembali sehat (50 - 100 BPM)
-    else if (hr_ecg >= 50.0f && hr_ecg <= 100.0f)
-    {
-      if (g_state == ST_WARNING)
-      {
-        set_state(ST_NORMAL);
-        LOGF("SYSTEM RECOVERY: Sinyal EKG Sehat (HR = %.1f BPM) -> Status Kembali NORMAL", hr_ecg);
-      }
-    }
-  }
-  else
-  {
-    // 4. Jika elektroda lepas (lead_off) atau sinyal kotor, kembalikan dari WARNING ke NORMAL
-    if (g_state == ST_WARNING)
-    {
-      set_state(ST_NORMAL);
-      LOGF("SYSTEM RESET: Sinyal tidak valid / Lead Off -> Memaksa status WARNING kembali ke NORMAL");
     }
   }
 

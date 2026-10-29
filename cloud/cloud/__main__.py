@@ -21,8 +21,8 @@ def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)-10s %(levelname)-8s %(message)s",
                         datefmt="%H:%M:%S", stream=sys.stdout)
     logging.getLogger("cloud").info(
-        "konfigurasi: tau_conf=%.2f tau_gerak=%.2f (sd>%.2f g) N=%d N_degraded=%d M=%d HR=[%g,%g] GSR_abs=%g k=%g kalibrasi=%ds",
-        C.TAU_CONF, max(C.TAU_CONF, C.TAU_CONF_MOTION), C.MOTION_SD_G, C.PERSIST_N, C.PERSIST_N_DEGRADED, C.HYSTERESIS_M, C.HR_LOW, C.HR_HIGH,
+        "konfigurasi: tau_conf=%.2f tau_warn=%.2f tau_gerak=%.2f (sd>%.2f g) N=%d N_degraded=%d M=%d HR=[%g,%g] GSR_abs=%g k=%g kalibrasi=%ds",
+        C.TAU_CONF, max(C.TAU_CONF, C.TAU_WARN), max(C.TAU_CONF, C.TAU_CONF_MOTION), C.MOTION_SD_G, C.PERSIST_N, C.PERSIST_N_DEGRADED, C.HYSTERESIS_M, C.HR_LOW, C.HR_HIGH,
         C.GSR_ABS_HIGH, C.GSR_K, C.CALIB_SECONDS)
     svc = CloudService(a.host, a.port, a.db, a.model)
     signal.signal(signal.SIGTERM, lambda *_: svc.stop())

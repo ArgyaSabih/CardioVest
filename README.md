@@ -106,6 +106,8 @@ Buka PowerShell di folder `CardioVest` (folder hasil ekstrak zip):
 cd "D:\Kuliah\Semester 7\Capstone\C-251\CardioVest"   # sesuaikan dengan lokasi folder
 docker compose up -d --build          # broker + cloud + simulator + viewer + aplikasi
 docker compose logs -f cloud          # log inferensi & transisi state (Ctrl+C untuk keluar dari log)
+
+docker compose down # exit server
 ```
 
 Setelah jalan, ada lima cara melihat hasil:

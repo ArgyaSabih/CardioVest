@@ -56,6 +56,7 @@ TAU_CONF = env_float("TAU_CONF", 0.44)          # hasil kalibrasi validasi (clou
 # tau adaptif gerak: saat IMU mendeteksi aktivitas, artefak gerak mudah terbaca sebagai pola abnormal,
 # sehingga ambang dinaikkan (hasil kalibrasi artefak, cloud/model/kalibrasi_tau.py tahap 3)
 TAU_CONF_MOTION = env_float("TAU_CONF_MOTION", 0.76)
+TAU_WARN = env_float("TAU_WARN", 0.80)
 MOTION_SD_G = env_float("MOTION_SD_G", 0.08)    # simpangan baku |a| per detik (g) yang dianggap "bergerak"
 MOTION_WINDOW_S = env_int("MOTION_WINDOW_S", 7) # rentang vital yang diperiksa = panjang window ECG
 # Reset alarm CRITICAL dari aplikasi web. 1 = tombol web boleh membersihkan latch CRITICAL (selain tombol fisik);
