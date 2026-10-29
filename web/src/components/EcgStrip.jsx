@@ -46,17 +46,15 @@ function setupCanvas(canvas, cssW, cssH) {
   return ctx;
 }
 
-export function LiveEcg({ fs = 250, height = 168, leadOff = false, paused = false, stale = false, overlay = null }) {
+export function LiveEcg({ fs = 250, height = 168, paused = false, stale = false, overlay = null }) {
   const wrap = useRef(null);
   const canvas = useRef(null);
   const queue = useRef([]);
-  const leadOffRef = useRef(leadOff);
-  leadOffRef.current = leadOff;
   const staleRef = useRef(stale);
   staleRef.current = stale;
 
+  // Semua sampel dari alat digambar apa adanya, termasuk saat elektroda lemah atau lepas.
   useEffect(() => onEcg((p) => {
-    if (p.lead_off) return; // nol dari firmware selama elektroda lepas: jangan digambar sebagai garis datar
     queue.current.push(...p.mv);
     if (queue.current.length > fs * 12) queue.current.splice(0, queue.current.length - fs * 4); // tertinggal jauh: lompat
   }), [fs]);
@@ -102,7 +100,7 @@ export function LiveEcg({ fs = 250, height = 168, leadOff = false, paused = fals
       const dx = w / n;
       const gap = Math.round(fs * 0.12);
       ctx.strokeStyle = INK;
-      ctx.globalAlpha = staleRef.current || leadOffRef.current ? 0.3 : 1; // data lama / elektroda lepas: redup
+      ctx.globalAlpha = staleRef.current ? 0.3 : 1; // alat terputus: rekaman terakhir dibuat redup
       ctx.lineWidth = 1.6;
       ctx.lineJoin = 'round';
       ctx.beginPath();
@@ -130,7 +128,7 @@ export function LiveEcg({ fs = 250, height = 168, leadOff = false, paused = fals
     };
   }, [fs, height, paused]);
 
-  // pesan (elektroda lepas, data lama) ditulis di DOM supaya terbaca pembaca layar, bukan di kanvas
+  // pesan (elektroda lepas, data lama) ditulis di bawah grafik, tidak menutupi sinyal
   return (
     <div className="ecg-live">
       <div ref={wrap} className="ecg-paper" role="img" aria-label={stale ? 'EKG terakhir sebelum alat terputus' : 'EKG langsung dari alat'}>

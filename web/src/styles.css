@@ -305,9 +305,8 @@ label.consent input { width: 24px; height: 24px; margin: 2px 0 0; }
 .ecg-scroll::-webkit-scrollbar-track { background: var(--paper); }
 .ecg-scroll::-webkit-scrollbar-thumb { background: var(--grid-major); border-radius: 4px; }
 .ecg-overlay {
-  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: calc(100% - 2 * var(--pad)); margin: 0;
-  background: var(--surface); border: 2px solid var(--ink); border-radius: var(--r);
-  padding: 10px 14px; text-align: center; font-weight: 700; font-size: 1rem; color: var(--ink);
+  margin: 0; padding: 8px var(--pad); border-top: 2px solid var(--ink);
+  background: var(--surface); font-weight: 700; font-size: 1rem; color: var(--ink);
 }
 
 /* ---------- pelat tanda vital: kepala biru + isi putih */

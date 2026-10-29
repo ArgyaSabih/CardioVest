@@ -69,8 +69,10 @@ export const lastFix = (dev, from, to) =>
        ORDER BY ts DESC LIMIT 1`, dev, from, to);
 
 /** Rata-rata per menit untuk grafik tren. */
+// Satu bacaan asli per menit (yang terakhir di menit itu), tanpa dirata-rata. SQLite mengambil kolom
+// hr/gsr dari baris yang sama dengan MAX(ts).
 export const trend = (dev, fromTs) =>
-  all(`SELECT (ts/60000)*60000 AS t, ROUND(AVG(hr),1) AS hr, ROUND(AVG(gsr),2) AS gsr, MAX(fall_detected) AS fall
+  all(`SELECT MAX(ts) AS t, hr, gsr, fall_detected AS fall
        FROM vitals WHERE device_id=? AND ts>=? GROUP BY ts/60000 ORDER BY t`, dev, fromTs);
 
 /** Potongan ECG (mV) dari paket tersimpan; celah antar-paket diisi null supaya garis terputus jujur. */
