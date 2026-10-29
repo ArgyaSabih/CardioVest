@@ -190,9 +190,10 @@ class CloudService:
 
         # setiap transisi menutup episode lama (WARNING yang naik ke CRITICAL menjadi episode baru)
         if d.event_id is not None:
+            by_reset = dec["reason"].startswith(("hardware reset", "reset jarak jauh"))
             end_reason = {C.STATE_CRITICAL: "eskalasi ke CRITICAL", C.STATE_WARNING: "berubah ke WARNING",
                           C.STATE_NORMAL: (("reset dari aplikasi web" if d.reset_source == "remote" else "reset tombol fisik")
-                                 if a == C.STATE_CRITICAL else "pulih (histeresis)")}[b]
+                                           if by_reset else "pulih (histeresis)")}[b]
             self.repo.update_event(d.event_id, end_ts=ts, end_reason=end_reason)
             d.event_id = None
         if b in (C.STATE_WARNING, C.STATE_CRITICAL):
@@ -371,10 +372,9 @@ class CloudService:
         d.restored = None
         d.remote_clear_at = 0
         dec = d.engine.hardware_reset().dict()
-        if dec["changed"]:
-            d.reset_source = "device"
-            d.reset_ts = int(e.get("ts", now_ms()))
-            d.reset_recv = now_ms()
+        d.reset_source = "device"
+        d.reset_ts = int(e.get("ts", now_ms()))
+        d.reset_recv = now_ms()
         d.last_reason = dec["reason"]
         log.info("%s: hardware reset diterima -> %s", device_id, dec["reason"])
         if dec["changed"]:
@@ -394,18 +394,20 @@ class CloudService:
         if not C.REMOTE_RESET:
             log.warning("%s: reset jarak jauh dari %s ditolak (REMOTE_RESET=0)", device_id, who)
             return
-        if d.engine.state != C.STATE_CRITICAL:
-            log.info("%s: reset jarak jauh diabaikan, state %s bukan CRITICAL", device_id, d.engine.state)
-            return
         d.restored = None
+        was_critical = d.engine.state == C.STATE_CRITICAL
         dec = d.engine.remote_reset(who).dict()
         d.reset_source = "remote"
-        d.reset_ts = d.reset_recv = d.remote_clear_at = now_ms()
+        d.reset_ts = d.reset_recv = now_ms()
+        d.remote_clear_at = d.reset_ts if was_critical else 0
         d.remote_clear_sent = d.reset_ts
         d.last_reason = dec["reason"]
         log.warning("%s: %s", device_id, dec["reason"])
         self._pub(device_id, "cmd", {"cmd": "clear_latch", "state": C.STATE_NORMAL, "by": who, "ts": d.reset_ts})
-        self._apply_transition(d, dec, 0.0, None, None)
+        if dec["changed"]:
+            self._apply_transition(d, dec, 0.0, None, None)
+        else:
+            self._publish_state(d)
 
     def handle_lwt(self, device_id: str, payload: bytes) -> None:
         d = self.ctx(device_id)

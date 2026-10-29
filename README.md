@@ -158,7 +158,7 @@ Skenario awal saat start diatur lewat `SCENARIO=` di `.env`.
 | `reset_offline` | CRITICAL, sinyal hilang, tombol reset ditekan **saat offline** | alat langsung NORMAL; saat tersambung, event reset sampai lebih dulu dan cloud ikut NORMAL tanpa mengunci alat lagi |
 | `elektroda_lepas` | elektroda lepas 25 s (flag LO+/LO-, sinyal 0) | tetap NORMAL; window ditandai "kualitas sinyal" dan tidak menggerakkan FSM |
 
-Setelah CRITICAL, tekan **reset** (atau **Hentikan alarm** di beranda web) agar sistem kembali NORMAL. BAB 4.5 hanya menyebut tombol fisik; jalur web adalah tambahan dan bisa dimatikan dengan `REMOTE_RESET=0`.
+Tombol **Reset hardware** (viewer), **Reset status** / **Hentikan alarm** (beranda web), dan tombol fisik di alat mengembalikan sistem ke NORMAL dari state mana pun. BAB 4.5 hanya menyebut tombol fisik untuk keluar dari CRITICAL; jalur web dan viewer adalah tambahan dan bisa dimatikan dengan `REMOTE_RESET=0`.
 
 ### Uji otomatis semua skenario
 
@@ -230,7 +230,7 @@ pertama tersedia, dan `critical_fall` bila jatuh terdeteksi setelah CRITICAL. Sa
 | 1_HR | HR > 120 atau < 40 bpm (median 3 s terakhir) | `HR_HIGH`, `HR_LOW` |
 | 1_GSR | GSR > min(max(μ + kσ, μ + 3 µS), 20 µS), k = 2,5; kalibrasi baseline 30 s pertama | `GSR_K`, `CALIB_SECONDS`, `GSR_ABS_HIGH` |
 | Masuk S3 | kelas Serangan **∧** 1_GSR **∧** 1_HR (dari S1 tetap perlu persistence N) | – |
-| Keluar S3 | `hardware_reset` dari perangkat, atau reset dari beranda web bila `REMOTE_RESET=1` (default; `0` = hanya tombol fisik sesuai proposal) | `REMOTE_RESET` |
+| Reset | `hardware_reset` dari perangkat berlaku di semua state (WARNING dan CRITICAL kembali NORMAL; pada NORMAL hanya penghitung persistence dibersihkan). Reset dari beranda web dan tombol *Reset hardware* di debug viewer juga berlaku di semua state bila `REMOTE_RESET=1` (default; `0` = hanya tombol fisik sesuai proposal) | `REMOTE_RESET` |
 
 Beberapa keputusan implementasi yang belum diatur rinci di dokumen:
 * Persistence dihitung **per inferensi** (hop 3,5 s), jadi N = 2 ≈ 7 s dan N+M = 3 ≈ 10,5 s.

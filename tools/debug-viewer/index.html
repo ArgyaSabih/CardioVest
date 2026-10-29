@@ -126,7 +126,7 @@
       <label for="scenario">Skenario</label>
       <select id="scenario"><option>memuat...</option></select>
       <button class="btn primary" id="apply">Jalankan</button>
-      <button class="btn danger" id="reset" title="Tombol hardware reset perangkat">Reset hardware</button>
+      <button class="btn danger" id="reset" title="Reset di semua state (NORMAL, WARNING, CRITICAL): simulator dan alat asli">Reset hardware</button>
       <button class="btn" id="drop" title="Simulasikan sinyal 4G hilang 45 detik">Putus 45 s</button>
       <button class="btn" id="theme" aria-label="Ganti tema terang/gelap">Tema</button>
     </div>
@@ -430,7 +430,10 @@
 
   const ctl = (m) => client.publish(`sim/${DEV}/control`, JSON.stringify(m), { qos: 1 });
   $("apply").onclick = () => ctl({ cmd: "scenario", name: $("scenario").value });
-  $("reset").onclick = () => ctl({ cmd: "reset" });
+  $("reset").onclick = () => {
+    ctl({ cmd: "reset" });
+    client.publish(`device/${DEV}/remote`, JSON.stringify({ type: "remote_reset", by: "debug viewer", ts: Date.now() }), { qos: 1 });
+  };
   $("drop").onclick = () => ctl({ cmd: "putus", detik: 45 });
 })();
 </script>

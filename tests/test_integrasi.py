@@ -216,11 +216,24 @@ def test_remote_reset_clears_critical_and_commands_device(svc):
     assert rows[0][0] == "reset dari aplikasi web"
 
 
-def test_remote_reset_ignored_outside_critical(svc):
-    svc.handle_vital("cv-t", vital(now()))
+def test_remote_reset_clears_warning_and_normal(svc):
+    d = svc.ctx("cv-t")
+    d.engine.state = C.STATE_WARNING
     svc.published.clear()
     svc.handle_remote("cv-t", _remote())
-    assert not any(k == "cmd" and o["cmd"] == "clear_latch" for k, o in svc.published)
+    assert d.engine.state == C.STATE_NORMAL
+    assert any(k == "cmd" and o["cmd"] == "clear_latch" for k, o in svc.published)
+    assert d.remote_clear_at == 0
+    svc.published.clear()
+    svc.handle_remote("cv-t", _remote())
+    assert d.engine.state == C.STATE_NORMAL
+
+
+def test_hardware_reset_event_clears_warning(svc):
+    d = svc.ctx("cv-t")
+    d.engine.state = C.STATE_WARNING
+    svc.handle_event("cv-t", json.dumps({"type": "hardware_reset", "ts": now()}).encode())
+    assert d.engine.state == C.STATE_NORMAL
 
 
 def test_remote_reset_disabled_by_flag(svc, monkeypatch):
