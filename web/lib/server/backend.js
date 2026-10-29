@@ -70,6 +70,7 @@ const slimVital = (v) => ({
   accel: v.accel ?? null,
   gps: v.gps ?? null,
   sensors: v.sensors ?? null,
+  i2c: v.i2c ?? null,
   charging: !!v.charging,
 });
 

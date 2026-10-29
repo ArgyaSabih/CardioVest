@@ -1085,6 +1085,29 @@ bool i2c_present(uint8_t addr)
   return Wire.endTransmission() == 0;
 }
 
+static char s_i2c_scan[64] = "belum dipindai";
+
+void i2c_scan()
+{
+  char buf[64];
+  int n = 0;
+  buf[0] = 0;
+  for (uint8_t a = 0x08; a < 0x78; a++)
+  {
+    if (!i2c_present(a))
+      continue;
+    if (n < (int)sizeof(buf) - 6)
+      n += snprintf(buf + n, sizeof(buf) - n, n ? " 0x%02X" : "0x%02X", a);
+  }
+  if (!n)
+    snprintf(buf, sizeof(buf), "kosong");
+  if (strcmp(buf, s_i2c_scan))
+  {
+    memcpy(s_i2c_scan, buf, sizeof(buf));
+    LOGF("I2C SDA=GPIO%d SCL=GPIO%d: %s", PIN_I2C_SDA, PIN_I2C_SCL, s_i2c_scan);
+  }
+}
+
 bool mpu_begin()
 {
   uint8_t addr = 0;
@@ -1212,6 +1235,7 @@ void task_sensor_aux(void *)
     if (t >= probe_at && (!s_has.ppg || !s_has.imu))
     {
       probe_at = t + 5000;
+      i2c_scan();
       if (!s_has.ppg && (s_has.ppg = max_begin()))
         LOGF("PPG: MAX30102 terdeteksi, LED merah dan IR menyala");
       if (!s_has.imu && (s_has.imu = mpu_begin()))
@@ -1315,6 +1339,7 @@ void sensors_begin()
   Wire.begin(PIN_I2C_SDA, PIN_I2C_SCL);
   Wire.setClock(I2C_CLOCK_HZ);
   Wire.setTimeOut(50);
+  i2c_scan();
   s_has.imu = mpu_begin();
   if (s_has.imu)
     LOGF("IMU: terdeteksi di 0x%02X, WHO_AM_I 0x%02X, rentang 8 g", s_has.imu_addr, s_has.imu_who);
@@ -1325,8 +1350,10 @@ void sensors_begin()
     LOGF("PPG: MAX30102 terdeteksi, 50 Hz");
   else if (s_has.ppg_id == 0x11)
     LOGF("PPG: terdeteksi MAX30100 (bukan MAX30102), PPG dilewati");
+  else if (s_has.ppg_id)
+    LOGF("PPG: chip di 0x57 ber-ID 0x%02X, bukan MAX30102 (0x15)", s_has.ppg_id);
   else
-    LOGF("PPG: MAX30102 tidak terdeteksi di 0x57, dilewati");
+    LOGF("PPG: MAX30102 tidak terdeteksi di 0x57, dicoba lagi tiap 5 s");
   analogSetPinAttenuation(PIN_GSR, ADC_11db);
   s_has.gsr = true;
   LOGF("GSR: FZ3294 di GPIO%d", PIN_GSR);
@@ -1867,6 +1894,7 @@ size_t encode_vital_json(const Vitals &v, float hr_ecg, const GpsFix &g, bool bu
   }
   json_add(out, cap, &n, "\"buffered\":%s,\"lead_off\":%s,\"charging\":%s,\"session_limit\":%s,",
            json_bool(buffered), json_bool(v.lead_off), json_bool(v.charging), json_bool(v.session_limit));
+  json_add(out, cap, &n, "\"i2c\":\"%s\",\"ppg_id\":%u,", s_i2c_scan, (unsigned)s_has.ppg_id);
   json_add(out, cap, &n, "\"sensors\":{\"ecg\":%s,\"ppg\":%s,\"gsr\":%s,\"imu\":%s}}",
            json_bool(v.ecg_ok), json_bool(v.ppg_ok), json_bool(v.gsr_ok), json_bool(v.imu_ok));
   return (n < 0 || (size_t)n >= cap) ? 0 : (size_t)n;
@@ -2402,6 +2430,7 @@ void print_status()
                 (unsigned long)s_tx_vital, (unsigned long)s_tx_bytes);
   Serial.printf("modem=%d CSQ=%d | ECG lead_off=%d HR_ecg=%.1f adc_gagal=%lu | PPG %s HR=%.1f SQI=%.2f | GSR %.2f uS (ADC %.0f)\n",
                 s_modem_ok, s_modem_csq, g_lead_off, s_hr_ecg, (unsigned long)s_adc_fail, s_has.ppg ? "on" : "off", v.hr_ppg, v.sqi, v.gsr_us, s_gsr_adc_last);
+  Serial.printf("I2C: %s\n", s_i2c_scan);
   Serial.printf("IMU %s |a|=%.3f g sd=%.3f g jatuh=%d | mengisi=%d | GPS fix=%d %.6f,%.6f sat=%d baud=%ld | heap=%u B\n\n",
                 s_has.imu ? "on" : "off", v.amag, v.amag_sd, v.fall_detected, g_charging, g.fix, g.lat, g.lon, g.sats,
                 GPS_BAUD[s_gps_baud_idx], (unsigned)ESP.getFreeHeap());

@@ -473,7 +473,7 @@
       showGps(d.gps);
       const s = d.sensors || {};
       $("sens").textContent = ["ecg", "ppg", "gsr", "imu"].map((k) => `${k.toUpperCase()} ${s[k] ? "on" : "off"}`).join(" · ")
-        + (d.gps ? " · GPS on" : " · GPS siaga");
+        + (d.gps ? " · GPS on" : " · GPS siaga") + (d.i2c ? ` · I2C: ${d.i2c}` : "");
       if (d.mode) { devMode = d.mode; renderMode(); }
       if (d.fall_detected && d.fall_ts && d.fall_ts !== lastFallTs) { lastFallTs = d.fall_ts; fallAlarm(d); }
     } else if (kind === "inference") {

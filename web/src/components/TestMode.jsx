@@ -195,6 +195,7 @@ export function TestPanel({ vital, fresh, inference, calibration, signal, state 
         <Card title="Status">
           <Row k="State cloud" v={state} />
           <Row k="State alat" v={v?.local_state ?? '–'} />
+          <Row k="I2C terdeteksi" v={v?.i2c ?? '–'} />
           <Row k="Mode alat" v={v?.mode ? label(v.mode) : '–'} />
           <Row k="Mengisi daya" v={v ? yes(v.charging) : '–'} />
           <Row k="Data terakhir" v={time} />
