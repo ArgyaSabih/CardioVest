@@ -1,9 +1,10 @@
 import { connect } from "./connection.js";
 import { createControls } from "./controls.js";
 import { createEcgStrip, decodeEcg } from "./ecg.js";
-import { CLASSES, clock, MODES, num, rekamanLabels, STATES } from "./labels.js";
+import { CLASSES, clock, EVENTS, MODES, num, rekamanLabels, STATES } from "./labels.js";
 import { createLog } from "./log.js";
 import { createMap } from "./map.js";
+import { createPresence } from "./presence.js";
 
 const qs = new URLSearchParams(location.search);
 const DEVICE = qs.get("device") || "cv-001";
@@ -50,7 +51,6 @@ let deviceMode = null;
 let lastSignalOk = null;
 let clockWarned = false;
 let lastFallTs = null;
-let simStatus = {};
 let modeRequest = null;
 let audio = null;
 let fallTimer = null;
@@ -72,7 +72,7 @@ function duration(secs) {
 
 function sourceLabel() {
   const a = controls.applied;
-  return a.source === "dataset" ? `Dataset: ${REKAMAN[a.rekaman] ?? a.rekaman}` : "Hardware (ESP32)";
+  return a.source === "dataset" ? `Dataset, ${REKAMAN[a.rekaman] ?? a.rekaman}` : "Hardware (ESP32)";
 }
 
 function renderSource() {
@@ -126,10 +126,15 @@ function clearView() {
   }
 }
 
+function setRunning(v) {
+  running = v;
+  $("stripIdle").hidden = v;
+  controls.setRunning(v);
+}
+
 function pause() {
-  running = false;
+  setRunning(false);
   clearView();
-  controls.setRunning(false);
 }
 
 function beep() {
@@ -267,12 +272,6 @@ const handlers = {
     log.add("alert", parts.join(", ") + (d.message ? `. ${d.message}` : ""));
   },
 
-  lwt(d) {
-    const on = d.status === "online";
-    $("devicePill").dataset.tone = on ? "ok" : "crit";
-    set("devicePill", `Alat ${DEVICE} ${on ? "online" : "offline"}`);
-    log.add("koneksi", `Alat ${on ? "online" : "offline"}${d.reason ? ` (${d.reason})` : ""}`);
-  },
 
   source(d) {
     const source = d.source === "dataset" ? "dataset" : "hardware";
@@ -286,29 +285,9 @@ const handlers = {
     renderSource();
   },
 
-  status(d) {
-    if (d.scenario !== simStatus.scenario || d.phase !== simStatus.phase) {
-      log.add("simulator", `${d.scenario}, fase ${d.phase + 1}: ${d.phase_label}`);
-    }
-    const sel = $("scenario");
-    if (d.scenarios && sel.options.length !== Object.keys(d.scenarios).length) {
-      sel.innerHTML = "";
-      for (const [k, v] of Object.entries(d.scenarios)) sel.append(new Option(v, k));
-    }
-    if (d.scenario !== simStatus.scenario) sel.value = d.scenario;
-    simStatus = d;
-    $("scenarioField").hidden = false;
-  },
 };
 
 const LIVE_ONLY = new Set(["ecg", "vital", "inference"]);
-const EVENTS = {
-  warning: "Waspada",
-  critical: "Darurat",
-  critical_fall: "Darurat, pemakai terjatuh",
-  critical_location: "Lokasi darurat tersedia",
-  resolved: "Keadaan darurat selesai",
-};
 
 function onMessage(topic, buf) {
   const kind = topic.split("/").pop();
@@ -327,21 +306,23 @@ setInterval(() => {
   set("rate", total ? `Data masuk ${num(total / 30)} B/s` : "");
 }, 2000);
 
-const conn = connect(BACKEND, DEVICE, {
-  onStatus(tone, text) {
-    $("serverPill").dataset.tone = tone;
-    set("serverPill", text);
+const presence = createPresence({
+  device: DEVICE,
+  onChange(ready) {
+    log.add("koneksi", ready ? `Alat ${DEVICE} terhubung` : `Alat ${DEVICE} terputus`);
   },
+});
+
+const conn = connect(BACKEND, DEVICE, {
+  onServer: (v) => presence.server(v),
+  onPresence: (p) => presence.presence(p),
   onMessage,
   onError: (m) => log.add("server", m),
 });
 
-$("scenario").addEventListener("change", () => {
-  if (running) conn.send({ type: "sim", cmd: { cmd: "scenario", name: $("scenario").value } });
-});
-
-$("runBtn").addEventListener("click", () => {
-  if (running) return pause();
+controls.form.addEventListener("submit", (e) => {
+  e.preventDefault();
+  if (running && !controls.hasPending) return pause();
   const todo = controls.takePending();
   if (todo.mode) {
     log.add("mode", `Meminta alat pindah ke mode ${MODES[todo.mode]}`);
@@ -356,15 +337,11 @@ $("runBtn").addEventListener("click", () => {
   renderSource();
   renderMode();
   clearView();
-  running = true;
-  controls.setRunning(true);
+  setRunning(true);
   try {
     audio = audio || new AudioContext();
     audio.resume();
   } catch (e) {}
-  if (!$("scenarioField").hidden && $("scenario").value) {
-    conn.send({ type: "sim", cmd: { cmd: "scenario", name: $("scenario").value } });
-  }
 });
 
 renderSource();

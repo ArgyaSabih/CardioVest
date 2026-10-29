@@ -1,4 +1,4 @@
-"""Monitor terminal real-time untuk pipeline simulasi.
+"""Monitor terminal real-time untuk data alat CardioVest di broker MQTT.
 
     python tools/monitor.py --host localhost --device-id cv-001
     MQTT_TLS=1 MQTT_USER=<user> MQTT_PASS=<sandi> python tools/monitor.py --host <host EMQX> --port 8883
@@ -44,8 +44,8 @@ class Monitor:
         self.state: dict = {}
         self.vital: dict = {}
         self.inf: dict = {}
-        self.sim: dict = {}
         self.lwt: dict = {}
+        self.source = "hardware"
         self.ecg = deque(maxlen=1750)
         self.log: deque[tuple[str, str, str, str]] = deque(maxlen=12)
         self.bytes: deque[tuple[float, str, int]] = deque(maxlen=5000)
@@ -54,7 +54,7 @@ class Monitor:
     # ------------------------------------------------------------------ MQTT
     def on_connect(self, c, u, f, rc, p):
         self.connected = not rc.is_failure
-        c.subscribe([(f"device/{self.dev}/#", 2), (f"sim/{self.dev}/status", 1)])
+        c.subscribe([(f"device/{self.dev}/#", 2)])
 
     def on_message(self, c, u, msg):
         kind = msg.topic.rsplit("/", 1)[-1]
@@ -89,11 +89,8 @@ class Monitor:
                 self.lwt = d
                 self._log("LWT", d.get("status", "?") + (f" ({d['reason']})" if d.get("reason") else ""),
                           "cyan")
-            elif kind == "status":
-                if d.get("scenario") != self.sim.get("scenario") or d.get("phase") != self.sim.get("phase"):
-                    self._log("SIM", f"{d.get('scenario')} / fase {d.get('phase', 0) + 1}: {d.get('phase_label')}",
-                              "magenta")
-                self.sim = d
+            elif kind == "source":
+                self.source = d.get("source", "hardware") + (f" ({d['rekaman']})" if d.get("rekaman") else "")
             elif kind == "cmd":
                 pass
 
@@ -119,7 +116,7 @@ class Monitor:
 
     def render(self) -> Layout:
         with self.lock:
-            st, v, inf, sim = dict(self.state), dict(self.vital), dict(self.inf), dict(self.sim)
+            st, v, inf = dict(self.state), dict(self.vital), dict(self.inf)
             logs = list(self.log)
             now = time.time()
             rates: dict[str, int] = {}
@@ -137,9 +134,7 @@ class Monitor:
         since = st.get("since")
         head.add_row(Text(f"perangkat {self.dev}: {online}", style="cyan" if online == "online" else "red"),
                      Text(f"sejak {time.strftime('%H:%M:%S', time.localtime(since / 1000)) if since else '-'}"
-                          f" | skenario: {sim.get('scenario', '-')} / fase {sim.get('phase', 0) + 1}: "
-                          f"{sim.get('phase_label', '-')}"))
-        head.add_row("", Text(f"ekspektasi: {sim.get('expected', '-')}", style="dim"))
+                          f" | sumber EKG: {self.source}"))
 
         tv = Table(show_header=False, box=None, expand=True)
         tv.add_column(style="dim")
@@ -190,7 +185,7 @@ class Monitor:
             Layout(Panel(head, title="Status FSM (cloud)"), size=5),
             Layout(name="mid", size=10),
             Layout(Panel(self._sparkline(width), title=f"ECG 7 s terakhir  |  laju data: {rate_txt}"), size=7),
-            Layout(Panel(tl, title="Log transisi / alert / simulator")),
+            Layout(Panel(tl, title="Log transisi / alert")),
         )
         lay["mid"].split_row(Layout(Panel(tv, title="Vital (device/+/vital)")),
                              Layout(Panel(ti, title="CNN 1D (device/+/inference)")))

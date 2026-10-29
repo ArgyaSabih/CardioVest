@@ -27,7 +27,7 @@ Dua tingkat analisis:
    window berurutan nyata lebih berkorelasi, sehingga angka per jam adalah estimasi kasar.
 
 3. tau adaptif gerak (tau_motion). Saat IMU mendeteksi aktivitas, artefak gerak membuat model membaca ECG
-   Normal sebagai Serangan. Window uji/validasi diberi artefak gerak yang SAMA dengan simulator
+   Normal sebagai Serangan. Window uji/validasi diberi artefak gerak sintetis heartsim_common.ecg_synth
    (EcgStream, motion 0,6 dan 0,9), lalu diukur per tau (mode terdegradasi N = 3, seperti saat bergerak SQI PPG
    turun):
      * WARNING palsu dalam episode artefak 45 s (Normal, 1_HR = 1 karena HR semu, 1_GSR = 0)
@@ -233,11 +233,11 @@ def choose(win_val, sys_val, spec_min, fa_max):
 
 # ------------------------------------------------------------------ tau adaptif gerak
 MOTIONS = (0.6, 0.9)
-EP_ART = int(45 / HOP_S)                  # 12 window = fase artefak 45 s skenario simulator
+EP_ART = int(45 / HOP_S)                  # 12 window = episode artefak 45 s
 
 
 def add_artefact(X, motion, seed=0):
-    """Tambahkan artefak gerak simulator (heartsim_common.ecg_synth) ke tiap rekaman 10 s (mV)."""
+    """Tambahkan artefak gerak sintetis (heartsim_common.ecg_synth) ke tiap rekaman 10 s (mV)."""
     rng = np.random.default_rng(seed)
     out = X.astype(np.float32).copy()
     for i in range(len(out)):

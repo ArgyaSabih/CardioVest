@@ -112,7 +112,7 @@ def main() -> None:
         print(f"{k:<16}{r['warning_30s'] / n_ep:>14.0%}{r['critical_30s'] / n_ep:>15.0%}"
               f"{(f'{lat:.1f} s' if lat else '-'):>16}")
 
-    b = np.load(ROOT / "simulator" / "simulator" / "replay_bank.npz")
+    b = np.load(ROOT / "dataset" / "dataset" / "replay_bank.npz")
     # hanya subset acak dari set uji: sebagian bank berisi window pilihan (demo) dan data latih
     keep = b["acak"].astype(bool) & (b["split"].astype(str) == "test")
     X = b["X"][keep, :WIN].astype(np.float64)

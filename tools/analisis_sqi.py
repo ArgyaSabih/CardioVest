@@ -5,7 +5,7 @@
 
 Dua sumber data:
 
-1. Bank replay simulator (simulator/simulator/replay_bank.npz): rekaman PTB-XL/MIT-BIH/CUDB per
+1. Bank replay dataset (dataset/dataset/replay_bank.npz): rekaman PTB-XL/MIT-BIH/CUDB per
    kondisi (normal, ST depresi, STEMI, AF, PVC, SVT, VT, VF). Pertanyaannya: apakah gerbang atau
    ambang SQI dari literatur ikut menolak ritme berbahaya?
 2. BUT QDB (Brno University of Technology ECG Quality Database, PhysioNet): rekaman wearable 24 jam
@@ -207,7 +207,7 @@ def main() -> None:
     a = ap.parse_args()
     report: dict = {"bank": {}, "butqdb": {}}
 
-    bank = np.load(ROOT / "simulator" / "simulator" / "replay_bank.npz")
+    bank = np.load(ROOT / "dataset" / "dataset" / "replay_bank.npz")
     X, tags = bank["X"][:, :WIN].astype(np.float64), bank["tag"].astype(str)
     print("== Bank replay (window 7 s pertama tiap rekaman)")
     print(f"{'kondisi':<14}{'n':>5}{'diblok':>8}{'kSQI p10/p50/p90':>22}{'pSQI p50':>10}"

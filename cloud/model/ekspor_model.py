@@ -33,7 +33,7 @@ def main() -> None:
     n_in = model.input_shape[1]
 
     # data pembanding: window bank replay (rekaman asli), Z-score seperti di layanan inferensi
-    bank = np.load(ROOT / "simulator" / "simulator" / "replay_bank.npz")
+    bank = np.load(ROOT / "dataset" / "dataset" / "replay_bank.npz")
     x = bank["X"][:256, :n_in].astype(np.float32)
     x = ((x - x.mean(1, keepdims=True)) / (x.std(1, keepdims=True) + 1e-8))[..., None]
     ref = model.predict(x, verbose=0)

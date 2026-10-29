@@ -6,166 +6,240 @@
 <title>Debug Alat CardioVest</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;500;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/debug/vendor/leaflet.css">
 <link rel="stylesheet" href="/debug/style.css">
 <script>try { const t = localStorage.getItem("cv-debug-theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}</script>
 </head>
 <body>
-<header class="topbar">
-  <div class="brand">
-    <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true"><path d="M2 17h7l3-7 4 14 3-9 2 2h9"/></svg>
-    <div>
-      <p class="brand-name">CardioVest</p>
-      <h1>Debug alat <span id="deviceId">cv-001</span></h1>
+<div class="app" id="app">
+  <header class="topbar">
+    <div class="brand">
+      <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true"><path d="M2 17h7l3-7 4 14 3-9 2 2h9"/></svg>
+      <div>
+        <p class="brand-name">CardioVest</p>
+        <h1>Debug alat <span id="deviceId">cv-001</span></h1>
+      </div>
     </div>
+    <div class="topbar-side">
+      <span class="pill" id="linkPill" data-tone="wait">Menghubungkan</span>
+      <button class="icon-btn" id="themeBtn" type="button" aria-label="Ganti tema"></button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="console" aria-label="Kendali alat">
+      <section class="links" aria-label="Koneksi">
+        <h2 class="console-title">Koneksi</h2>
+        <ul class="link-list" id="linkList">
+          <li data-step="server" data-tone="wait"><span class="link-dot"></span><span class="link-name">Server</span><span class="link-text">Menghubungkan</span></li>
+          <li data-step="broker" data-tone="idle"><span class="link-dot"></span><span class="link-name">Broker MQTT</span><span class="link-text">–</span></li>
+          <li data-step="device" data-tone="idle"><span class="link-dot"></span><span class="link-name">Alat</span><span class="link-text">–</span></li>
+        </ul>
+      </section>
+
+      <form class="setup" id="setup" autocomplete="off">
+        <fieldset class="step">
+          <legend><span class="step-no">1</span>Mode alat</legend>
+          <div class="cards">
+            <label class="card">
+              <input type="radio" name="mode" value="demo">
+              <svg class="card-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 5.6a5 5 0 0 0-7.1 0L12 7.3l-1.7-1.7a5 5 0 0 0-7.1 7.1L12 21.4l8.8-8.7a5 5 0 0 0 0-7.1z"/></svg>
+              <span class="card-title">Demo</span>
+              <span class="card-desc">Mekanisme asli. GPS siaga sampai Darurat.</span>
+              <span class="card-mark" aria-hidden="true"></span>
+            </label>
+            <label class="card">
+              <input type="radio" name="mode" value="test">
+              <svg class="card-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M14.5 17.5l2 2 4-4"/></svg>
+              <span class="card-title">Test</span>
+              <span class="card-desc">Semua modul menyala, termasuk GPS.</span>
+              <span class="card-mark" aria-hidden="true"></span>
+            </label>
+          </div>
+        </fieldset>
+
+        <fieldset class="step">
+          <legend><span class="step-no">2</span>Sumber sinyal EKG</legend>
+          <div class="cards">
+            <label class="card">
+              <input type="radio" name="source" value="hardware">
+              <svg class="card-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/><path d="M9 12h1.5l1-2 1.5 4 1-2H15"/></svg>
+              <span class="card-title">Hardware</span>
+              <span class="card-desc">EKG dari sensor AD8232 di ESP32.</span>
+              <span class="card-mark" aria-hidden="true"></span>
+            </label>
+            <label class="card">
+              <input type="radio" name="source" value="dataset">
+              <svg class="card-icon" viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="5.5" rx="8" ry="3"/><path d="M4 5.5v6.5c0 1.7 3.6 3 8 3s8-1.3 8-3V5.5M4 12v6.5c0 1.7 3.6 3 8 3s8-1.3 8-3V12"/></svg>
+              <span class="card-title">Dataset</span>
+              <span class="card-desc">Rekaman PTB-XL / MIT-BIH. Vital tetap dari alat.</span>
+              <span class="card-mark" aria-hidden="true"></span>
+            </label>
+          </div>
+        </fieldset>
+
+        <fieldset class="step step-rekaman" id="rekamanStep">
+          <legend><span class="step-no">3</span>Jenis rekaman</legend>
+          <p class="step-lock" id="rekamanLock">Dipakai bila sumber EKG Dataset.</p>
+          <div class="rekaman" id="rekaman">
+            <div class="rek-group" data-tone="ok">
+              <p class="rek-head">Normal</p>
+              <div class="rek-chips">
+                <label class="rek" title="Irama normal"><input type="radio" name="rekaman" value="normal" data-name="Irama normal"><span>Irama normal</span></label>
+              </div>
+            </div>
+            <div class="rek-group" data-tone="warn">
+              <p class="rek-head">Pra-serangan</p>
+              <div class="rek-chips">
+                <label class="rek" title="Depresi ST"><input type="radio" name="rekaman" value="st_depression" data-name="Depresi ST"><span>Depresi ST</span></label>
+                <label class="rek" title="Fibrilasi atrium (AF)"><input type="radio" name="rekaman" value="af" data-name="Fibrilasi atrium (AF)"><span>AF</span></label>
+                <label class="rek" title="Kontraksi ventrikel prematur (PVC)"><input type="radio" name="rekaman" value="pvc" data-name="Kontraksi ventrikel prematur (PVC)"><span>PVC</span></label>
+                <label class="rek" title="Gangguan konduksi"><input type="radio" name="rekaman" value="cd" data-name="Gangguan konduksi"><span>Konduksi</span></label>
+                <label class="rek" title="Takikardia supraventrikel (SVT)"><input type="radio" name="rekaman" value="svt" data-name="Takikardia supraventrikel (SVT)"><span>SVT</span></label>
+              </div>
+            </div>
+            <div class="rek-group" data-tone="crit">
+              <p class="rek-head">Serangan</p>
+              <div class="rek-chips">
+                <label class="rek" title="STEMI"><input type="radio" name="rekaman" value="stemi" data-name="STEMI"><span>STEMI</span></label>
+                <label class="rek" title="Takikardia ventrikel (VT)"><input type="radio" name="rekaman" value="vt" data-name="Takikardia ventrikel (VT)"><span>VT</span></label>
+                <label class="rek" title="Fibrilasi ventrikel (VF)"><input type="radio" name="rekaman" value="vf" data-name="Fibrilasi ventrikel (VF)"><span>VF</span></label>
+              </div>
+            </div>
+          </div>
+        </fieldset>
+
+        <div class="run">
+          <p class="run-note" id="runNote" aria-live="polite"></p>
+          <button class="run-btn" id="runBtn" type="submit">
+            <svg class="run-icon" viewBox="0 0 24 24" aria-hidden="true"><path class="i-play" d="M8 5.5v13l10.5-6.5z"/><path class="i-pause" d="M8 5v14M16 5v14"/></svg>
+            <span id="runText">Jalankan</span>
+          </button>
+        </div>
+      </form>
+    </aside>
+
+    <main class="board">
+      <div class="fall-alert" id="fallAlert" role="alert" hidden></div>
+
+      <section class="status" id="status" data-tone="none" aria-live="polite">
+        <div class="status-main">
+          <p class="status-word" id="stateWord">Belum ada status</p>
+          <p class="status-code" id="stateCode"></p>
+        </div>
+        <p class="status-reason" id="stateReason">Status muncul setelah layanan cloud menilai data dari alat.</p>
+        <p class="status-since" id="stateSince"></p>
+      </section>
+
+      <section class="monitor" aria-label="Sinyal EKG dan vital">
+        <figure class="strip">
+          <figcaption class="strip-head">
+            <h2>EKG lead I</h2>
+            <span class="strip-source" id="ecgSource">Dari alat</span>
+          </figcaption>
+          <div class="strip-paper">
+            <canvas id="ecg" aria-label="Grafik EKG realtime"></canvas>
+            <p class="strip-idle" id="stripIdle"><span>Tekan <b>Jalankan</b> untuk menampilkan sinyal.</span></p>
+          </div>
+          <p class="strip-foot"><span id="ecgScale">25 mm/s, 10 mm/mV</span><span id="ecgPacket"></span></p>
+        </figure>
+        <div class="readouts">
+          <div class="readout readout-hr">
+            <p class="readout-label">Detak jantung</p>
+            <p class="readout-value"><span id="hr"></span><small>bpm</small></p>
+            <p class="readout-note" id="hrNote"></p>
+          </div>
+          <div class="readout">
+            <p class="readout-label">Konduktansi kulit (GSR)</p>
+            <p class="readout-value"><span id="gsr"></span><small>µS</small></p>
+            <p class="readout-note" id="gsrNote"></p>
+          </div>
+          <div class="readout">
+            <p class="readout-label">Kualitas sinyal PPG</p>
+            <p class="readout-value"><span id="sqi"></span></p>
+            <p class="readout-note">SQI 0 sampai 1, makin tinggi makin bersih</p>
+          </div>
+        </div>
+      </section>
+
+      <div class="columns">
+        <section class="panel">
+          <header class="panel-head">
+            <h2>Analisis CNN</h2>
+            <p id="infMeta">Tiap window 7 detik, bergeser 3,5 detik</p>
+          </header>
+          <div class="probs">
+            <div class="prob" data-i="0"><span>Normal</span><span class="bar"><i></i></span><span class="prob-v">–</span></div>
+            <div class="prob" data-i="1"><span>Pra-serangan</span><span class="bar"><i></i></span><span class="prob-v">–</span></div>
+            <div class="prob" data-i="2"><span>Serangan</span><span class="bar"><i></i></span><span class="prob-v">–</span></div>
+          </div>
+          <dl class="facts">
+            <div><dt>Keputusan</dt><dd id="decision">–</dd></div>
+            <div><dt>Validator</dt><dd id="validators">–</dd></div>
+            <div><dt>Persistence</dt><dd id="persistence">–</dd></div>
+            <div><dt>Kualitas window</dt><dd id="quality">–</dd></div>
+          </dl>
+        </section>
+
+        <section class="panel">
+          <header class="panel-head">
+            <h2>Gerak dan perangkat</h2>
+            <p id="vitalTime">Belum ada data vital</p>
+          </header>
+          <dl class="facts">
+            <div><dt>Akselerasi</dt><dd id="accel">–</dd></div>
+            <div><dt>Jatuh</dt><dd id="fall">–</dd></div>
+            <div><dt>Status di alat</dt><dd id="localState">–</dd></div>
+            <div><dt>Mode alat</dt><dd id="deviceMode">–</dd></div>
+            <div><dt>Sensor</dt><dd id="sensors">–</dd></div>
+            <div><dt>Kalibrasi GSR</dt><dd id="calibration">–</dd></div>
+          </dl>
+        </section>
+      </div>
+
+      <div class="columns">
+        <section class="panel">
+          <header class="panel-head">
+            <h2>Lokasi GPS</h2>
+            <p id="gpsMeta">Siaga</p>
+          </header>
+          <div class="map" id="map"><p class="map-empty" id="mapEmpty"></p></div>
+        </section>
+
+        <section class="panel">
+          <header class="panel-head">
+            <h2>Riwayat kejadian</h2>
+            <p id="rate"></p>
+          </header>
+          <ol class="log" id="log"><li class="log-empty">Belum ada kejadian.</li></ol>
+        </section>
+      </div>
+
+      <p class="footnote">Halaman ini untuk tim pengembang, bukan aplikasi keluarga. Angka dan grafik adalah data mentah alat
+        (atau rekaman dataset bila sumber EKG Dataset) dan keputusan layanan cloud, tidak untuk diagnosis.</p>
+    </main>
   </div>
-  <div class="topbar-side">
-    <span class="pill" id="serverPill" data-tone="wait">Menghubungkan ke server</span>
-    <span class="pill" id="devicePill" data-tone="wait">Alat belum mengirim kabar</span>
-    <button class="icon-btn" id="themeBtn" type="button" aria-label="Ganti tema"></button>
+</div>
+
+<div class="gate" id="gate" role="dialog" aria-modal="true" aria-labelledby="gateTitle" aria-describedby="gateText">
+  <div class="gate-card">
+    <div class="gate-icon" id="gateIcon" data-tone="wait">
+      <svg class="gi-wait" viewBox="0 0 48 48" aria-hidden="true"><path d="M4 26h9l4-10 6 18 4-12 3 4h14"/></svg>
+      <svg class="gi-fail" viewBox="0 0 48 48" aria-hidden="true"><path d="M8 18.5a23 23 0 0 1 9-4.6M24 13.5a23 23 0 0 1 16 5M14 25a14 14 0 0 1 6-2.8M30.5 23.5a14 14 0 0 1 3.5 1.7M20 31.5a6 6 0 0 1 8 0"/><circle cx="24" cy="37" r="1.6"/><path d="M8 8l32 32"/></svg>
+    </div>
+    <h2 class="gate-title" id="gateTitle">Menghubungkan ke server</h2>
+    <p class="gate-text" id="gateText">Sebentar, halaman sedang tersambung.</p>
+    <ol class="gate-steps" id="gateSteps">
+      <li data-step="server" data-tone="wait"><span class="gate-mark"></span><span><b>Server CardioVest</b><small>Render</small></span></li>
+      <li data-step="broker" data-tone="idle"><span class="gate-mark"></span><span><b>Broker MQTT</b><small>EMQX</small></span></li>
+      <li data-step="device" data-tone="idle"><span class="gate-mark"></span><span><b>Alat <span class="gate-dev">cv-001</span></b><small id="gateSeen">Menunggu data</small></span></li>
+    </ol>
+    <p class="gate-foot">Jendela ini tertutup sendiri begitu data dari alat masuk.</p>
   </div>
-</header>
+</div>
 
-<main class="page">
-  <section class="controls" aria-label="Pengaturan tampilan">
-    <div class="field">
-      <span class="field-label" id="modeLabel">Mode alat</span>
-      <div class="segmented" role="radiogroup" aria-labelledby="modeLabel">
-        <button type="button" role="radio" data-group="mode" data-value="demo" title="GPS siaga, hanya aktif saat Darurat">Demo</button>
-        <button type="button" role="radio" data-group="mode" data-value="test" title="Semua sensor aktif, termasuk GPS">Test</button>
-      </div>
-    </div>
-    <div class="field">
-      <span class="field-label" id="sourceLabel">Sumber EKG</span>
-      <div class="segmented" role="radiogroup" aria-labelledby="sourceLabel">
-        <button type="button" role="radio" data-group="source" data-value="hardware" title="Sinyal EKG dari ESP32">Hardware</button>
-        <button type="button" role="radio" data-group="source" data-value="dataset" title="Sinyal EKG dari rekaman dataset; vital tetap dari ESP32">Dataset</button>
-      </div>
-    </div>
-    <div class="field" id="rekamanField" hidden>
-      <label class="field-label" for="rekaman">Jenis rekaman</label>
-      <select id="rekaman">
-        <optgroup label="Normal">
-          <option value="normal">Irama normal</option>
-        </optgroup>
-        <optgroup label="Pra-serangan">
-          <option value="st_depression">Depresi ST</option>
-          <option value="af">Fibrilasi atrium (AF)</option>
-          <option value="pvc">Kontraksi ventrikel prematur (PVC)</option>
-          <option value="cd">Gangguan konduksi</option>
-          <option value="svt">Takikardia supraventrikel (SVT)</option>
-        </optgroup>
-        <optgroup label="Serangan">
-          <option value="stemi">STEMI</option>
-          <option value="vt">Takikardia ventrikel (VT)</option>
-          <option value="vf">Fibrilasi ventrikel (VF)</option>
-        </optgroup>
-      </select>
-    </div>
-    <div class="field" id="scenarioField" hidden>
-      <label class="field-label" for="scenario">Skenario simulator</label>
-      <select id="scenario"></select>
-    </div>
-    <button class="run-btn" id="runBtn" type="button">Jalankan</button>
-    <p class="notice" id="notice" aria-live="polite"></p>
-  </section>
-
-  <div class="fall-alert" id="fallAlert" role="alert" hidden></div>
-
-  <section class="status" id="status" data-tone="none" aria-live="polite">
-    <div class="status-main">
-      <p class="status-word" id="stateWord">Belum ada status</p>
-      <p class="status-code" id="stateCode"></p>
-    </div>
-    <p class="status-reason" id="stateReason">Status muncul setelah layanan cloud menerima data dari alat.</p>
-    <p class="status-since" id="stateSince"></p>
-  </section>
-
-  <section class="monitor" aria-label="Sinyal EKG dan vital">
-    <figure class="strip">
-      <figcaption class="strip-head">
-        <h2>EKG lead I</h2>
-        <span class="strip-source" id="ecgSource">Menunggu data</span>
-      </figcaption>
-      <canvas id="ecg" aria-label="Grafik EKG realtime"></canvas>
-      <p class="strip-foot"><span id="ecgScale">25 mm/s, 10 mm/mV</span><span id="ecgPacket"></span></p>
-    </figure>
-    <div class="readouts">
-      <div class="readout readout-hr">
-        <p class="readout-label">Detak jantung</p>
-        <p class="readout-value"><span id="hr"></span><small>bpm</small></p>
-        <p class="readout-note" id="hrNote"></p>
-      </div>
-      <div class="readout">
-        <p class="readout-label">Konduktansi kulit (GSR)</p>
-        <p class="readout-value"><span id="gsr"></span><small>µS</small></p>
-        <p class="readout-note" id="gsrNote"></p>
-      </div>
-      <div class="readout">
-        <p class="readout-label">Kualitas sinyal PPG</p>
-        <p class="readout-value"><span id="sqi"></span></p>
-        <p class="readout-note">SQI 0 sampai 1, makin tinggi makin bersih</p>
-      </div>
-    </div>
-  </section>
-
-  <div class="columns">
-    <section class="panel">
-      <header class="panel-head">
-        <h2>Analisis CNN</h2>
-        <p id="infMeta">Tiap window 7 detik, bergeser 3,5 detik</p>
-      </header>
-      <div class="probs">
-        <div class="prob" data-i="0"><span>Normal</span><span class="bar"><i></i></span><span class="prob-v">–</span></div>
-        <div class="prob" data-i="1"><span>Pra-serangan</span><span class="bar"><i></i></span><span class="prob-v">–</span></div>
-        <div class="prob" data-i="2"><span>Serangan</span><span class="bar"><i></i></span><span class="prob-v">–</span></div>
-      </div>
-      <dl class="facts">
-        <div><dt>Keputusan</dt><dd id="decision">–</dd></div>
-        <div><dt>Validator</dt><dd id="validators">–</dd></div>
-        <div><dt>Persistence</dt><dd id="persistence">–</dd></div>
-        <div><dt>Kualitas window</dt><dd id="quality">–</dd></div>
-      </dl>
-    </section>
-
-    <section class="panel">
-      <header class="panel-head">
-        <h2>Gerak dan perangkat</h2>
-        <p id="vitalTime">Belum ada data vital</p>
-      </header>
-      <dl class="facts">
-        <div><dt>Akselerasi</dt><dd id="accel">–</dd></div>
-        <div><dt>Jatuh</dt><dd id="fall">–</dd></div>
-        <div><dt>Status di alat</dt><dd id="localState">–</dd></div>
-        <div><dt>Mode alat</dt><dd id="deviceMode">–</dd></div>
-        <div><dt>Sensor</dt><dd id="sensors">–</dd></div>
-        <div><dt>Kalibrasi GSR</dt><dd id="calibration">–</dd></div>
-      </dl>
-    </section>
-  </div>
-
-  <div class="columns">
-    <section class="panel">
-      <header class="panel-head">
-        <h2>Lokasi GPS</h2>
-        <p id="gpsMeta">Siaga</p>
-      </header>
-      <div class="map" id="map"><p class="map-empty" id="mapEmpty"></p></div>
-    </section>
-
-    <section class="panel">
-      <header class="panel-head">
-        <h2>Riwayat kejadian</h2>
-        <p id="rate"></p>
-      </header>
-      <ol class="log" id="log"><li class="log-empty">Belum ada kejadian.</li></ol>
-    </section>
-  </div>
-
-  <p class="footnote">Halaman ini untuk tim pengembang, bukan aplikasi keluarga. Angka dan grafik adalah data mentah alat
-    (atau rekaman dataset bila sumber EKG Dataset) dan keputusan layanan cloud, tidak untuk diagnosis.</p>
-</main>
+<div class="toast" id="toast" role="status" hidden></div>
 
 <script src="/debug/config.js"></script>
 <script src="/debug/vendor/socket.io.min.js"></script>

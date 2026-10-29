@@ -27,7 +27,7 @@ export function seedDevices() {
 
 const liveMap = new Map();
 export const live = (id) => {
-  if (!liveMap.has(id)) liveMap.set(id, { state: null, online: null, onlineSince: null, vital: null, inference: null, trail: [], buffering: 0, source: 'hardware', rekaman: null, sim: null });
+  if (!liveMap.has(id)) liveMap.set(id, { state: null, online: null, onlineSince: null, vital: null, inference: null, trail: [], buffering: 0, source: 'hardware', rekaman: null, seen: 0 });
   return liveMap.get(id);
 };
 
@@ -63,6 +63,9 @@ const slimVital = (v) => ({
   i2c: v.i2c ?? null,
   charging: !!v.charging,
 });
+
+export const SEEN_MS = 10_000;
+export const deviceLive = (L) => L.seen > 0 && now() - L.seen < SEEN_MS;
 
 export function connection(L) {
   if (L.online === false) return 'offline';
@@ -208,14 +211,10 @@ export function startBackend(server) {
   });
   mq.on('connect', () => {
     console.log(`[mqtt] tersambung ke ${cfg.mqttUrl}`);
-    if (!cfg.simulator) {
-      for (const d of devices.all()) {
-        for (const k of ['status', 'source']) mq.publish(`sim/${d.device_id}/${k}`, '', { qos: 1, retain: true });
-        live(d.device_id).sim = null;
-      }
-    }
-    mq.subscribe([...['state', 'alert', 'vital', 'ecg', 'ecg_dataset', 'source', 'inference', 'lwt'].map((k) => `device/+/${k}`), 'sim/+/status'], { qos: 1 });
+    mq.subscribe(['state', 'alert', 'vital', 'ecg', 'ecg_dataset', 'source', 'inference', 'lwt', 'event'].map((k) => `device/+/${k}`), { qos: 1 });
+    debug.presenceAll();
   });
+  mq.on('close', () => debug.presenceAll());
   mq.on('error', (e) => console.warn('[mqtt]', e.message));
 
   async function notify(dev, a) {
@@ -287,23 +286,28 @@ export function startBackend(server) {
     },
   };
 
-  mq.on('message', (topic, buf) => {
-    const [root, dev, kind] = topic.split('/');
-    if (root === 'sim') {
-      if (!cfg.simulator || !buf.length) return;
+  function markSeen(dev, kind, buf, retained) {
+    const L = live(dev);
+    const was = deviceLive(L);
+    if (kind === 'lwt') {
+      let st = null;
       try {
-        const st = JSON.parse(buf.toString());
-        if (!devices.get(dev)) return;
-        const L = live(dev);
-        L.sim = { scenario: st.scenario ?? null, title: st.scenario_title ?? null, scenarios: st.scenarios ?? {} };
-        debug.relay(topic, buf);
+        st = JSON.parse(buf.toString()).status;
       } catch {
-        return;
+        st = null;
       }
-      return;
-    }
+      if (st === 'offline') L.seen = 0;
+      else if (st === 'online' && !retained) L.seen = now();
+    } else if (!retained && ['vital', 'ecg', 'event'].includes(kind)) L.seen = now();
+    if (was !== deviceLive(L)) debug.presence(dev);
+  }
+
+  mq.on('message', (topic, buf, packet) => {
+    const [, dev, kind] = topic.split('/');
     if (!devices.get(dev)) return;
     const L = live(dev);
+    markSeen(dev, kind, buf, packet?.retain);
+    if (kind === 'event') return;
     if (kind === 'source') {
       let v = {};
       try {
@@ -354,25 +358,30 @@ export function startBackend(server) {
     return { ok: true, status: 202 };
   }
 
-  function simCommand(dev, user, cmd) {
-    if (!mq.connected) return { ok: false, status: 503, error: 'Server belum tersambung ke broker. Coba lagi sebentar lagi.' };
-    mq.publish(`sim/${dev}/control`, JSON.stringify(cmd), { qos: 1 });
-    console.log(`[simulator] ${dev}: ${JSON.stringify(cmd)} oleh ${user.name}`);
-    return { ok: true, status: 202 };
-  }
-
   const debug = startDebug();
 
   function startDebug() {
     const nsp = io.of('/debug');
     const last = new Map();
-    const KEEP = new Set(['state', 'lwt', 'source', 'vital', 'inference', 'status']);
+    const KEEP = new Set(['state', 'lwt', 'source', 'vital', 'inference']);
+    const presenceOf = (dev) => {
+      const L = live(dev);
+      return { broker: mq.connected, device: deviceLive(L), seen: L.seen || null, ts: now() };
+    };
+    const shown = new Map();
+    setInterval(() => {
+      for (const d of devices.all()) {
+        const on = deviceLive(live(d.device_id));
+        if (shown.get(d.device_id) !== on) debug.presence(d.device_id);
+      }
+    }, 1000).unref();
     nsp.on('connection', (socket) => {
       socket.on('watch', (dev) => {
         if (typeof dev !== 'string' || !devices.get(dev)) return socket.emit('galat', 'Alat tidak terdaftar di server.');
         for (const r of socket.rooms) if (r !== socket.id) socket.leave(r);
         socket.join(`dbg:${dev}`);
         socket.data.dev = dev;
+        socket.emit('presence', presenceOf(dev));
         for (const [t, b] of last) if (t.split('/')[1] === dev) socket.emit('m', t, b);
       });
       socket.on('cmd', (c) => {
@@ -381,10 +390,17 @@ export function startBackend(server) {
         const who = { name: 'debug viewer', id: null };
         if (c.type === 'mode') setMode(dev, who, c.mode);
         else if (c.type === 'source') setSource(dev, who, c.source, c.rekaman ?? null);
-        else if (c.type === 'sim' && cfg.simulator && c.cmd && typeof c.cmd === 'object') simCommand(dev, who, c.cmd);
       });
     });
     return {
+      presence(dev) {
+        const p = presenceOf(dev);
+        shown.set(dev, p.device);
+        nsp.to(`dbg:${dev}`).emit('presence', p);
+      },
+      presenceAll() {
+        for (const d of devices.all()) this.presence(d.device_id);
+      },
       relay(topic, buf) {
         const [, dev, kind] = topic.split('/');
         if (KEEP.has(kind)) {
@@ -407,7 +423,7 @@ export function startBackend(server) {
   const ctx = {
     cfg, cloud, users, tokens, devices, contacts, subs, acks, notifLog, linkOf, publicTokenFor, checkSecret,
     MAX_CONTACTS, dispatch, vapidPublicKey, mailConfigured, verifyMail, resetMail,
-    live, connection, statusOf, sign, userFromAuth, limited, clearLimit, io, mq, notify, remoteReset, setMode, setSource, simCommand,
+    live, connection, statusOf, sign, userFromAuth, limited, clearLimit, io, mq, notify, remoteReset, setMode, setSource,
   };
   globalThis.__cardiovest = ctx;
   return ctx;

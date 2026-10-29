@@ -175,7 +175,7 @@ def _critical(svc):
 
 
 def test_reconnect_does_not_relatch_before_reset_arrives(svc):
-    """Ditemukan oleh skenario reset_offline: saat alat tersambung lagi, cloud dulu langsung mengirim
+    """Kasus reset saat offline: saat alat tersambung lagi, cloud dulu langsung mengirim
     cmd CRITICAL (sinkronisasi). Perintah itu berpacu dengan event reset yang dikirim alat setelah
     LWT online, dan bisa mengunci alat lagi setelah reset."""
     d = _critical(svc)

@@ -11,7 +11,7 @@ import pytest
 from cloud.signal_quality import assess
 from heartsim_common import config as C
 
-BANK = Path(__file__).resolve().parents[1] / "simulator" / "simulator" / "replay_bank.npz"
+BANK = Path(__file__).resolve().parents[1] / "dataset" / "dataset" / "replay_bank.npz"
 
 
 def counts(mv):

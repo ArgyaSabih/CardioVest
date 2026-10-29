@@ -15,15 +15,14 @@ if [ -n "${MQTT_HOST:-}" ] && [ -z "${MQTT_URL:-}" ]; then
     export MQTT_URL="mqtt://$MQTT_HOST:$MQTT_PORT"
   fi
 fi
-export PYTHONPATH="$APP/common:$APP/cloud:$APP/simulator"
+export PYTHONPATH="$APP/common:$APP/cloud:$APP/dataset"
 export PORT="${PORT:-10000}"
-export SIMULATOR="${SIMULATOR:-0}"
 export DEVICES="${DEVICES:-cv-001:}"
 export ALLOWED_ORIGINS="${ALLOWED_ORIGINS:-https://*.vercel.app,http://localhost:3000}"
 export RETENSI_HARI="${RETENSI_HARI:-30}"
 
 deps() {
-  pip install -q --no-cache-dir -r cloud/requirements.txt -r simulator/requirements.txt
+  pip install -q --no-cache-dir -r cloud/requirements.txt -r dataset/requirements.txt
   local lock
   lock=$(sha1sum server/package-lock.json | cut -d' ' -f1)
   if [ ! -d server/node_modules ] || [ "$lock" != "$(cat "$HOME/.npm-lock" 2>/dev/null)" ]; then
@@ -58,10 +57,7 @@ mkdir -p "$DATA/cloud" "$DATA/server"
 keep server env DATA_DIR="$DATA/server" CLOUD_DB="$DATA/cloud/cardiovest.db" \
   node --disable-warning=ExperimentalWarning server/main.js &
 keep cloud python -m cloud --db "$DATA/cloud/cardiovest.db" &
-keep dataset python -m simulator.dataset &
-if [ "${SIMULATOR:-0}" = 1 ]; then
-  keep simulator python -m simulator &
-fi
+keep dataset python -m dataset &
 
 while true; do
   sleep "$CHECK_EVERY"

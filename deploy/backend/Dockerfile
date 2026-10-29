@@ -15,7 +15,7 @@ WORKDIR /home/node
 
 RUN python3 -m venv venv \
  && git clone -q -b "$BRANCH" "$REPO" app \
- && pip install -q --no-cache-dir -r app/cloud/requirements.txt -r app/simulator/requirements.txt \
+ && pip install -q --no-cache-dir -r app/cloud/requirements.txt -r app/dataset/requirements.txt \
  && cd app/server && npm ci --omit=dev --no-audit --no-fund \
  && sha1sum package-lock.json | cut -d' ' -f1 > /home/node/.npm-lock
 

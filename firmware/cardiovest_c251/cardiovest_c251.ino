@@ -14,25 +14,11 @@
 #define CONN_4G 2
 #define CONN_MODE CONN_WIFI
 
-#define WIFI_SSID "Wokwi 2.4G"
-#define WIFI_PASS "wokwiwokwok24"
-
-#if __has_include("rahasia.h")
 #include "rahasia.h"
-#endif
 
-#ifndef MQTT_HOST
-#define MQTT_HOST "icdc5921.ala.asia-southeast1.emqxsl.com"
-#endif
 #define MQTT_USE_TLS 1
 #define MQTT_TLS_INSECURE 1
 #define MQTT_PORT (MQTT_USE_TLS ? 8883 : 1883)
-#ifndef MQTT_USER
-#define MQTT_USER "cardiovest"
-#endif
-#ifndef MQTT_PASS
-#define MQTT_PASS "cardiovest"
-#endif
 
 #define MODEM_TERPASANG 0
 #define MODEM_SIM7600 0
@@ -43,7 +29,6 @@
 #define GSM_SIM_PIN ""
 
 #define SMS_FALLBACK 1
-#define SMS_NOMOR {"+6282222216470", "+62895364693939"}
 
 #define PIN_LED_A 26
 #define PIN_LED_B 25

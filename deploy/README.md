@@ -63,7 +63,7 @@ Dengan Spend Limit 0, deployment berhenti saat kuota habis dan hidup lagi bulan 
    | `DEVICES` | `cv-001:123456` (ID alat : kode pairing 6 digit) |
    | `PUBLIC_URL` | alamat Vercel, mis. `https://capstone-c03.vercel.app` |
 
-   Opsional: `SIMULATOR=1` (alat virtual penuh untuk latihan tanpa ESP32), `TAU_CONF`, `TAU_WARN`,
+   Opsional: `TAU_CONF`, `TAU_WARN`,
    `CALIB_SECONDS`, `SMTP_URL`, dan parameter lain di README utama. Setiap perubahan membuat layanan
    menyala ulang.
 
@@ -90,16 +90,22 @@ yang sudah ada lewat **⋯ → Edit**. Setiap perubahan variabel butuh **Deploym
 
 ## E. ESP32
 
-Alamat dan akun broker disimpan di `firmware/cardiovest_c251/rahasia.h` (salinan `rahasia.contoh.h`,
-tidak ikut git):
+Semua pengaturan pribadi alat ada di satu berkas, `firmware/cardiovest_c251/rahasia.h` (salinan
+`rahasia.contoh.h`, tidak ikut git):
 
 ```c
+#define WIFI_SSID "nama WiFi 2,4 GHz"
+#define WIFI_PASS "sandi WiFi"
+
 #define MQTT_HOST "xxxxxxxx.ala.asia-southeast1.emqxsl.com"
 #define MQTT_USER "cardiovest"
 #define MQTT_PASS "sandi dari langkah A"
+
+#define SMS_NOMOR {"+62812xxxxxxx", "+62813xxxxxxx"}
 ```
 
-TLS sudah aktif di `.ino` (`MQTT_USE_TLS 1`, port 8883), wajib untuk EMQX Serverless.
+`.ino` tidak berisi nilai-nilai ini lagi. TLS sudah aktif di `.ino` (`MQTT_USE_TLS 1`, port 8883), wajib untuk
+EMQX Serverless.
 
 ---
 
@@ -108,15 +114,20 @@ TLS sudah aktif di `.ino` (`MQTT_USE_TLS 1`, port 8883), wajib untuk EMQX Server
 Tampilan realtime untuk tim: EKG di atas kertas EKG (25 mm/s), detak jantung, GSR, kualitas sinyal,
 probabilitas CNN, keputusan FSM, gerak dan sensor, GPS, dan riwayat kejadian. Tanpa login atau token.
 
-| Kontrol | Fungsi |
+Selama server, broker, atau alat belum tersambung, halaman tertutup jendela "Alat terputus" yang menunjukkan
+bagian mana yang belum siap. Jendela itu hilang sendiri begitu data dari alat masuk (alat dianggap terputus bila
+10 detik tidak mengirim apa pun).
+
+| Panel kiri | Fungsi |
 |---|---|
-| **Mode alat**: Demo / Test | Test menyalakan semua sensor termasuk GPS |
-| **Sumber EKG**: Hardware / Dataset | Hardware = EKG dari ESP32. Dataset = EKG dari rekaman PTB-XL/MIT-BIH, jenisnya dipilih di **Jenis rekaman**. HR, GSR, gerak, dan GPS tetap dari ESP32 |
+| **1 Mode alat**: Demo / Test | Demo = mekanisme asli (GPS siaga sampai Darurat). Test = semua modul menyala termasuk GPS |
+| **2 Sumber sinyal EKG**: Hardware / Dataset | Hardware = EKG dari ESP32. Dataset = EKG dari rekaman PTB-XL/MIT-BIH; HR, GSR, gerak, dan GPS tetap dari ESP32 |
+| **3 Jenis rekaman** | dipakai bila sumber Dataset; dikelompokkan Normal, Pra-serangan, Serangan |
 | **Jalankan** / **Jeda** | Jalankan menerapkan pilihan lalu menampilkan data. Jeda menghentikan tampilan |
 
-Mengubah pilihan menjeda tampilan dan menandai pilihan dengan titik biru. Pilihan baru dikirim saat
-**Jalankan** ditekan. EKG dari Dataset diproses seperti EKG alat (CNN, FSM, riwayat, notifikasi), dan
-pilihannya tersimpan di broker; kembalikan ke **Hardware** setelah selesai menguji.
+Pilihan yang belum diterapkan ditandai biru, dan tombol berubah menjadi **Terapkan dan jalankan**. EKG dari
+Dataset diproses seperti EKG alat (CNN, FSM, riwayat, notifikasi), dan pilihannya tersimpan di broker;
+kembalikan ke **Hardware** setelah selesai menguji.
 
 Alat lain: tambahkan `?device=cv-002` di belakang alamat. Struktur kode dan cara mengembangkannya:
 [`web/public/debug/README.md`](../web/public/debug/README.md).
@@ -132,7 +143,6 @@ kirim('/reset', { confirm: true });
 ```
 
 Jenis rekaman: `normal`, `st_depression`, `af`, `pvc`, `cd`, `svt`, `stemi`, `vt`, `vf`.
-`/scenario` hanya berlaku bila `SIMULATOR=1`.
 
 ## Pemecahan masalah
 

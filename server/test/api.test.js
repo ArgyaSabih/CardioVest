@@ -294,23 +294,22 @@ test('debug viewer: namespace /debug tanpa login, hanya EKG dari sumber aktif ya
   s.close();
 });
 
-test('skenario simulator: daftar dari status simulator, perintah diteruskan ke sim/<id>/control', async () => {
-  const tok = (await anon('/api/auth/login', { method: 'POST', body: { email: 'uji@contoh.id', password: 'sandibaru123' } })).body.token;
-  const sent = [];
-  const orig = mq.publish.bind(mq);
-  const was = Object.getOwnPropertyDescriptor(mq, 'connected');
-  mq.publish = (topic, payload) => { sent.push({ topic, payload: JSON.parse(payload) }); };
-  Object.defineProperty(mq, 'connected', { value: true, configurable: true });
-  try {
-    mq.emit('message', 'sim/cv-001/status', Buffer.from(JSON.stringify({ scenario: 'normal', scenario_title: 'Normal', scenarios: { normal: 'Normal', serangan: 'Serangan' }, source: 'dataset' })));
-    const g = await call('/api/scenario', {}, tok);
-    assert.deepEqual(Object.keys(g.body.scenarios), ['normal', 'serangan']);
-    assert.equal((await call('/api/scenario', { method: 'POST', body: { name: 'tidak_ada' } }, tok)).status, 400);
-    assert.equal((await call('/api/scenario', { method: 'POST', body: { name: 'serangan' } }, tok)).status, 202);
-    assert.deepEqual(sent.at(-1), { topic: 'sim/cv-001/control', payload: { cmd: 'skenario', name: 'serangan' } });
-  } finally {
-    mq.publish = orig;
-    if (was) Object.defineProperty(mq, 'connected', was);
-    else delete mq.connected;
-  }
+test('debug viewer: status alat online hanya dari data langsung, offline saat LWT offline', async () => {
+  const s = ioc(`${base}/debug`, { path: '/data/realtime', transports: ['websocket'] });
+  const seen = [];
+  s.on('presence', (p) => seen.push(p.device));
+  await new Promise((res) => s.on('connect', res));
+  s.emit('watch', 'cv-002');
+  await new Promise((r) => setTimeout(r, 100));
+  assert.deepEqual(seen, [false]);
+  mq.emit('message', 'device/cv-002/lwt', Buffer.from('{"status":"online"}'), { retain: true });
+  await new Promise((r) => setTimeout(r, 50));
+  assert.deepEqual(seen, [false]);
+  mq.emit('message', 'device/cv-002/vital', Buffer.from(JSON.stringify({ ts: Date.now(), hr: 70 })), { retain: false });
+  await new Promise((r) => setTimeout(r, 50));
+  assert.deepEqual(seen, [false, true]);
+  mq.emit('message', 'device/cv-002/lwt', Buffer.from('{"status":"offline"}'), { retain: false });
+  await new Promise((r) => setTimeout(r, 50));
+  assert.deepEqual(seen, [false, true, false]);
+  s.close();
 });

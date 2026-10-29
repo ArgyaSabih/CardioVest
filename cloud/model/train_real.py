@@ -14,7 +14,7 @@ Keluaran (cloud/model/artifacts/):
   metrics.json               metrik uji lengkap (per kelas, per sumber, per kondisi, analisis tau_conf)
   confusion_matrix.png, training_curves.png, tau_conf.png
   history.csv, split_pasien.csv
-dan bank replay simulator: simulator/simulator/replay_bank.npz (window dari pasien set uji).
+dan bank replay dataset: dataset/dataset/replay_bank.npz (window dari pasien set uji).
 """
 from __future__ import annotations
 
@@ -163,7 +163,7 @@ def evaluate(model, X, y, tag, src):
 
 
 def eval_synthetic(model, n_per=60, seed=7):
-    """Seberapa cocok model data nyata terhadap ECG sintetis simulator lama."""
+    """Seberapa cocok model data nyata terhadap ECG sintetis heartsim_common.ecg_synth."""
     from heartsim_common.ecg_synth import CLASS_MORPHS, MORPH_CLASS, make_window
     rng = np.random.default_rng(seed)
     out = {}
@@ -219,7 +219,7 @@ def plots(hist, cm, taus, out):
 # ============================================================== bank replay
 def build_replay_bank(model, X, y, tag, rec, hr, split, out_path, per_tag=60, min_ok=10,
                       tau=0.44, seed=1):
-    """Bank window untuk mode replay simulator.
+    """Bank window untuk pemutar EKG dataset.
 
     Urutan sumber per kondisi: set UJI (pasien held-out) -> validasi -> train. Window dari split
     berikutnya hanya ditambahkan bila window uji yang terklasifikasi benar dengan p_conf >= tau
@@ -291,13 +291,13 @@ def main():
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--cap-per-patient", type=int, default=60,
                     help="maks. window per (pasien, kondisi); 0 = tanpa batas (VT/VF tidak dibatasi)")
-    ap.add_argument("--bank", type=Path, default=ROOT / "simulator" / "simulator" / "replay_bank.npz")
+    ap.add_argument("--bank", type=Path, default=ROOT / "dataset" / "dataset" / "replay_bank.npz")
     ap.add_argument("--ptbxl-dir", type=Path, default=None,
                     help="folder PTB-XL (berisi ptbxl_database.csv) untuk analisis lokasi infark")
     ap.add_argument("--oversample-rare", type=int, default=10, help="faktor pengulangan window VT/VF di train")
     ap.add_argument("--out", type=Path, default=ART,
                     help="folder keluaran model & metrik (default artifacts/, dipakai layanan cloud)")
-    ap.add_argument("--no-bank", action="store_true", help="jangan perbarui bank replay simulator")
+    ap.add_argument("--no-bank", action="store_true", help="jangan perbarui bank replay dataset")
     ap.add_argument("--eval-only", action="store_true",
                     help="lewati pelatihan; evaluasi ulang model tersimpan (history.csv dipakai ulang)")
     a = ap.parse_args()

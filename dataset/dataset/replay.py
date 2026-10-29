@@ -1,20 +1,12 @@
-"""Sumber ECG 'replay': memutar ulang rekaman ASLI dari pasien set uji (held-out) PTB-XL / MIT-BIH.
+"""Pemutar EKG dataset: memutar ulang rekaman ASLI dari pasien set uji (held-out) PTB-XL / MIT-BIH.
 
-Antarmuka sama dengan heartsim_common.ecg_synth.EcgStream (set_rhythm, read, hr_from_rr,
-sample_index, rhythm_hr), sehingga perangkat virtual dapat memakai salah satunya.
+Dipakai saat sumber EKG di debug viewer = Dataset. Jenis rekaman (normal, st_depression, af, pvc, cd,
+svt, stemi, vt, vf) memilih bank berdasarkan tag kondisi; bila tidak ada, dipakai kelas yang sama.
 
-Cara kerja:
-  * Setiap fase skenario meminta morfologi (normal, st_depression, af, pvc, stemi, vt, vf).
-    Bank dipilih berdasarkan tag kondisi yang sama; bila tidak ada, dipakai kelas yang sama.
-  * Dari kandidat, dipilih acak di antara window dengan HR dekat HR fase (toleransi maks(3 bpm, 10 %)).
-  * Window 10 s diulang (loop) dengan crossfade 0,2 s; pergantian fase juga di-crossfade.
-  * Bila HR rekaman berbeda <= 10 % dari HR fase, tempo rekaman disesuaikan (resample waktu).
-    Selisih lebih besar tidak diskalakan karena penskalaan besar mengubah morfologi dan menurunkan
-    kepercayaan model; HR PPG simulator lalu mengikuti HR asli rekaman.
+  * Window 10 s diulang (loop) dengan crossfade 0,2 s; pergantian jenis rekaman juga di-crossfade.
   * REPLAY_ONLY_CORRECT=1 (default): hanya window yang oleh model diklasifikasikan benar dengan
-    p_conf >= REPLAY_MIN_CONF (default maks(TAU_CONF, 0,60)), agar skenario demo deterministik. Set 0 untuk memakai sampel ACAK
-    window held-out (tanpa tambahan window 'baik'), sehingga perilaku realistis termasuk salah
-    klasifikasi model.
+    p_conf >= REPLAY_MIN_CONF (default maks(TAU_CONF, 0,60)), agar demo dataset konsisten. Set 0 untuk
+    memakai sampel acak window held-out, termasuk yang salah diklasifikasikan model.
 """
 from __future__ import annotations
 

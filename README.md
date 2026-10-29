@@ -3,8 +3,8 @@
 
 Satu folder berisi seluruh sistem:
 
-- **Software alat**: firmware ESP32 (`firmware/`), layanan cloud CNN 1D + FSM (`cloud/`), simulator
-  perangkat (`simulator/`), dan alat uji (`tools/`, `tests/`).
+- **Software alat**: firmware ESP32 (`firmware/`), layanan cloud CNN 1D + FSM (`cloud/`), pemutar EKG
+  dataset (`dataset/`), dan alat uji (`tools/`, `tests/`).
 - **Aplikasi (UI/UX)**: tampilan Next.js (PWA) untuk User Utama dan Kontak Darurat (`web/`, dipasang di
   Vercel) dan server API + realtime (`server/`).
 - **Deploy** (`deploy/`): demo gratis tanpa kartu kredit. Tampilan dan debug viewer di Vercel, layanan
@@ -17,8 +17,8 @@ Alurnya mengikuti rancangan BAB 1–11:
 
 ```
  ┌──────────────────────────┐   MQTT (QoS per topik)   ┌──────────────┐        ┌────────────────────────────────┐
- │ Perangkat virtual (ESP32)│ ───────────────────────► │  Mosquitto   │ ─────► │ Layanan cloud                  │
- │ ECG 250 Hz (replay/sint.)│  device/{id}/ecg   (0)   │  8883 (TLS)  │        │  • sliding window 1750/875     │
+ │ Rompi CardioVest (ESP32) │ ───────────────────────► │ Broker MQTT  │ ─────► │ Layanan cloud                  │
+ │ ECG AD8232 250 Hz        │  device/{id}/ecg   (0)   │  8883 (TLS)  │        │  • sliding window 1750/875     │
  │ MAX30102 / GSR / MPU6050 │  device/{id}/vital (1)   │  EMQX Cloud  │        │  • CNN 1D ONNX (44.547 param.) │
  │ GPS Neo-6M, modem 4G     │  device/{id}/event (1)   │              │ ◄───── │  • decision engine FSM S1/S2/S3│
  │ fall detection 3 fase    │ ◄─ device/{id}/cmd (1)   │              │        │  • SQLite + mock notifikasi    │
@@ -28,14 +28,13 @@ Alurnya mengikuti rancangan BAB 1–11:
                                    server/ (API + Socket.IO + Web Push) ──► web/ di Vercel ──► ponsel keluarga
 ```
 
-> **Pembaruan menjelang uji alat:** daftar perubahan, bug yang ditemukan, dan alasannya ada di
-> [`CHANGELOG.md`](CHANGELOG.md). Baca juga [checklist sebelum uji di alat](#12-checklist-sebelum-uji-di-alat).
+> **Sebelum uji di alat:** baca [checklist sebelum uji di alat](#12-checklist-sebelum-uji-di-alat).
 >
 > **Bagian laporan yang tidak lagi cocok dengan software** (τ 0,44, stack SQLite/Web Push, QoS, tombol
 > reset, Tabel 6.4) beserta teks pengganti siap tempel ada di [`docs/penyesuaian_laporan.md`](docs/penyesuaian_laporan.md).
 
-> **Batasan penting.** Model CNN 1D dilatih dengan PTB-XL + MIT-BIH (lead tunggal) dan simulator memutar ulang
-> rekaman asli pasien set uji. Sistem ini tetap purwarupa penelitian, bukan alat diagnosis. Performa model
+> **Batasan penting.** Model CNN 1D dilatih dengan PTB-XL + MIT-BIH (lead tunggal) dan sumber EKG Dataset memutar
+> ulang rekaman asli pasien set uji. Sistem ini tetap purwarupa penelitian, bukan alat diagnosis. Performa model
 > dan keterbatasannya dijelaskan di bagian [Model CNN 1D](#6-model-cnn-1d).
 
 ---
@@ -50,13 +49,10 @@ CardioVest/
 │   ├── topics.py               #   hierarki topik & QoS
 │   ├── codec.py                #   payload ECG JSON / biner delta-encoding
 │   └── ecg_synth.py            #   generator ECG sintetis (normal, depresi ST, AF, PVC, STEMI, VT, VF)
-├── simulator/simulator/        # PERANGKAT VIRTUAL
-│   ├── device.py               #   loop FreeRTOS-like: vital 1 s, ECG 3,5 s, akselerometer 100 Hz
-│   ├── sensors.py              #   PPG+SQI, GSR, MPU6050 + fall detection 3 fase, GPS + TTFF
-│   ├── scenarios.py            #   11 skenario uji
-│   ├── replay.py               #   sumber ECG replay rekaman asli (PTB-XL/MIT-BIH, pasien held-out)
-│   ├── replay_bank.npz         #   bank window replay (dibuat oleh train_real.py)
-│   └── ctl.py                  #   CLI pengendali skenario
+├── dataset/dataset/            # PEMUTAR EKG DATASET (sumber EKG "Dataset" di debug viewer)
+│   ├── __main__.py             #   python -m dataset: kirim device/<id>/ecg_dataset saat sumber = dataset
+│   ├── replay.py               #   pemutar rekaman asli (PTB-XL/MIT-BIH, pasien held-out)
+│   └── replay_bank.npz         #   bank window replay (dibuat oleh train_real.py)
 ├── cloud/
 │   ├── cloud/                  # LAYANAN CLOUD
 │   │   ├── service.py          #   subscriber MQTT + antrean + orkestrasi
@@ -77,16 +73,15 @@ CardioVest/
 │       └── artifacts/          #   cnn1d_ecg.keras/.h5/.onnx, metrics.json, roc.png, grafik, split_pasien.csv
 ├── tools/
 │   ├── monitor.py              # monitor terminal real-time
-│   ├── uji_skenario.py         # uji otomatis seluruh skenario (PASS/FAIL + penilaian klinis)
 │   ├── kalibrasi_lapangan.py   # pilih tau/N dari data alat sendiri (setelah uji pakai)
 │   ├── analisis_sqi.py         # uji gerbang kualitas pada CUDB, VFDB, BUT QDB
 │   ├── uji_alarm_palsu.py      # alarm palsu per jam pada rekaman wearable BUT QDB
 │   ├── uji_sensitivitas.py     # episode VT/VF kontinu + recall per window vs tau
-├── firmware/                   # FIRMWARE ESP32: cardiovest_esp32/ (Arduino IDE / PlatformIO) + 8 sketch uji komponen + uji di PC
+├── firmware/                   # FIRMWARE ESP32: cardiovest_c251/ (Arduino IDE) + sketch uji komponen
 ├── web/                        # TAMPILAN: Next.js 16 untuk Vercel, lihat web/README.md
 ├── server/                     # API + Socket.IO + MQTT + Web Push (Node.js 22), lihat server/README.md
 ├── docs/                       # penyesuaian_laporan.md, analisis_sqi.md, analisis_alarm_palsu.md, analisis_lead.md (+ angka mentah .json)
-├── tests/                      # unit + integrasi: FSM, codec, fall detection, layanan cloud, gerbang sinyal (pytest)
+├── tests/                      # unit + integrasi: FSM, codec, layanan cloud, gerbang sinyal, retensi (pytest)
 └── data/export/                # hasil ekspor CSV (dibuat otomatis)
 ```
 
@@ -111,55 +106,39 @@ git push
 | **Debug viewer** (EKG mentah, CNN, FSM, vital, switch Hardware/Dataset) | `https://<proyek>.vercel.app/debug` |
 | **MQTT Explorer** (opsional) | host EMQX, port `8883`, *Encryption* aktif, username dan sandi broker |
 
-### Memilih skenario dan sumber data
+### Sumber EKG dan reset lewat API
 
-Lewat API (dari aplikasi, atau Console browser seperti di `deploy/README.md`):
+Paling mudah lewat debug viewer `/debug`. Lewat API (dari aplikasi, atau Console browser seperti di `deploy/README.md`):
 
 | Aksi | Endpoint |
 |---|---|
-| ganti skenario | `POST /api/scenario` `{"name":"serangan_jatuh"}` |
 | hentikan alarm | `POST /api/reset` `{"confirm":true}` |
 | EKG dari ESP32 | `POST /api/source` `{"source":"hardware"}` |
 | EKG dari rekaman PTB-XL/MIT-BIH (vital tetap dari ESP32) | `POST /api/source` `{"source":"dataset","rekaman":"stemi"}` |
 
-Skenario hanya berlaku bila simulator alat penuh dinyalakan (`SIMULATOR=1` di Render). Sumber EKG paling
-mudah diganti dari debug viewer `/debug`.
 
 ---
 
-## 3. Daftar skenario
+## 3. Mode alat dan sumber EKG
 
-| Nama | Isi | Ekspektasi state (cloud) |
+Sistem hanya bergerak bila rompi (ESP32) tersambung. Di debug viewer `/debug` dipilih:
+
+| Pilihan | Isi |
+|---|---|
+| **Demo** | mekanisme sesuai rancangan: GPS siaga dan baru menyala saat CRITICAL |
+| **Test** | semua modul menyala, termasuk GPS, untuk memeriksa tiap sensor |
+| **Hardware** | EKG dari AD8232 di rompi |
+| **Dataset** | EKG dari rekaman PTB-XL/MIT-BIH pasien held-out; HR, GSR, gerak, dan GPS tetap dari rompi |
+
+Jenis rekaman Dataset dan perkiraan hasilnya:
+
+| Kelompok | Rekaman | Perkiraan state (cloud) |
 |---|---|---|
-| `normal` | istirahat, HR 72, GSR baseline (TC-01) | tetap NORMAL |
-| `artefak` | artefak gerak ekstrem, HR semu 145 dari Pan-Tompkins, SQI rendah (TC-02) | tetap NORMAL, karena CNN Normal dan GSR baseline sehingga false alarm ditekan |
-| `pra_serangan` | 35 s depresi ST / T terbalik, lalu pulih | NORMAL → WARNING (N=2) → NORMAL (N+M=3) |
-| `pra_af` | 35 s fibrilasi atrium, lalu pulih | NORMAL → WARNING → NORMAL |
-| `serangan` | prodromal depresi ST → STEMI, HR 125, GSR ≈ 23 µS (TC-03) | → WARNING → CRITICAL, **terkunci** sampai reset; GPS aktif |
-| `serangan_jatuh` | seperti `serangan` + jatuh tiga fase (TC-04) | CRITICAL + alert `critical_fall` (`fall_detected=true`) |
-| `serangan_vt` | takikardia ventrikular 185 bpm, perfusi lemah (SQI 0,3) | CRITICAL via validator terdegradasi (HR dari ECG, N=3) |
-| `sqi_rendah` | PPG bergeser sepanjang skenario + depresi ST | WARNING baru setelah **3** window (mode terdegradasi), lalu pulih |
-| `putus_koneksi` | CRITICAL lalu tautan data putus 45 s (skenario 5 BAB 10) | LWT offline → SMS fallback (log) setelah 30 s → reconnect → retransmisi buffer (ditandai `late`) |
-| `reset_offline` | CRITICAL, sinyal hilang, tombol reset ditekan **saat offline** | alat langsung NORMAL; saat tersambung, event reset sampai lebih dulu dan cloud ikut NORMAL tanpa mengunci alat lagi |
-| `elektroda_lepas` | elektroda lepas 25 s (flag LO+/LO-, sinyal 0) | tetap NORMAL; window ditandai "kualitas sinyal" dan tidak menggerakkan FSM |
+| Normal | `normal` | tetap NORMAL |
+| Pra-serangan | `st_depression`, `af`, `pvc`, `cd`, `svt` | WARNING setelah N = 2 window bila CNN yakin ≥ τ_conf, lalu pulih saat kembali Normal |
+| Serangan | `stemi`, `vt`, `vf` | WARNING; CRITICAL hanya bila validator HR dan GSR dari rompi ikut tidak normal (S3 butuh 1_GSR ∧ 1_HR) |
 
 `POST /api/reset`, **Reset status** / **Hentikan alarm** (beranda web), dan tombol fisik di alat mengembalikan sistem ke NORMAL dari state mana pun. BAB 4.5 hanya menyebut tombol fisik untuk keluar dari CRITICAL; jalur web adalah tambahan dan bisa dimatikan dengan `REMOTE_RESET=0`.
-
-### Uji otomatis semua skenario
-
-```powershell
-MQTT_HOST=<host EMQX> MQTT_PORT=8883 MQTT_TLS=1 MQTT_USER=<user> MQTT_PASS=<sandi> python tools/uji_skenario.py   # ~12-15 menit, PASS/FAIL per skenario
-```
-
-Hasil pada lingkungan pengembangan (τ_conf 0,44, τ_gerak 0,76):
-* `REPLAY_ONLY_CORRECT=1` (uji alur sistem, 4 seed): **35/36 PASS**. Satu-satunya kegagalan adalah satu WARNING
-  palsu pada `artefak`; sisa ±4 % ini memang diperkirakan oleh kalibrasi.
-* `REPLAY_ONLY_CORRECT=0` (replay jujur, tiga seed):
-  * skenario CRITICAL: 6/9 mencapai CRITICAL, 3 berhenti di WARNING, tidak ada yang terlewat total;
-  * skenario WARNING: 7/9 terdeteksi;
-  * artefak gerak: tanpa alarm palsu.
-
-Rinciannya ada di `HASIL_UJI.md`.
 
 ---
 
@@ -176,8 +155,8 @@ Rinciannya ada di `HASIL_UJI.md`.
 | `device/{id}/state` | 1, retained | cloud → semua | berubah + heartbeat tiap window | state, alasan, sejak, GPS, info kalibrasi GSR |
 | `device/{id}/alert` | 2 | cloud → semua | saat Warning/Critical | payload notifikasi (format BAB 8.6) |
 | `device/{id}/inference` | 0 | cloud → semua | 3,5 s | kelas, probabilitas, p_conf, validator, keputusan, latensi (ekstensi) |
-| `sim/{id}/control` | 1 | alat → simulator | saat perlu | pilih skenario / reset / putus |
-| `sim/{id}/status` | 1, retained | simulator → alat | 10 s + saat berubah | skenario & fase aktif |
+| `device/{id}/source` | 1, retained | web → cloud, dataset | saat berubah | sumber EKG `{"source":"hardware"}` atau `{"source":"dataset","rekaman":"vt"}` (ekstensi) |
+| `device/{id}/ecg_dataset` | 0 | dataset → cloud | 3,5 s | EKG rekaman saat sumber = dataset, format sama dengan `ecg` (ekstensi) |
 
 **Contoh `vital`:**
 ```json
@@ -225,7 +204,7 @@ Beberapa keputusan implementasi yang belum diatur rinci di dokumen:
   **tidak** mengubah state. Keputusan darurat hanya berdasar data terkini.
 * Deteksi jatuh hanya menjadi metadata dan tidak memicu CRITICAL sendiri (keputusan poin 8).
 * `accel.sd` adalah simpangan baku |a| seluruh sampel IMU (100 Hz) dalam satu periode vital. Field ini dikirim
-  firmware dan simulator. Bila tidak ada (perangkat lama), cloud memakai simpangan baku `accel.mag` antar-paket.
+  firmware. Bila tidak ada (perangkat lama), cloud memakai simpangan baku `accel.mag` antar-paket.
 * Kalibrasi 30 s dipersingkat dari rancangan 10–30 menit supaya demo cepat. Ubah `CALIB_SECONDS` untuk pengujian nyata.
 
 ---
@@ -333,7 +312,7 @@ Saat sistem mendeteksi, median waktu ke CRITICAL adalah 7 s (dua window). Pada m
    nyata lebih berkorelasi, sehingga angka per jam adalah estimasi kasar, bukan pengukuran klinis.
 
 #### τ adaptif gerak (0,76 saat pengguna bergerak)
-Uji ulang skenario `artefak` pada τ = 0,44 memperlihatkan konflik yang tidak terlihat pada data PTB-XL/MIT-BIH yang
+Uji ulang dengan artefak gerak berat pada τ = 0,44 memperlihatkan konflik yang tidak terlihat pada data PTB-XL/MIT-BIH yang
 bersih. Saat artefak gerak berat, model membaca ECG Normal sebagai **Serangan** pada 35–40 % window, dengan p_conf
 sampai 0,79. Dulu τ = 0,75 menyaring window seperti ini, sedangkan τ = 0,44 meloloskannya.
 
@@ -343,7 +322,7 @@ sampai 0,79. Dulu τ = 0,75 menyaring window seperti ini, sedangkan τ = 0,44 me
 * Median dipakai agar lonjakan sesaat saat jatuh tidak ikut menaikkan τ.
 
 **Kalibrasi τ_gerak (tahap 3 `kalibrasi_tau.py`).**
-* Data: rekaman validasi/uji diberi artefak gerak yang sama dengan simulator (intensitas 0,6 dan 0,9).
+* Data: rekaman validasi/uji diberi artefak gerak sintetis `heartsim_common.ecg_synth` (intensitas 0,6 dan 0,9).
 * Episode: 45 s, mode terdegradasi N = 3.
 * Aturan: τ terkecil yang membuat WARNING palsu < 5 % pada setiap intensitas gerak (BAB 6.2: *false alarm*
   akibat interferensi < 5 %).
@@ -365,7 +344,7 @@ Konsekuensi yang perlu dicatat di laporan:
 * Ini adalah pengembangan rancangan di luar BAB 4.4.4, yang hanya menyebut satu τ_conf. Dasarnya adalah prinsip
   fusi multi-sensor BAB 3/4: IMU yang sudah ada dipakai untuk menilai keandalan ECG, sama seperti Kalman adaptif
   BAB 5.2 memakai |a| untuk menaikkan derau ukur.
-* Artefak simulator adalah model sintetis. Ambang 0,08 g dan τ_gerak perlu diverifikasi dengan rekaman ECG dan IMU
+* Artefak gerak di atas adalah model sintetis. Ambang 0,08 g dan τ_gerak perlu diverifikasi dengan rekaman ECG dan IMU
   nyata saat berjalan.
 
 Menjalankan ulang (±3 menit, CPU; lingkungan Python yang sama dengan 6.5):
@@ -390,7 +369,7 @@ Model data sintetis lama tetap tersimpan sebagai `cnn1d_ecg_sintetis.keras` bese
 pip install -r cloud\model\requirements-train.txt
 # 1) praproses (folder hasil unduhan s3://physionet-open; zip PhysioNet juga diterima)
 python cloud\model\datasets\prepare.py --ptbxl ..\datasets\ptbxl --mitdb ..\datasets\mitdb --out ..\datasets\ecg_c251_250hz.npz
-# 2) latih + evaluasi (~15 menit CPU); menulis model, metrik, grafik, dan bank replay simulator
+# 2) latih + evaluasi (~15 menit CPU); menulis model, metrik, grafik, dan bank replay dataset
 python cloud\model\train_real.py --data ..\datasets\ecg_c251_250hz.npz --ptbxl-dir ..\datasets\ptbxl
 # 3) ekspor ke ONNX (dipakai layanan cloud), lalu push; Render mengambilnya otomatis
 python cloud\model\ekspor_model.py
@@ -402,20 +381,17 @@ mengatur penyeimbangan data. Untuk eksperimen tanpa menimpa model produksi, paka
 infark inferior vs anterior) ada di [`docs/analisis_lead.md`](docs/analisis_lead.md), dan bisa diulang
 dengan `cloud/model/bandingkan_lead.py`.
 
-### 6.6 Sumber ECG simulator: replay rekaman asli
-`ECG_SOURCE=replay` (default) memutar ulang window 10 s dari **pasien set uji**, sesuai kondisi tiap fase skenario
-(normal, depresi ST, AF, PVC, infark, VT, VF). Rekaman dipilih acak di antara yang HR-nya dekat dengan HR fase
-(toleransi maks(3 bpm, 10 %)), sehingga pasien yang diputar bervariasi. Nama rekaman
-tampil di log simulator dan di viewer.
+### 6.6 Sumber EKG Dataset: replay rekaman asli
+Saat sumber EKG = Dataset, `python -m dataset` memutar ulang window 10 s dari **pasien set uji** sesuai jenis
+rekaman yang dipilih (normal, depresi ST, AF, PVC, gangguan konduksi, SVT, STEMI, VT, VF). Nama rekaman tampil di
+log Render.
 * `REPLAY_ONLY_CORRECT=1` (default) hanya memakai window yang oleh model diklasifikasikan benar dengan
-  p_conf ≥ τ_conf pada tiga posisi potongan, agar demo deterministik. Ini **pemilihan untuk demo**, bukan ukuran
+  p_conf ≥ τ_conf pada tiga posisi potongan, agar demo konsisten. Ini **pemilihan untuk demo**, bukan ukuran
   performa. Ukuran performa ada di 6.2.
 * Kondisi tanpa window "baik" di set uji diambil dari set validasi atau train, dan asalnya dicatat di `replay_bank.npz`.
   Ini terjadi pada VF (hanya rekaman 207, masuk train) dan sebagian besar VT.
 * `REPLAY_ONLY_CORRECT=0` memakai **sampel acak** window held-out (60 per kondisi, tanpa tambahan window "baik"),
-  termasuk yang salah diklasifikasikan model. Hasilnya lebih realistis, dan mode inilah yang dipakai untuk laporan
-  pengujian (`HASIL_UJI.md`).
-* `ECG_SOURCE=synthetic` kembali ke generator sintetis.
+  termasuk yang salah diklasifikasikan model.
 
 ## 7. Data dummy dan ekspor CSV
 
@@ -434,18 +410,18 @@ Hasilnya muncul di `data\export\`: `vitals.csv`, `inferences.csv`, `transitions.
 
 ## 8. Menjalankan di laptop (opsional)
 
-Tidak diperlukan untuk deploy. Berguna untuk mencoba layanan cloud atau simulator tanpa push. Butuh
-Python 3.11 dan Mosquitto untuk Windows.
+Tidak diperlukan untuk deploy. Berguna untuk mencoba layanan cloud dengan rompi tanpa push. Butuh
+Python 3.11 dan Mosquitto untuk Windows; `MQTT_HOST` di `rahasia.h` diarahkan ke IP laptop dan TLS dimatikan.
 
 ```powershell
 py -3.11 -m venv .venv; .\.venv\Scripts\Activate.ps1
-pip install -r cloud\requirements.txt -r simulator\requirements.txt rich pytest
-$env:PYTHONPATH = "$PWD\common;$PWD\simulator;$PWD\cloud"
+pip install -r cloud\requirements.txt -r dataset\requirements.txt rich pytest
+$env:PYTHONPATH = "$PWD\common;$PWD\dataset;$PWD\cloud"
 # terminal 1: mosquitto -v
 # terminal 2:
 python -m cloud --db data\cardiovest.db
 # terminal 3:
-python -m simulator --scenario normal --interactive
+python -m dataset
 # terminal 4:
 python tools\monitor.py
 # unit test:
@@ -486,14 +462,8 @@ Rincian fitur ada di [`web/README.md`](web/README.md), endpoint dan CLI admin di
 ## 11. Firmware ESP32 (perangkat asli)
 
 Folder `firmware/` berisi firmware Arduino IDE untuk ESP32 + AD8232 + MAX30102 + MPU6050 + GSR + Neo-6M +
-SIM7600E-H. Topik, QoS, dan format payload-nya identik dengan simulator, sehingga perangkat asli dapat
-langsung menggantikan simulator:
-
-```sh
-POST /api/source {"source":"hardware"}   # simulator berhenti, perangkat asli memakai DEVICE_ID yang sama (cv-001)
-```
-
-Alamat broker dan akun MQTT untuk firmware ada di `deploy/README.md` bagian D.
+SIM7600E-H. WiFi, alamat broker, akun MQTT, dan nomor SMS darurat hanya ada di
+`firmware/cardiovest_c251/rahasia.h` (salinan `rahasia.contoh.h`, tidak ikut git); lihat `deploy/README.md` bagian E.
 
 Panduan pemasangan library, rangkaian, urutan uji per komponen (`firmware/uji_komponen/`), dan hasil verifikasi
 ada di `firmware/README.md`.
@@ -503,12 +473,12 @@ ada di `firmware/README.md`.
 
 ## 12. Checklist sebelum uji di alat
 
-1. `pytest` (44 uji) dan `python firmware/tests_host/test_firmware_algos.py` (34 uji) lolos.
-2. Firmware: `DEVICE_ID`, `MQTT_HOST`, WiFi/APN diisi; Serial Monitor `s` menunjukkan `waktu_sinkron=1`
+1. `python -m pytest tests -q` lolos.
+2. Firmware: `DEVICE_ID` di `.ino` dan isi `rahasia.h` (WiFi, broker, nomor SMS) benar; Serial Monitor `s` menunjukkan `waktu_sinkron=1`
    setelah ±1 menit.
 3. Uji elektroda dulu tanpa cloud: Serial Plotter (`p`) harus menampilkan QRS jelas saat duduk diam.
    Lepas satu elektroda: log cloud di Render harus menunjukkan window ditolak karena kualitas sinyal dan state tetap NORMAL.
-4. Tekan reset saat WiFi dimatikan, nyalakan lagi: alat harus tetap NORMAL (skenario `reset_offline`).
+4. Tekan reset saat WiFi dimatikan, nyalakan lagi: alat harus tetap NORMAL.
 5. Pakai alat 6–8 jam saat sehat, lalu jalankan `tools/kalibrasi_lapangan.py`. Angka alarm palsu dari
    alat sendiri lebih bisa dipercaya daripada perkiraan di `docs/analisis_alarm_palsu.md`.
 6. Kalibrasi baseline GSR untuk alat sungguhan: `CALIB_SECONDS=600` (10 menit, sesuai 5.5.3). Nilai 30 detik

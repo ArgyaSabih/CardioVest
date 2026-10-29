@@ -6,9 +6,9 @@
   2 Serangan     : infark miokard (PTB-XL superclass MI, pola injury / elevasi ST),
                    takikardia ventrikular, fibrilasi/flutter ventrikular (MIT-BIH)
 
-Selain kelas, setiap sampel diberi TAG morfologi yang sama dengan nama morfologi simulator
+Selain kelas, setiap sampel diberi TAG morfologi yang sama dengan nama jenis rekaman dataset
 ('normal', 'st_depression', 'af', 'pvc', 'cd', 'svt', 'stemi', 'vt', 'vf') agar bank replay
-simulator dapat memilih rekaman yang sesuai dengan fase skenario.
+pemutar dataset dapat memilih rekaman sesuai jenis yang diminta.
 
 Keterbatasan yang wajib dicatat di laporan:
   * PTB-XL tidak membedakan infark akut dan infark lama (kode AMI = anterior MI, bukan "acute").

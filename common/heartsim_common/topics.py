@@ -9,12 +9,10 @@
 | device/{id}/cmd          | 1   | cloud  -> device| sinkronisasi state ke perangkat              |
 | device/{id}/lwt          | 1 R | broker          | Last Will: online/offline                    |
 
-Ekstensi (tidak ada di tabel dokumen, ditambahkan untuk simulasi):
+Ekstensi (tidak ada di tabel dokumen):
 | device/{id}/event        | 1   | device -> cloud | tombol hardware reset R(t)=1                 |
 | device/{id}/inference    | 0   | cloud  -> semua | hasil CNN tiap window (untuk pemantauan/UI)  |
 | device/{id}/remote       | 1   | web    -> cloud | reset alarm dari aplikasi (akun web)         |
-| sim/{id}/control         | 1   | alat -> simulator | pilih skenario, reset, putus koneksi        |
-| sim/{id}/status          | 1 R | simulator -> alat | skenario aktif                              |
 | device/{id}/source       | 1 R | web -> cloud      | sumber EKG: {"source":"hardware"|"dataset","rekaman":...} |
 | device/{id}/ecg_dataset  | 0   | dataset -> cloud  | EKG rekaman dataset saat sumber = dataset   |
 """
@@ -40,18 +38,6 @@ QOS = {k: min(v, MAX_QOS) for k, v in QOS.items()}
 
 def t(device_id: str, kind: str) -> str:
     return f"device/{device_id}/{kind}"
-
-
-def sim_control(device_id: str) -> str:
-    return f"sim/{device_id}/control"
-
-
-def sim_source(device_id: str) -> str:
-    return f"sim/{device_id}/source"
-
-
-def sim_status(device_id: str) -> str:
-    return f"sim/{device_id}/status"
 
 
 def parse(topic: str) -> tuple[str, str] | None:

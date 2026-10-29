@@ -6,8 +6,9 @@ pemutar dataset EKG ([`deploy/`](../deploy/README.md)). Satu proses Node.js 22 t
 - **REST** `/api/*`: akun, pairing, kontak, riwayat, tautan darurat, Web Push.
 - **Socket.IO** `/data/realtime`: status, vital, inferensi, dan EKG 250 Hz ke browser.
 - **MQTT**: membaca `device/+/*` dari layanan cloud, menulis `device/+/remote` (reset alarm),
-  `device/+/source` (sumber EKG, retained), dan `sim/+/control` (skenario, hanya bila `SIMULATOR=1`).
-- **Socket.IO** `/debug`: data mentah alat untuk debug viewer, tanpa login.
+  dan `device/+/source` (sumber EKG, retained).
+- **Socket.IO** `/debug`: data mentah alat dan status koneksi (`presence`: broker tersambung, alat online)
+  untuk debug viewer, tanpa login.
 - **Web Push** berlapis: WARNING hanya ke User Utama, CRITICAL ke User Utama + semua kontak, retry
   backoff 1–32 s.
 - Database: `gateway.db` (akun, alat, kontak, langganan push, log notifikasi) dan membaca
@@ -48,7 +49,7 @@ memuat folder `routes/` otomatis saat server menyala.
 |---|---|
 | Akun | `POST /auth/signup`, `/auth/login`, `/auth/verify`, `/auth/verify/kirim-ulang`, `/auth/forgot`, `/auth/reset` · `GET`/`PUT /users/me` |
 | Alat | `POST`/`DELETE /devices/pair` · `GET /status` · `GET /trend` · `POST /reset` (`{"confirm":true}`) · `POST /mode` |
-| Demo | `GET`/`POST /source` (`{"source":"dataset","rekaman":"stemi"}` atau `{"source":"hardware"}`) · `GET`/`POST /scenario` (`{"name":"serangan"}`) |
+| Demo | `GET`/`POST /source` (`{"source":"dataset","rekaman":"stemi"}` atau `{"source":"hardware"}`) |
 | Kontak | `GET`/`POST /contacts` · `PUT`/`DELETE /contacts/:id` · `POST /contacts/:id/undangan-baru` |
 | Undangan kontak (tanpa akun) | `GET /join/:code` · `POST /join/:code/push` · `POST /join/:code/uji` |
 | Riwayat | `GET /history?type=&from=&to=` · `GET /history/:id` · `GET /history/:id/ecg` |
@@ -71,7 +72,6 @@ Diatur di **Environment** layanan Render.
 | `PROXY_SECRET` | sama dengan di Vercel |
 | `SMTP_URL`, `MAIL_FROM` | email verifikasi dan lupa sandi. Kosong = isi email dicetak ke log. Gmail: `smtps://akun%40gmail.com:sandiaplikasi@smtp.gmail.com:465` |
 | `CONTACTS_JSON` | opsional, kontak awal untuk akun pertama yang pairing |
-| `SIMULATOR` | `1` = jalankan alat virtual penuh (bawaan `0`) |
 | `REMOTE_RESET` | `0` = tombol "Hentikan alarm" di aplikasi dimatikan |
 
 ## Mengelola alat (peran Admin)
