@@ -11,15 +11,20 @@ git push
 | Bagian | Di mana | Setelah `git push` |
 |---|---|---|
 | Tampilan web (`web/`) | **Vercel** | dibangun ulang otomatis, ±1 menit |
-| Layanan cloud CNN + FSM, server API + realtime, simulator dataset | **Hugging Face Space** (2 vCPU, 16 GB) atau **Render** (cadangan, 512 MB) | backend mengecek GitHub tiap menit, mengambil commit baru, lalu menyalakan ulang layanan |
+| Layanan cloud CNN + FSM, server API + realtime | **Hugging Face Space** (2 vCPU, 16 GB) atau **Render** (cadangan, 512 MB) | backend mengecek GitHub tiap menit, mengambil commit baru, lalu menyalakan ulang layanan |
 | Broker MQTT | **flespi** (broker publik gratis, akun pribadi) | tidak berubah |
 
 ```
-ESP32 ──MQTT 1883/8883──► flespi ◄──WSS 443── Hugging Face Space (cloud + server + simulator)
+ESP32 ──MQTT 1883/8883──► flespi ◄──WSS 443── backend Render / Hugging Face (cloud + server)
                                                         ▲  https://<user>-cardiovest.hf.space
                                                         │  /api diteruskan, EKG realtime lewat WebSocket
        browser teman ──► https://<proyek>.vercel.app ───┘
+                         https://<proyek>.vercel.app/debug ──WSS 443──► flespi (debug viewer, langsung)
 ```
+
+Secara bawaan **tidak ada data simulasi**: dashboard dan debug viewer hanya bergerak bila ESP32 benar-benar
+tersambung dan mengirim data. Simulator dataset bisa dinyalakan untuk latihan dengan variabel
+`SIMULATOR=1` di backend.
 
 Ini mode **demo**: akun, pairing, dan riwayat terhapus setiap kali Space menyala ulang (misalnya setelah
 dibangun ulang atau tertidur). Commit biasa tidak menghapus data, karena layanan hanya dinyalakan ulang
@@ -68,7 +73,7 @@ Semua topik di akun flespi Anda terpisah dari pengguna flespi lain. Batas paket 
    Alamat backend: `https://<username-hf>-cardiovest.hf.space` (juga terlihat di menu **⋮ → Embed this
    Space → Direct URL**). Membukanya menampilkan `{"ok":true,"service":"cardiovest-server"}`.
 
-Variabel opsional lain: `SIMULATOR=0` (simulator tidak dijalankan sama sekali), `SIM_SOURCE=hardware`,
+Variabel opsional lain: `SIMULATOR=1` (nyalakan simulator dataset; bawaan mati), `SIM_SOURCE=hardware`,
 `SCENARIO=serangan`, `TAU_CONF`, `TAU_WARN`, `CALIB_SECONDS`, `SMTP_URL`, dan semua parameter di
 README utama. Setiap perubahan variabel membuat Space menyala ulang.
 
@@ -131,8 +136,8 @@ terpisah supaya tidak ikut ter-push ke GitHub (repositorinya publik): salin
 Untuk koneksi terenkripsi, ubah `MQTT_USE_TLS 1` dan `MQTT_TLS_INSECURE 1` di `.ino` (port 8883,
 sertifikat tidak diverifikasi).
 
-Simulator dan ESP32 memakai ID yang sama (`cv-001`), jadi hanya satu yang boleh mengirim data. Pilihan
-sumber disimpan di broker dan tetap berlaku walau Space menyala ulang:
+Bila simulator dinyalakan (`SIMULATOR=1`), simulator dan ESP32 memakai ID yang sama (`cv-001`), jadi
+hanya satu yang boleh mengirim data. Pilihan sumber disimpan di broker:
 
 ```js
 await api('/source', { method: 'POST', body: { source: 'hardware' } });
@@ -140,6 +145,22 @@ await api('/source', { method: 'POST', body: { source: 'dataset' } });
 ```
 
 ---
+
+## Debug viewer (`/debug`)
+
+`https://<proyek>.vercel.app/debug` menampilkan data mentah alat secara realtime: EKG 250 Hz, vital
+(HR, SQI, GSR, akselerasi, sensor, I2C), probabilitas CNN tiap window, keputusan FSM, kualitas sinyal,
+GPS, dan log LWT/alert. Halaman ini tersambung **langsung ke flespi**, tidak lewat backend, jadi tetap
+jalan walau backend Render sedang tidur (keputusan CNN baru muncul setelah backend bangun).
+
+1. Buka `/debug`, tempel token flespi di kolom **Token MQTT flespi**, klik **Hubungkan**.
+   Token disimpan hanya di browser itu (localStorage), tidak ada di kode.
+2. Klik **Jalankan**. Titik "perangkat" hijau berarti ESP32 online.
+3. Tombol **Demo/Test** mengirim perintah mode ke alat lewat layanan cloud. **Token** untuk mengganti token.
+
+Token flespi memberi akses penuh ke broker. Bagikan ke teman satu tim saja. Untuk teman yang hanya
+menonton, buat token terpisah di flespi (**Tokens → +**) dengan ACL hanya `subscribe` ke `device/#`.
+Alamat lain: tambahkan `?device=cv-002` untuk alat lain.
 
 ## Mengendalikan demo
 
@@ -149,11 +170,15 @@ masuk ke aplikasi di Vercel:
 ```js
 const kirim = (p, body) => fetch('/api' + p, { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + localStorage.cv_token }, body: JSON.stringify(body) }).then((r) => r.json());
 
+kirim('/reset', { confirm: true });
+```
+
+Perintah berikut hanya berlaku bila `SIMULATOR=1`:
+
+```js
 kirim('/source', { source: 'hardware' });
 kirim('/source', { source: 'dataset' });
 kirim('/scenario', { name: 'serangan' });
-kirim('/scenario', { name: 'normal' });
-kirim('/reset', { confirm: true });
 ```
 
 Daftar skenario: `GET /api/scenario`, atau README utama bagian 3.
@@ -166,7 +191,7 @@ Daftar skenario: `GET /api/scenario`, atau README utama bagian 3.
 | Vercel `/api/health` menampilkan halaman HTML | Backend sedang tertidur atau dibangun. Buka alamat `hf.space`/`onrender.com`, tunggu 1–2 menit. |
 | Login gagal "Terlalu banyak percobaan" | `PROXY_SECRET` di Vercel dan HF tidak sama. |
 | Setelah demo kemarin harus daftar ulang | Normal untuk mode demo: Space menyala ulang dan data terhapus. |
-| Grafik EKG diam, status "Tidak terpantau" | Sumber `hardware` tetapi ESP32 mati, atau sebaliknya. Ganti sumber. |
+| Grafik EKG diam, status "Tidak terpantau" | ESP32 belum tersambung. Cek di `/debug` apakah titik "perangkat" hijau, dan di flespi **MQTT Board** apakah ada koneksi `dev-cv-001`. |
 | ESP32 tidak tersambung | Cek `MQTT_USER` = token flespi, `MQTT_PASS` kosong. Di flespi **MQTT Board** terlihat koneksi aktif. |
 | Push terakhir belum terlihat | Tunggu 1–2 menit; tab Logs HF menulis `[run] commit baru di faza`. Bila `requirements.txt` berubah, layanan butuh waktu lebih lama menyala. |
 | `Dockerfile` di HF perlu diubah | Jarang. Unggah ulang `deploy/backend/Dockerfile`, atau **Settings → Factory rebuild**. |

@@ -1,6 +1,9 @@
 const nextConfig = {
   poweredByHeader: false,
   reactStrictMode: true,
+  async rewrites() {
+    return [{ source: '/debug', destination: '/debug/index.html' }];
+  },
   async headers() {
     return [
       {

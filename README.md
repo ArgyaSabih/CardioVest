@@ -82,7 +82,6 @@ CardioVest/
 │   ├── analisis_sqi.py         # uji gerbang kualitas pada CUDB, VFDB, BUT QDB
 │   ├── uji_alarm_palsu.py      # alarm palsu per jam pada rekaman wearable BUT QDB
 │   ├── uji_sensitivitas.py     # episode VT/VF kontinu + recall per window vs tau
-│   └── debug-viewer/           # viewer browser lama (butuh broker WebSocket lokal)
 ├── firmware/                   # FIRMWARE ESP32: cardiovest_esp32/ (Arduino IDE / PlatformIO) + 8 sketch uji komponen + uji di PC
 ├── web/                        # TAMPILAN: Next.js 16 untuk Vercel, lihat web/README.md
 ├── server/                     # API + Socket.IO + MQTT + Web Push (Node.js 22), lihat server/README.md
@@ -109,6 +108,7 @@ git push
 | **Aplikasi CardioVest** | `https://<proyek>.vercel.app`. Daftar akun, lalu pasangkan alat `cv-001` dengan kode dari secret `DEVICES` di Hugging Face |
 | **Log** keputusan FSM, mock FCM, SMS fallback | tab **Logs** di Space Hugging Face |
 | **Status layanan** | `https://<proyek>.vercel.app/api/health` |
+| **Debug viewer** (EKG mentah, CNN, FSM, vital) | `https://<proyek>.vercel.app/debug` + token flespi |
 | **MQTT Explorer** (opsional) | host `mqtt.flespi.io`, port `1883`, username = token flespi |
 
 ### Memilih skenario dan sumber data

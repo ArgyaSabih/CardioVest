@@ -206,6 +206,13 @@ export function startBackend(server) {
   });
   mq.on('connect', () => {
     console.log(`[mqtt] tersambung ke ${cfg.mqttUrl}`);
+    if (!cfg.simulator) {
+      for (const d of devices.all()) {
+        for (const k of ['status', 'source']) mq.publish(`sim/${d.device_id}/${k}`, '', { qos: 1, retain: true });
+        live(d.device_id).sim = null;
+        live(d.device_id).source = null;
+      }
+    }
     mq.subscribe([...['state', 'alert', 'vital', 'ecg', 'inference', 'lwt'].map((k) => `device/+/${k}`), 'sim/+/status'], { qos: 1 });
   });
   mq.on('error', (e) => console.warn('[mqtt]', e.message));
@@ -282,6 +289,7 @@ export function startBackend(server) {
   mq.on('message', (topic, buf) => {
     const [root, dev, kind] = topic.split('/');
     if (root === 'sim') {
+      if (!cfg.simulator || !buf.length) return;
       try {
         const st = JSON.parse(buf.toString());
         if (!devices.get(dev)) return;

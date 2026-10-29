@@ -43,7 +43,7 @@ registerRoute(
 );
 
 registerRoute(
-  ({ request, url }) => request.mode === 'navigate' && !/^\/(api|data)\//.test(url.pathname),
+  ({ request, url }) => request.mode === 'navigate' && !/^\/(api|data|debug)(\/|$)/.test(url.pathname),
   new NetworkFirst({ cacheName: PAGES, networkTimeoutSeconds: 5, plugins: [new ExpirationPlugin({ maxEntries: 40 })] }),
 );
 

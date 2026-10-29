@@ -37,6 +37,7 @@ export const cfg = {
   allowedOrigins: env('ALLOWED_ORIGINS', '').split(',').map((s) => s.trim().replace(/\/$/, '')).filter(Boolean),
   devices: deviceSeeds(),
   remoteReset: env('REMOTE_RESET', '1') !== '0',
+  simulator: env('SIMULATOR', '1') !== '0',
   seedContacts: json('CONTACTS_JSON', []).filter((c) => c && c.phone),
   smtpUrl: env('SMTP_URL'),
   mailFrom: env('MAIL_FROM', 'CardioVest <no-reply@cardiovest.local>'),

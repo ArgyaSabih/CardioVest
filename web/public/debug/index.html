@@ -3,12 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Debug Viewer C-251</title>
+<title>Debug Viewer CardioVest</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<!-- font dimuat non-blocking: tanpa internet, halaman tetap tampil dengan font cadangan -->
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
-<link rel="stylesheet" href="vendor/leaflet.css">
+<link rel="stylesheet" href="/debug/vendor/leaflet.css">
 <style>
   :root {
     --bg: #0e1412;
@@ -46,7 +45,7 @@
   .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; min-width: 0; max-width: 100%; }
   .controls select { min-width: 0; max-width: 100%; flex: 1 1 260px; }
   .controls label { font-size: 12px; color: var(--ink-3); }
-  select, .btn { min-height: 40px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel);
+  select, .btn, .token input { min-height: 40px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel);
     color: var(--ink); padding: 0 12px; }
   .btn { cursor: pointer; transition: transform .12s cubic-bezier(.2,.8,.2,1), background .15s; }
   .btn:active { transform: scale(.97); }
@@ -57,6 +56,10 @@
   .btn.icon svg { width: 18px; height: 18px; }
   .hint { margin: 16px 0 0; padding: 12px 16px; border: 1px dashed var(--line); border-radius: 8px; color: var(--ink-2); }
   .hint[hidden] { display: none; }
+  .token { margin: 16px 0 0; display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
+  .token[hidden] { display: none; }
+  .token label { font-family: var(--mono); font-size: 13px; color: var(--ink-2); }
+  .token input { flex: 1 1 280px; font-family: var(--mono); }
   .alarm { margin-top: 16px; padding: 14px 20px; border-radius: 8px; background: var(--critical); color: #fff;
     font-weight: 700; font-size: 20px; letter-spacing: .02em; animation: pulse 0.6s ease-in-out infinite; }
   .alarm[hidden] { display: none; }
@@ -139,10 +142,16 @@
         <button class="btn" id="mDemo" aria-pressed="false" title="GPS siaga, hanya aktif saat CRITICAL">Demo</button>
         <button class="btn" id="mTest" aria-pressed="false" title="Semua sensor aktif termasuk GPS">Test</button>
       </span>
+      <button class="btn" id="tokenBtn" type="button" hidden>Token</button>
       <button class="btn primary" id="run">Jalankan</button>
       <button class="btn icon" id="theme" aria-label="Ganti ke tema terang" title="Ganti tema"></button>
     </div>
   </header>
+  <form class="token" id="tokenForm" hidden>
+    <label for="token">Token MQTT flespi</label>
+    <input id="token" type="password" autocomplete="off" placeholder="tempel token flespi, disimpan hanya di browser ini">
+    <button class="btn primary" type="submit">Hubungkan</button>
+  </form>
   <p class="hint" id="runHint">Tekan <b>Jalankan</b> untuk mulai menerima dan menampilkan data dari alat.</p>
   <div class="alarm" id="fallAlarm" role="alert" hidden>JATUH TERDETEKSI</div>
 
@@ -203,22 +212,23 @@
       </section>
     </div>
   </div>
-  <p class="note">Alat debug untuk pengujian pipeline simulasi, bukan aplikasi PWA. Data ECG bersifat sintetis dan tidak
-    bernilai diagnostik. Viewer terhubung langsung ke Mosquitto melalui MQTT-over-WebSocket (port 9001).</p>
+  <p class="note">Alat debug tim, bukan aplikasi PWA. Data yang tampil adalah data mentah dari alat dan keputusan layanan
+    cloud, tidak bernilai diagnostik. Viewer terhubung langsung ke broker MQTT (flespi) lewat WebSocket.</p>
 </div>
 
-<script src="vendor/mqtt.min.js"></script>
-<script src="vendor/leaflet.js"></script>
+<script src="/debug/vendor/mqtt.min.js"></script>
+<script src="/debug/vendor/leaflet.js"></script>
 <script>
 (() => {
   const qs = new URLSearchParams(location.search);
   const DEV = qs.get("device") || "cv-001";
-  const WS = qs.get("ws") || `ws://${location.hostname || "localhost"}:9001`;
+  const LOCAL = !location.hostname || location.hostname === "localhost" || location.hostname === "127.0.0.1";
+  const WS = qs.get("ws") || (LOCAL ? `ws://${location.hostname || "localhost"}:9001` : "wss://mqtt.flespi.io");
+  const TOKEN_KEY = "cv-flespi-token";
   const FS = 250;
   const $ = (id) => document.getElementById(id);
   $("devLabel").textContent = DEV;
 
-  // ---------------- tema
   try { const t = localStorage.getItem("c251-theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
   const ICON_SUN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>';
   const ICON_MOON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
@@ -235,9 +245,8 @@
     renderTheme();
   };
 
-  // ---------------- dekoder biner delta (sama dengan common/heartsim_common/codec.py)
   function decodeEcg(buf) {
-    if ((buf[0] === 0x43 && buf[1] === 0x56) || (buf[0] === 0x48 && buf[1] === 0x57)) {  // 'CV' (lama: 'HW')
+    if ((buf[0] === 0x43 && buf[1] === 0x56) || (buf[0] === 0x48 && buf[1] === 0x57)) {
       const dv = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
       const flags = dv.getUint8(3), n = dv.getUint16(18);
       const out = new Int16Array(n); let pos = 20;
@@ -254,7 +263,6 @@
     return { samples: Int16Array.from(o.samples), buffered: !!o.buffered, fmt: "json" };
   }
 
-  // ---------------- ECG sweep 250 Hz (pemutaran ulang dengan jeda ~1 paket)
   const cv = $("ecg"), cx = cv.getContext("2d");
   const WIN = FS * 7;
   const trace = new Float32Array(WIN).fill(NaN);
@@ -295,7 +303,6 @@
     lo = 0.8 * lo + 0.2 * (nlo - 50); hi = 0.8 * hi + 0.2 * (nhi + 50);
   }
 
-  // ---------------- log
   const logEl = $("log"); let logEmpty = true;
   function addLog(tag, text) {
     if (logEmpty) { logEl.innerHTML = ""; logEmpty = false; }
@@ -307,7 +314,6 @@
     while (logEl.children.length > 60) logEl.lastChild.remove();
   }
 
-  // ---------------- peta
   let map = null, marker = null, circle = null;
   function showGps(g) {
     if (!g || !g.fix) {
@@ -393,7 +399,6 @@
       : "Mode Demo: GPS Neo-6M hanya dinyalakan pada state CRITICAL.";
   }
   renderMode();
-  // ---------------- state
   let stateObj = null, prevState = null;
   let lastSigOk = null, clockWarned = false;
   function renderState() {
@@ -413,7 +418,6 @@
   }
   setInterval(renderState, 1000);
 
-  // ---------------- laju data
   const bytes = [];
   setInterval(() => {
     const now = Date.now(); while (bytes.length && now - bytes[0][0] > 30000) bytes.shift();
@@ -421,10 +425,12 @@
     $("rate").textContent = Object.entries(agg).map(([k, n]) => `${k} ${(n / 30).toFixed(0)} B/s`).join("  ·  ") || "—";
   }, 2000);
 
-  // ---------------- MQTT
-  // broker produksi: ?ws=wss://domain:9443&user=web&pass=... (akun "web" hanya bisa membaca)
   const opts = { reconnectPeriod: 2000, connectTimeout: 5000 };
+  let savedToken = "";
+  try { savedToken = localStorage.getItem(TOKEN_KEY) || ""; } catch (e) {}
   if (qs.get("user")) { opts.username = qs.get("user"); opts.password = qs.get("pass") || ""; }
+  else if (savedToken) { opts.username = savedToken; opts.password = ""; }
+  const needsToken = !LOCAL && !opts.username;
   let client = null;
   function connect() {
   client = mqtt.connect(WS, { ...opts, clientId: "viewer-" + Math.random().toString(16).slice(2, 8) });
@@ -489,7 +495,6 @@
       const v = d.validators || {}, dec = d.decision || {};
       $("dVal").textContent = `1_GSR=${+!!v.ind_gsr} 1_HR=${+!!v.ind_hr} · ${v.degraded ? "terdegradasi" : "independen"}`;
       $("dPer").textContent = `non-Normal ${dec.consec_non_normal}/${dec.n_required} · Normal ${dec.consec_normal}`;
-      // gerbang kualitas (cloud/signal_quality.py): window gagal tidak menggerakkan FSM
       const q = d.quality || {}, f = (x) => x == null ? "—" : (+x).toFixed(2);
       const sigOk = d.signal_ok !== false;
       $("dSig").innerHTML = sigOk
@@ -534,21 +539,37 @@
   });
 
   }
-  connect();
 
-  function ctl(m) { client.publish(`sim/${DEV}/control`, JSON.stringify(m), { qos: 1 }); }
+  const tokenForm = $("tokenForm");
+  $("tokenBtn").hidden = LOCAL;
+  $("tokenBtn").onclick = () => { tokenForm.hidden = !tokenForm.hidden; if (!tokenForm.hidden) $("token").focus(); };
+  tokenForm.onsubmit = (ev) => {
+    ev.preventDefault();
+    const t = $("token").value.trim();
+    if (!t) return;
+    try { localStorage.setItem(TOKEN_KEY, t); } catch (e) {}
+    opts.username = t; opts.password = "";
+    $("token").value = ""; tokenForm.hidden = true;
+    try { client?.end(true); } catch (e) {}
+    connect();
+  };
+  if (needsToken) { tokenForm.hidden = false; $("brokerTxt").textContent = "broker: isi token flespi"; }
+  else connect();
+
+  function ctl(m) { client?.publish(`sim/${DEV}/control`, JSON.stringify(m), { qos: 1 }); }
   $("scenario").onchange = () => { if (running) ctl({ cmd: "scenario", name: $("scenario").value }); };
   $("run").onclick = () => {
     if (!running) return startRun();
     clearView();
-    try { client.end(true); } catch (e) {}
+    if (!opts.username && !LOCAL) { tokenForm.hidden = false; return; }
+    try { client?.end(true); } catch (e) {}
     $("brokerDot").className = "dot"; $("brokerTxt").textContent = "broker: menghubungkan";
     connect();
   };
   const setMode = (m) => {
     if (m === (mode || devMode)) return;
     stopRun();
-    client.publish(`device/${DEV}/remote`, JSON.stringify({ type: "set_mode", mode: m, by: "debug viewer", ts: Date.now() }), { qos: 1 });
+    client?.publish(`device/${DEV}/remote`, JSON.stringify({ type: "set_mode", mode: m, by: "debug viewer", ts: Date.now() }), { qos: 1 });
   };
   $("mDemo").onclick = () => setMode("demo");
   $("mTest").onclick = () => setMode("test");

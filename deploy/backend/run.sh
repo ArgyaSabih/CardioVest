@@ -13,6 +13,7 @@ if [ -n "${FLESPI_TOKEN:-}" ]; then
 fi
 export PYTHONPATH="$APP/common:$APP/cloud:$APP/simulator"
 export PORT="${PORT:-7860}"
+export SIMULATOR="${SIMULATOR:-0}"
 export DEVICES="${DEVICES:-cv-001:}"
 export ALLOWED_ORIGINS="${ALLOWED_ORIGINS:-https://*.vercel.app,https://*.hf.space,http://localhost:3000}"
 export RETENSI_HARI="${RETENSI_HARI:-30}"
@@ -53,7 +54,7 @@ mkdir -p "$DATA/cloud" "$DATA/server"
 keep server env DATA_DIR="$DATA/server" CLOUD_DB="$DATA/cloud/cardiovest.db" \
   node --disable-warning=ExperimentalWarning server/main.js &
 keep cloud python -m cloud --db "$DATA/cloud/cardiovest.db" &
-if [ "${SIMULATOR:-1}" = 1 ]; then
+if [ "${SIMULATOR:-0}" = 1 ]; then
   keep simulator python -m simulator &
 fi
 

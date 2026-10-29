@@ -30,6 +30,7 @@ browser ──────── Socket.IO /data/realtime ──► server/ di H
 │   ├── push.js, session.js
 │   ├── styles.css           #   seluruh gaya, lihat DESIGN.md
 │   └── sw.js                #   service worker (Workbox), dibundel ke public/sw.js saat build
+├── public/debug/            # debug viewer tim (/debug): HTML + mqtt.js + Leaflet, langsung ke flespi
 ├── proxy.js                 # meneruskan /api ke backend + IP asli pengguna
 ├── scripts/build-sw.mjs
 └── next.config.mjs, vercel.json, jsconfig.json
