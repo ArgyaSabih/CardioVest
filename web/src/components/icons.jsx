@@ -25,6 +25,8 @@ const P = {
   plus: 'M12 5v14M5 12h14',
   logout: 'M15 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-4M10 16l-4-4 4-4M6 12h10',
   ecg: 'M2 12h5l2-6 4 12 2.5-8 1.5 2H22',
+  chat: 'M4 4.5h16v11H10l-5 4.5v-4.5H4zM8 9h8M8 12h5',
+  mute: 'M3.5 9.5h4l5-4v13l-5-4h-4zM16 9.5l5 5M21 9.5l-5 5',
 };
 
 export default function Icon({ name, size = 24, stroke = 2.2, className, title }) {

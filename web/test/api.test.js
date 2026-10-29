@@ -12,7 +12,7 @@ const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'cvgw-'));
 fs.copyFileSync(new URL('./fixtures/cloud.db', import.meta.url), path.join(tmp, 'cloud.db'));
 Object.assign(process.env, {
   PORT: '0', DATA_DIR: path.join(tmp, 'gw'), CLOUD_DB: path.join(tmp, 'cloud.db'),
-  DEVICES: 'cv-001:246810,cv-002:135790', PROXY_SECRET: 'rahasia-uji', MQTT_URL: 'mqtt://127.0.0.1:1', PUSH_BASE_DELAY_MS: '1',
+  DEVICES: 'cv-001:246810,cv-002:135790', PROXY_SECRET: 'rahasia-uji', FONNTE_TOKEN: 'token-uji', MQTT_URL: 'mqtt://127.0.0.1:1', PUSH_BASE_DELAY_MS: '1',
   CONTACTS_JSON: JSON.stringify([{ name: 'Bu Uji', relation: 'istri', phone: '+6281200000000' }]),
 });
 // butuh hasil `npm run build` (.next); server berjalan dalam mode produksi seperti di Docker
@@ -20,6 +20,9 @@ const { server, backend } = await import('../server.mjs');
 const { mq, notify } = backend;
 const { _setSender } = await import('../lib/server/push.js');
 const { sentLog } = await import('../lib/server/mail.js');
+const { _setWaSender } = await import('../lib/server/wa.js');
+const waSent = [];
+_setWaSender(async (target, message) => { waSent.push({ target, message }); });
 let base;
 let token;
 
@@ -151,10 +154,73 @@ test('retry exponential backoff saat gagal sementara; langganan kedaluwarsa diha
     if (++n < 3) throw Object.assign(new Error('sibuk'), { statusCode: 503 });
   });
   await notify('cv-001', { event_type: 'critical', event_id: 2, state: 'CRITICAL' });
-  const last = (await call('/api/history/2')).body.notifications.at(-1);
+  const last = (await call('/api/history/2')).body.notifications.filter((x) => x.audience !== 'whatsapp').at(-1);
   assert.deepEqual([last.recipients, last.delivered, last.attempts], [2, 1, 3]);
   assert.match(last.error, /kedaluwarsa/);
   assert.equal((await call('/api/contacts')).body.find((c) => c.name === 'Mas Andi').notifications, false);
+});
+
+test('revisi dosen: Darurat langsung mengirim WhatsApp ke AmbulanMU dan keluarga, tanpa ada yang menekan tombol', async () => {
+  _setSender(async () => {});
+  const me = (await call('/api/users/me')).body;
+  assert.deepEqual(me.ambulance, { name: 'AmbulanMU Kota Yogyakarta', phone: '+6281319123637' });
+  assert.equal(me.whatsapp_configured, true);
+  assert.equal((await call('/api/status')).body.ambulance.phone, '+6281319123637');
+
+  waSent.length = 0;
+  await notify('cv-001', { event_type: 'warning', event_id: 1, state: 'WARNING' });
+  assert.equal(waSent.length, 0, 'Waspada tidak dikirim lewat WhatsApp');
+
+  await notify('cv-001', { event_type: 'critical', event_id: 2, state: 'CRITICAL', fall_detected: true, gps: { lat: -7.7655, lng: 110.3719, accuracy: 5 } });
+  const fams = (await call('/api/contacts')).body;
+  assert.equal(waSent.length, 1 + fams.length);
+  const amb = waSent.find((m) => m.target === '6281319123637');
+  assert.match(amb.message, /Pak Uji diduga mengalami serangan jantung dan terjatuh pukul \d\d\.\d\d WIB\. Mohon kirim ambulans\./);
+  assert.match(amb.message, /maps\?q=-7\.765500,110\.371900/);
+  assert.match(amb.message, /Telepon pasien: \+6281234567890/);
+  const fam = waSent.find((m) => m.target !== '6281319123637');
+  assert.match(fam.message, /AmbulanMU Kota Yogyakarta sudah dikabari/);
+
+  waSent.length = 0;
+  await notify('cv-001', { event_type: 'critical_location', event_id: 2, state: 'CRITICAL', gps: { lat: -7.7655, lng: 110.3719 } });
+  assert.equal(waSent.length, 0, 'lokasi sudah ada di pesan pertama, tidak dikirim dua kali');
+
+  // gagal sementara diulang dengan backoff, lalu tercatat di riwayat kejadian
+  let n = 0;
+  _setWaSender(async () => {
+    if (++n <= 2) throw Object.assign(new Error('HTTP 503'), { retry: true });
+  });
+  await notify('cv-001', { event_type: 'critical_fall', event_id: 2, state: 'CRITICAL' });
+  const log = (await call('/api/history/2')).body.notifications.filter((x) => x.audience === 'whatsapp').at(-1);
+  assert.equal(log.event_type, 'critical_fall');
+  assert.equal(log.delivered, log.recipients);
+  assert.ok(log.attempts >= 2);
+  _setWaSender(async (target, message) => { waSent.push({ target, message }); });
+});
+
+test('tombol Matikan bunyi alat: hanya saat berbunyi, lewat topik buzzer, tercatat di riwayat', async () => {
+  const L = backend.live('cv-001');
+  const saved = { state: L.state, online: L.online, connected: mq.connected, publish: mq.publish };
+  try {
+    L.state = { state: 'NORMAL' };
+    assert.equal((await call('/api/devices/mute', { method: 'POST' })).status, 409);
+    L.state = { state: 'CRITICAL' };
+    L.online = false;
+    assert.match((await call('/api/devices/mute', { method: 'POST' })).body.error, /tombol reset/);
+    L.online = true;
+    assert.equal((await call('/api/devices/mute', { method: 'POST' })).status, 503); // MQTT belum tersambung
+    const pub = [];
+    mq.connected = true;
+    mq.publish = (topic, msg, opts, cb) => { pub.push([topic, JSON.parse(msg), opts.qos]); cb?.(); };
+    const r = await call('/api/devices/mute', { method: 'POST' });
+    assert.equal(r.status, 200);
+    assert.deepEqual(pub.map((p) => [p[0], p[1].cmd, p[2]]), [['device/cv-001/buzzer', 'mute', 1]]);
+    assert.equal(r.body.state, 'CRITICAL');
+  } finally {
+    Object.assign(L, { state: saved.state, online: saved.online });
+    mq.connected = saved.connected;
+    mq.publish = saved.publish;
+  }
 });
 
 test('Halaman 4–5: riwayat dengan filter tipe & tanggal, detail, EKG', async () => {

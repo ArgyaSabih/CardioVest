@@ -5,7 +5,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import { io } from 'socket.io-client';
-import { REALTIME_URL, api } from '../api.js';
+import { DEMO, REALTIME_URL, api } from '../api.js';
 import { LocationMap, mapsLink } from '../components/map.jsx';
 import Icon from '../components/icons.jsx';
 import { AckList, CallButtons, ErrorNote, Wordmark, since } from '../components/ui.jsx';
@@ -23,18 +23,19 @@ export default function Emergency() {
   useEffect(() => {
     const load = () => api(`/public/${token}${k ? `?k=${encodeURIComponent(k)}` : ''}`, { auth: false }).then(setEv).catch((e) => setErr(e.message));
     load();
-    const poll = setInterval(load, 20_000);
+    // mode demo: tidak ada Socket.IO; data dibaca ulang dari penyimpanan browser tiap 3 detik
+    const poll = setInterval(load, DEMO ? 3000 : 20_000);
     const t = setInterval(() => tick((x) => x + 1), 5_000);
-    const s = io(REALTIME_URL, { path: '/data/realtime', auth: { publicToken: token }, transports: ['websocket', 'polling'] });
-    s.on('location', (p) => setEv((e) => (e ? { ...e, location: p, trail: [...(e.trail || []), p] } : e)));
-    s.on('fall', () => setEv((e) => (e ? { ...e, fall_detected: true } : e)));
-    s.on('state', () => load());
-    s.on('ack', (p) => setEv((e) => (e ? { ...e, acks: p.acks } : e)));
-    s.on('online', (p) => setEv((e) => (e ? { ...e, device_online: p.online } : e)));
+    const s = DEMO ? null : io(REALTIME_URL, { path: '/data/realtime', auth: { publicToken: token }, transports: ['websocket', 'polling'] });
+    s?.on('location', (p) => setEv((e) => (e ? { ...e, location: p, trail: [...(e.trail || []), p] } : e)));
+    s?.on('fall', () => setEv((e) => (e ? { ...e, fall_detected: true } : e)));
+    s?.on('state', () => load());
+    s?.on('ack', (p) => setEv((e) => (e ? { ...e, acks: p.acks } : e)));
+    s?.on('online', (p) => setEv((e) => (e ? { ...e, device_online: p.online } : e)));
     return () => {
       clearInterval(poll);
       clearInterval(t);
-      s.disconnect();
+      s?.disconnect();
     };
   }, [token, k]);
 
@@ -68,16 +69,16 @@ export default function Emergency() {
         </div>
         <p className="plate-line">
           {active
-            ? `CardioVest mendeteksi tanda bahaya pada jantung ${who} ${since(ev.started_at)}. EKG, denyut jantung, dan keringatnya sama-sama tidak biasa.`
-            : `${ev.end_reason === 'reset dari aplikasi web' ? 'Alarm dihentikan dari aplikasi' : 'Tombol reset di alat ditekan'} ${since(ev.ended_at)}. Pastikan ${who} sudah mendapat pertolongan.`}
+            ? `Tanda bahaya pada jantung, ${since(ev.started_at)}.`
+            : `${ev.end_reason === 'reset dari aplikasi web' ? 'Alarm dihentikan dari aplikasi' : 'Alarm dimatikan dari alat'} ${since(ev.ended_at)}.`}
         </p>
-        {ev.fall_detected && active && <p className="plate-flag">Sensor gerak mencatat {who} terjatuh.</p>}
+        {ev.fall_detected && active && <p className="plate-flag">{who} terjatuh.</p>}
       </section>
 
       {active && (
         <section className="ack-box">
           {iAcked ? (
-            <p className="ok">Terima kasih{myName ? `, ${myName}` : ''}. {who} dan kontak lain bisa melihat bahwa Anda sudah menerima kabar ini.</p>
+            <p className="ok">Terima kasih{myName ? `, ${myName}` : ''}. Keluarga lain bisa melihatnya.</p>
           ) : (
             <>
               {!myName && (
@@ -92,7 +93,9 @@ export default function Emergency() {
         </section>
       )}
 
-      {active && <CallButtons contacts={ev.user_phone ? [{ name: who, phone: ev.user_phone }] : []} />}
+      {active && (
+        <CallButtons ambulance={ev.ambulance} who={who} gps={loc} contacts={ev.user_phone ? [{ name: who, phone: ev.user_phone }] : []} />
+      )}
 
       <section className="block">
         <h2>Lokasi {active ? 'terkini' : 'terakhir'}</h2>
@@ -100,24 +103,20 @@ export default function Emergency() {
           <>
             <LocationMap lat={loc.lat} lng={loc.lng} acc={loc.acc} trail={ev.trail} height={320} />
             <a className="btn primary wide" href={mapsLink(loc.lat, loc.lng)} target="_blank" rel="noreferrer">Petunjuk arah di Google Maps</a>
-            <p className="muted small">
-              {loc.acc ? `Akurasi sekitar ${Math.round(loc.acc)} m. ` : ''}
-              {loc.ts ? `Diperbarui ${since(loc.ts)}.` : ''}
-            </p>
+            {(loc.acc || loc.ts) && (
+              <p className="muted small">
+                {[loc.acc && `±${Math.round(loc.acc)} m`, loc.ts && `diperbarui ${since(loc.ts)}`].filter(Boolean).join(' · ')}
+              </p>
+            )}
           </>
         ) : (
-          <p className="muted">GPS alat sedang mencari sinyal satelit. Peta muncul begitu koordinat diterima. Di dalam gedung, GPS bisa butuh beberapa menit.</p>
+          <p className="muted">Menunggu GPS alat…</p>
         )}
       </section>
 
       <ErrorNote error={err} />
-      <p className="muted small">
-        {ev.device_online === false
-          ? 'Alat sedang tidak terhubung ke internet. Bila putus lebih dari 30 detik, alat mengirim SMS berisi lokasi terakhir.'
-          : 'Alat terhubung ke server.'}
-        {ev.hr ? ` Denyut terakhir ${Math.round(ev.hr)} bpm.` : ''}
-      </p>
-      <p className="disclaimer">CardioVest adalah prototipe penelitian, bukan alat medis tersertifikasi. Selalu hubungi layanan gawat darurat.</p>
+      {ev.device_online === false && <p className="muted small">Alat terputus dari internet.</p>}
+      <p className="disclaimer">Prototipe penelitian, bukan alat medis tersertifikasi.</p>
     </main>
   );
 }

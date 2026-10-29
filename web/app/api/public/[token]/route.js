@@ -27,6 +27,7 @@ export const GET = route(async (r) => {
   return json({
     user_name: owner?.name ?? 'Pemakai CardioVest',
     user_phone: owner?.phone ?? null,
+    ambulance: r.ctx.cfg.ambulance,
     active,
     started_at: ev.start_ts,
     ended_at: ev.end_ts,

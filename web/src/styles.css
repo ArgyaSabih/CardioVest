@@ -75,7 +75,7 @@ svg { flex: none; }
 .block { margin: 28px 0 0; }
 .block > h2 { margin-bottom: 10px; }
 .disclaimer {
-  font-size: 0.9375rem; color: var(--ink); margin-top: 32px; padding: 12px 14px;
+  font-size: 1rem; color: var(--ink); margin-top: 32px; padding: 12px 14px;
   background: var(--surface); border: 2px solid var(--ink-2); border-radius: 3px;
 }
 .link { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; font-weight: 700; }
@@ -89,7 +89,7 @@ svg { flex: none; }
   background: var(--sign); color: #fff;
 }
 .signbar-title { margin: 0; font-size: 1.45rem; line-height: 1.15; }
-.signbar-side { margin-left: auto; font-size: 0.9375rem; text-align: right; opacity: 0.92; }
+.signbar-side { margin-left: auto; font-size: 1rem; text-align: right; opacity: 0.92; }
 .signbar.brand { min-height: 52px; margin-bottom: 0; }
 .signbar.critical { background: var(--crit); }
 .signbar.warning { background: var(--amber); color: var(--amber-ink); }
@@ -99,7 +99,7 @@ svg { flex: none; }
 
 /* ---------- pesan: latar berwarna lembut + garis tipis senada */
 .error, .note-warn, .note-info, .empty, .note-ok {
-  padding: 10px 14px; border-radius: var(--r); font-size: 0.95rem; margin: 12px 0; border: 1px solid;
+  padding: 10px 14px; border-radius: var(--r); font-size: 1rem; margin: 12px 0; border: 1px solid;
 }
 .error { display: flex; gap: 10px; align-items: flex-start; color: var(--ink); background: var(--surface); border: 2px solid var(--ink); font-weight: 700; }
 .note-warn { color: var(--ink); background: var(--surface); border: 2px solid var(--ink-2); }
@@ -128,14 +128,14 @@ svg { flex: none; }
 .btn.danger { color: var(--ink); border-color: var(--ink); }
 .btn.danger.solid { background: var(--ink); color: #fff; }
 .btn.danger.solid:hover { background: #000; }
-.btn.small { min-height: 44px; padding: 6px 14px; font-size: 0.95rem; }
+.btn.small { min-height: 44px; padding: 6px 14px; font-size: 1rem; }
 .btn.wide { width: 100%; margin-top: 12px; }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 .btn:disabled:hover { background: var(--surface); }
 .btn.primary:disabled:hover { background: var(--sign); }
 .text-btn {
   min-height: 44px; padding: 0 8px; border: 0; background: none; cursor: pointer;
-  font: inherit; font-size: 0.95rem; font-weight: 700; color: var(--sign);
+  font: inherit; font-size: 1rem; font-weight: 700; color: var(--sign);
   text-decoration: underline; text-underline-offset: 0.2em; text-decoration-color: var(--line-strong);
   border-radius: var(--r);
 }
@@ -144,7 +144,7 @@ svg { flex: none; }
 
 /* ---------- formulir */
 .form { display: grid; gap: 16px; }
-.form label, label.inline { display: grid; gap: 6px; font-weight: 700; font-size: 0.95rem; }
+.form label, label.inline { display: grid; gap: 6px; font-weight: 700; font-size: 1rem; }
 input {
   font: inherit; font-weight: 400; min-height: 52px; padding: 8px 12px; width: 100%;
   border: 2px solid var(--line-strong); border-radius: var(--r); background: #fff; color: var(--ink);
@@ -154,9 +154,9 @@ input::placeholder { color: #6b7280; }
 input:hover { border-color: var(--ink-2); }
 input:focus { border-color: var(--sign); outline: none; box-shadow: 0 0 0 3px rgba(11, 61, 145, 0.2); }
 input[type='checkbox'] { width: 24px; min-height: 0; }
-label.consent { display: grid; grid-template-columns: 30px 1fr; gap: 8px; align-items: start; font-weight: 400; font-size: 0.9rem; }
+label.consent { display: grid; grid-template-columns: 30px 1fr; gap: 8px; align-items: start; font-weight: 400; font-size: 1rem; }
 label.consent input { width: 24px; height: 24px; margin: 2px 0 0; }
-.divider { display: flex; align-items: center; gap: 10px; color: var(--ink-2); font-size: 0.9rem; margin: 4px 0; }
+.divider { display: flex; align-items: center; gap: 10px; color: var(--ink-2); font-size: 1rem; margin: 4px 0; }
 .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--line-strong); }
 
 .tabs, .seg { display: flex; border: 2px solid var(--sign); border-radius: var(--r); overflow: hidden; background: #fff; }
@@ -168,7 +168,7 @@ label.consent input { width: 24px; height: 24px; margin: 2px 0 0; }
 .tabs button + button, .seg button + button { border-left: 2px solid var(--sign); }
 .tabs button:hover, .seg button:hover { background: var(--sign-tint); }
 .tabs button[aria-selected='true'], .seg button[aria-pressed='true'] { background: var(--sign); color: #fff; }
-.seg.small button { min-height: 44px; font-size: 0.9rem; padding: 0 10px; }
+.seg.small button { min-height: 44px; font-size: 1rem; padding: 0 10px; }
 
 /* ---------- masuk / daftar / undangan */
 .login { padding-bottom: 32px; }
@@ -208,8 +208,8 @@ label.consent input { width: 24px; height: 24px; margin: 2px 0 0; }
 .plate-unmonitored .plate-word { font-size: 2.1rem; }
 .plate-word.long { font-size: 1.75rem; line-height: 1.15; }
 .plate-line { margin: 14px 0 0; font-size: 1.1rem; max-width: 36ch; }
-.plate-offline { margin: 10px 0 0; font-weight: 700; font-size: 0.95rem; }
-.plate-since { margin: 14px 0 0; font-size: 0.9375rem; }
+.plate-offline { margin: 10px 0 0; font-weight: 700; font-size: 1rem; }
+.plate-since { margin: 14px 0 0; font-size: 1rem; }
 .plate-flag { margin: 12px 0 0; font-weight: 700; padding: 8px 12px; border: 2px solid currentColor; border-radius: 3px; }
 .plate ::selection { background: #fff; color: var(--ink); }
 .plate-critical :focus-visible, .plate-normal :focus-visible, .plate-unmonitored :focus-visible { outline-color: #fff; }
@@ -255,10 +255,7 @@ label.consent input { width: 24px; height: 24px; margin: 2px 0 0; }
 .critical-actions { margin-top: 18px; }
 .reset-alarm { margin-top: 14px; }
 .plate-critical a:not(.btn), .plate-unmonitored a:not(.btn) { color: #fff; }
-.state-more { margin-top: 12px; font-size: 0.95rem; }
-.state-more summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; text-decoration: underline; text-underline-offset: 0.2em; }
-.state-more p { margin: 6px 0 0; }
-.state-stranger { margin: 16px 0 0; padding-top: 12px; border-top: 2px solid rgba(255, 255, 255, 0.5); font-size: 0.95rem; font-weight: 700; }
+.state-stranger { margin: 16px 0 0; padding-top: 12px; border-top: 2px solid rgba(255, 255, 255, 0.5); font-size: 1rem; font-weight: 700; }
 
 /* tombol telepon darurat */
 .em-actions { display: grid; gap: 10px; margin: 16px 0; }
@@ -271,7 +268,12 @@ label.consent input { width: 24px; height: 24px; margin: 2px 0 0; }
 .plate-critical .btn.em-secondary { background: transparent; border-color: #fff; color: #fff; }
 .plate-critical .btn.em-secondary:hover { background: rgba(255, 255, 255, 0.14); }
 .em-secondary .rel { font-weight: 400; }
-.em-alt { display: inline-flex; align-items: center; min-height: 44px; font-size: 0.95rem; color: inherit; }
+.em-alt { display: inline-flex; align-items: center; min-height: 44px; font-size: 1rem; color: inherit; }
+/* Waspada: tombol telepon memakai tinta papan kuning, merah tetap khusus Darurat */
+.plate-warning .btn.em-call { background: var(--amber-ink); border-color: var(--amber-ink); color: #fff; }
+.plate-warning .btn.em-call:hover { background: #000; }
+.plate-warning .btn.em-secondary { background: rgba(255, 255, 255, 0.35); }
+.warning-actions .em-actions { margin-bottom: 0; }
 .sticky-call {
   position: fixed; left: 0; right: 0; bottom: calc(66px + env(safe-area-inset-bottom)); z-index: 11;
   display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 58px; margin: 0 auto; max-width: 480px;
@@ -305,7 +307,7 @@ label.consent input { width: 24px; height: 24px; margin: 2px 0 0; }
 .ecg-overlay {
   position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: calc(100% - 2 * var(--pad)); margin: 0;
   background: var(--surface); border: 2px solid var(--ink); border-radius: var(--r);
-  padding: 10px 14px; text-align: center; font-weight: 700; font-size: 0.95rem; color: var(--ink);
+  padding: 10px 14px; text-align: center; font-weight: 700; font-size: 1rem; color: var(--ink);
 }
 
 /* ---------- pelat tanda vital: kepala biru + isi putih */
@@ -316,7 +318,7 @@ label.consent input { width: 24px; height: 24px; margin: 2px 0 0; }
 }
 .vital-label {
   display: flex; align-items: center; gap: 6px; padding: 6px 10px;
-  background: var(--sign); color: #fff; font-weight: 700; font-size: 0.9375rem;
+  background: var(--sign); color: #fff; font-weight: 700; font-size: 1rem;
 }
 .vital-value { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 4px; padding: 10px 10px 0; font-size: 2.1rem; font-weight: 700; line-height: 1.05; font-variant-numeric: tabular-nums; }
 .vital-value.word { font-size: 1.45rem; padding-top: 12px; }
@@ -336,7 +338,7 @@ label.consent input { width: 24px; height: 24px; margin: 2px 0 0; }
 .trend-band { fill: #dfe3e8; }
 .trend-tick { position: absolute; left: 0; width: 34px; text-align: right; transform: translateY(-50%); font-size: 1rem; color: var(--ink-2); line-height: 1; }
 .inline-action { display: inline-flex; align-items: center; min-height: 44px; }
-.offline-note { position: fixed; left: 0; right: 0; bottom: calc(66px + env(safe-area-inset-bottom)); margin: 0; padding: 8px; text-align: center; background: var(--ink); color: #fff; font-size: 0.9rem; }
+.offline-note { position: fixed; left: 0; right: 0; bottom: calc(66px + env(safe-area-inset-bottom)); margin: 0; padding: 8px; text-align: center; background: var(--ink); color: #fff; font-size: 1rem; }
 
 /* ---------- peta */
 .map { width: 100%; border-radius: var(--r); border: 2px solid var(--ink); z-index: 0; }
@@ -347,6 +349,13 @@ label.consent input { width: 24px; height: 24px; margin: 2px 0 0; }
 .contact { display: grid; gap: 10px; padding: 14px; }
 .contact + .contact { border-top: 2px solid var(--ground); }
 .contact-name { font-weight: 700; font-size: 1.15rem; }
+/* AmbulanMU: kontak utama, ditandai seperti pelat kecil papan penunjuk */
+.contact-tag {
+  display: inline-block; margin-bottom: 6px; padding: 2px 8px; border-radius: var(--r);
+  background: var(--sign); color: #fff; font-weight: 700; font-size: 1rem; line-height: 1.4;
+}
+.contact-main { border-bottom: 4px solid var(--sign); }
+.contact-main + .contact { border-top: 0; }
 .contact-name span { font-weight: 400; color: var(--ink-2); }
 .contact-phone { color: var(--ink-2); font-variant-numeric: tabular-nums; }
 .status-line { display: flex; align-items: center; gap: 7px; font-size: 1rem; margin-top: 2px; font-weight: 700; }
@@ -365,9 +374,9 @@ label.consent input { width: 24px; height: 24px; margin: 2px 0 0; }
 /* ---------- riwayat: papan direktori per hari */
 .filters { display: grid; gap: 10px; margin-bottom: 8px; }
 .date-range { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 4px; }
-.date-range label { font-size: 0.875rem; }
+.date-range label { font-size: 1rem; }
 .day {
-  margin: 24px 0 0; padding: 6px 12px; font-size: 0.95rem; font-weight: 700;
+  margin: 24px 0 0; padding: 6px 12px; font-size: 1rem; font-weight: 700;
   background: var(--ink); color: #fff; border-radius: var(--r) var(--r) 0 0;
 }
 .log { list-style: none; margin: 0; padding: 0; background: var(--surface); border: 2px solid var(--ink); border-top: 0; border-radius: 0 0 var(--r) var(--r); }
@@ -394,7 +403,7 @@ label.consent input { width: 24px; height: 24px; margin: 2px 0 0; }
 .facts dd { margin: 0; font-variant-numeric: tabular-nums; }
 .group .facts { background: transparent; border: 0; padding: 0; }
 .chart { position: relative; height: 220px; background: var(--surface); border: 2px solid var(--line-strong); border-radius: var(--r); padding: 6px; }
-.plain { padding-left: 20px; font-size: 0.95rem; margin: 0; }
+.plain { padding-left: 20px; font-size: 1rem; margin: 0; }
 .plain li { margin-bottom: 8px; }
 .steps { list-style: none; padding: 0; margin: 0; border-left: 3px solid var(--line-strong); }
 .steps li { position: relative; padding: 0 0 14px 18px; }
@@ -411,7 +420,7 @@ label.consent input { width: 24px; height: 24px; margin: 2px 0 0; }
 .fill { display: block; height: 100%; transition: width 250ms ease-out; }
 .probs.neutral .fill { background: var(--ink-2); }
 
-details.tech { margin-top: 12px; font-size: 0.95rem; }
+details.tech { margin-top: 12px; font-size: 1rem; }
 details.tech summary { cursor: pointer; font-weight: 400; color: var(--ink-2); min-height: 44px; display: flex; align-items: center; gap: 6px; list-style: none; }
 details.tech summary::-webkit-details-marker { display: none; }
 details.tech summary::before { content: ''; width: 8px; height: 8px; border: solid currentColor; border-width: 0 2px 2px 0; transform: rotate(-45deg); transition: transform 150ms ease-out; margin-right: 4px; }
@@ -425,7 +434,7 @@ details.tech p, details.tech li { color: var(--ink-2); overflow-wrap: anywhere; 
 /* ---------- akun: kelompok berkepala piktogram */
 .group { padding: 8px 0 18px; }
 .group-title { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; padding: 8px 12px; background: var(--sign); color: #fff; font-size: 1.15rem; border-radius: 3px; }
-.group > p.muted { font-size: 0.95rem; }
+.group > p.muted { font-size: 1rem; }
 .group-end { border-top: 2px solid var(--line); padding-top: 20px; }
 
 /* ---------- pemindai QR */
@@ -441,7 +450,7 @@ details.tech p, details.tech li { color: var(--ink-2); overflow-wrap: anywhere; 
 }
 .bottom-nav a {
   display: grid; justify-items: center; gap: 2px; padding: 8px 0 10px; min-height: 64px;
-  color: rgba(255, 255, 255, 0.86); text-decoration: none; font-size: 0.875rem; font-weight: 700;
+  color: rgba(255, 255, 255, 0.86); text-decoration: none; font-size: 1rem; font-weight: 700;
 }
 .bottom-nav a:hover { color: #fff; background: rgba(255, 255, 255, 0.08); }
 .bottom-nav a.active { color: var(--sign); background: #fff; box-shadow: inset 0 -4px 0 var(--sign); }
@@ -455,9 +464,36 @@ details.tech p, details.tech li { color: var(--ink-2); overflow-wrap: anywhere; 
   .bottom-nav { padding-inline: calc((100vw - 480px) / 2); }
 }
 
+/* zoom 200 % di ponsel (lebar efektif ±195 px): tombol darurat dan navigasi tetap muat */
+.em-actions { grid-template-columns: minmax(0, 1fr); }
+.em-actions .btn { min-width: 0; }
+@media (max-width: 300px) {
+  .em-actions .btn svg { display: none; }
+  .btn.em-call { font-size: 1.15rem; padding-inline: 10px; }
+  .btn.em-secondary { padding-inline: 8px; }
+  .em-secondary .rel { display: block; }
+  .bottom-nav a { min-height: 56px; align-content: center; }
+  .bottom-nav a span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+}
+
 @media (max-width: 360px) {
   .vital-value { font-size: 1.75rem; }
   .plate-word { font-size: 2.2rem; }
   .plate-critical .plate-word { font-size: 2.5rem; }
   .plate-icon { width: 48px; height: 48px; }
 }
+
+/* mode demo: panel simulasi alat, dibingkai garis putus-putus tinta supaya jelas bukan bagian aplikasi asli */
+.demo-panel { margin-top: 28px; padding: 14px; border: 2px dashed var(--ink); border-radius: var(--r); background: var(--surface); }
+.demo-panel h2 { font-size: 1.1rem; }
+.demo-panel .seg { margin-bottom: 10px; }
+.demo-panel .row { flex-wrap: wrap; gap: 8px; }
+
+/* tombol & tanda "Matikan bunyi alat" di pelat Waspada/Darurat */
+.mute { margin: 12px 0 0; }
+.mute .btn { width: 100%; }
+.mute-done { display: flex; align-items: center; gap: 8px; font-weight: 700; }
+.warning-actions .mute { margin: 0; }
+/* tombol "Batal" di konfirmasi Hentikan alarm: di atas pelat merah teksnya putih */
+.plate-critical .btn.ghost { color: #fff; }
+.plate-critical .btn.ghost:hover { background: rgba(255, 255, 255, 0.14); }

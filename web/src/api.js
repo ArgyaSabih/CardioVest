@@ -3,6 +3,8 @@
 export const API_URL = '';
 // Socket.IO tidak bisa lewat rewrites Vercel, jadi di sana klien langsung ke server CardioVest.
 export const REALTIME_URL = process.env.NEXT_PUBLIC_REALTIME_URL || undefined;
+// Mode demo (Vercel tanpa server CardioVest): server ditiru di browser, lihat src/demo/backend.js.
+export const DEMO = process.env.NEXT_PUBLIC_CV_DEMO === '1';
 
 let token = null;
 try {
@@ -35,6 +37,11 @@ export class ApiError extends Error {
  * dan dikirim otomatis saat koneksi pulih; fungsi ini lalu mengembalikan { queued: true }.
  */
 export async function api(path, { method = 'GET', body, auth = true, queueable = false } = {}) {
+  if (DEMO) {
+    const { demoFetch } = await import('./demo/backend.js');
+    const r = await demoFetch(method, path, body, auth ? token : null);
+    return handle({ status: r.status, ok: r.status < 400, json: async () => r.data }, auth);
+  }
   let res;
   try {
     res = await fetch(`${API_URL}/api${path}`, {
@@ -49,8 +56,12 @@ export async function api(path, { method = 'GET', body, auth = true, queueable =
     if (queueable && navigator.serviceWorker?.controller) return { queued: true };
     throw new ApiError(0, 'Tidak ada koneksi ke server. Periksa internet ponsel.');
   }
+  return handle(res, auth);
+}
+
+async function handle(res, auth) {
   if (res.status === 204) return null;
-  const data = await res.json().catch(() => ({}));
+  const data = (await res.json().catch(() => ({}))) ?? {};
   if (!res.ok) {
     if (res.status === 401 && auth) {
       setToken(null);

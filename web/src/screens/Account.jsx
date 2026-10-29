@@ -63,20 +63,20 @@ export default function Account() {
   });
   const resend = run('email', async () => {
     await api('/auth/verify/kirim-ulang', { method: 'POST' });
-    return emailConfigured ? 'Email verifikasi dikirim ulang. Periksa juga folder spam.' : 'Server belum dikonfigurasi untuk mengirim email; tautan verifikasi dicetak di log server.';
+    return emailConfigured ? 'Terkirim. Cek juga folder spam.' : 'Pengiriman email belum diatur di server.';
   });
   const pushOn = run('notif', async () => {
     setSub(await enablePush());
-    return 'Notifikasi aktif di ponsel ini.';
+    return null;
   });
   const pushOff = run('notif', async () => {
     await disablePush();
     setSub(null);
-    return 'Notifikasi dimatikan untuk ponsel ini.';
+    return null;
   });
   const pushTest = run('notif', async () => {
     const r = await api('/push/test', { method: 'POST' });
-    return `Notifikasi uji terkirim ke ${r.delivered} dari ${r.recipients} ponsel Anda.`;
+    return `Terkirim ke ${r.delivered} dari ${r.recipients} ponsel.`;
   });
   const unpair = run('alat', async () => {
     await api('/devices/pair', { method: 'DELETE', body: { password: unpairPw } });
@@ -92,7 +92,6 @@ export default function Account() {
       <SignBar icon="user" title="Akun" />
 
       <Section title="Notifikasi di ponsel ini" icon="bell">
-        <p className="muted">Status Waspada hanya dikabarkan ke Anda. Status Darurat dikabarkan ke Anda dan semua kontak darurat.</p>
         {!pushSupported() && isIos() && !isStandalone() && (
           <p className="note-warn">Di iPhone: ketuk Bagikan, lalu pilih “Tambahkan ke Layar Utama”, lalu buka CardioVest dari ikon itu.</p>
         )}
@@ -118,7 +117,7 @@ export default function Account() {
             </dl>
             {unpairing ? (
               <form className="confirm form" onSubmit={unpair}>
-                <p>Setelah dilepas, aplikasi ini berhenti menampilkan data alat dan kontak tidak dikabari lagi. Masukkan kata sandi untuk melanjutkan.</p>
+                <p>Setelah dilepas, tidak ada lagi yang dikabari saat darurat.</p>
                 <label>Kata sandi<input type="password" value={unpairPw} onChange={(e) => setUnpairPw(e.target.value)} autoComplete="current-password" required autoFocus /></label>
                 <div className="row">
                   <button className="btn small danger solid" disabled={busy || !unpairPw}>Lepas alat</button>
@@ -162,15 +161,13 @@ export default function Account() {
       {!isStandalone() && (
         <Section title="Pasang di layar utama" icon="download">
           <p className="muted">
-            Dari layar utama, CardioVest terbuka seperti aplikasi biasa dan lebih cepat dibuka saat darurat.{' '}
-            {isIos() ? 'Di Safari: ketuk Bagikan, lalu pilih Tambahkan ke Layar Utama.' : 'Di Chrome: buka menu titik tiga, lalu pilih Tambahkan ke layar utama.'}
+            {isIos() ? 'Safari: ketuk Bagikan, pilih Tambahkan ke Layar Utama.' : 'Chrome: buka menu, pilih Tambahkan ke layar utama.'}
           </p>
         </Section>
       )}
 
       <div className="group-end">
         <button className="btn wide" onClick={() => window.dispatchEvent(new Event('cv:logout'))}>Keluar dari akun</button>
-        <p className="muted small" style={{ marginTop: 12 }}>Anda menyetujui pemrosesan data kesehatan pada {user.consent_ts ? fmtTime(user.consent_ts) : '-'}.</p>
       </div>
     </>
   );

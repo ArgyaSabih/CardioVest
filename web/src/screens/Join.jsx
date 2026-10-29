@@ -44,11 +44,7 @@ export default function Join() {
       {info && (
         <>
           <h1>Kontak darurat untuk {info.user_name}</h1>
-          <p>
-            {info.user_name} mendaftarkan Anda ({info.name}) sebagai kontak darurat CardioVest. Bila alatnya mendeteksi
-            kondisi jantung kritis, ponsel ini menerima notifikasi berisi lokasi {info.user_name}, lengkap dengan tombol
-            untuk mengabarkan bahwa Anda sudah menerimanya.
-          </p>
+          <p>Nyalakan notifikasi supaya ponsel ini dikabari beserta lokasi {info.user_name} saat darurat.</p>
           {!pushSupported() && isIos() && !isStandalone() && (
             <p className="note-warn">Di iPhone: ketuk Bagikan, lalu pilih “Tambahkan ke Layar Utama”, buka dari ikon itu, lalu buka tautan undangan ini lagi.</p>
           )}
@@ -63,10 +59,7 @@ export default function Join() {
             </button>
           )}
           <ErrorNote error={err} />
-          <p className="muted small">
-            Anda tidak perlu membuat akun. Notifikasi hanya dikirim saat keadaan darurat. Data Anda yang disimpan hanya
-            nama dan nomor yang didaftarkan {info.user_name}.
-          </p>
+          <p className="muted small">Tanpa akun. Notifikasi hanya saat darurat.</p>
         </>
       )}
     </main>

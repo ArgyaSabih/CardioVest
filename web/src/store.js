@@ -4,12 +4,14 @@ import { configureStore, createSlice } from '@reduxjs/toolkit';
 
 const auth = createSlice({
   name: 'auth',
-  initialState: { user: null, device: null, emailConfigured: false, loaded: false },
+  initialState: { user: null, device: null, emailConfigured: false, ambulance: null, whatsapp: false, loaded: false },
   reducers: {
     me: (s, a) => {
       s.user = a.payload.user;
       s.device = a.payload.device;
       s.emailConfigured = !!a.payload.email_configured;
+      s.ambulance = a.payload.ambulance ?? null;
+      s.whatsapp = !!a.payload.whatsapp_configured;
       s.loaded = true;
     },
     user: (s, a) => {
@@ -18,7 +20,7 @@ const auth = createSlice({
     device: (s, a) => {
       s.device = a.payload;
     },
-    clear: () => ({ user: null, device: null, emailConfigured: false, loaded: true }),
+    clear: () => ({ user: null, device: null, emailConfigured: false, ambulance: null, whatsapp: false, loaded: true }),
   },
 });
 
@@ -41,6 +43,7 @@ const liveInit = {
   fall: false,
   leadOff: false,
   event: null,
+  ambulance: null,
   contacts: [],
 };
 
@@ -70,6 +73,7 @@ const live = createSlice({
         fall: !!d.event?.fall_detected,
         leadOff: !!d.vital?.lead_off,
         event: d.event,
+        ambulance: d.ambulance ?? null,
         contacts: d.contacts || [],
         remoteReset: d.remote_reset !== false,
       });

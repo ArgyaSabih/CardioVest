@@ -3,15 +3,15 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import Icon from './icons.jsx';
 
-// Teks status untuk User Utama (pemakai alat), Tabel 7.1. Kontak darurat membaca versi orang ketiga di
-// halaman darurat. Kalimat pertama selalu tindakan; penjelasan menyusul. Kata "serangan jantung" tidak
-// dipakai di layar pemakai karena sistem ini bukan alat diagnosis (7.3.1).
+// Teks status untuk User Utama (pemakai alat), Tabel 7.1. Satu kalimat pendek per status; tindakan ada
+// di tombol. Kata "serangan jantung" tidak dipakai di layar pemakai karena sistem ini bukan alat
+// diagnosis (7.3.1).
 export const STATE_TEXT = {
-  NORMAL: { cls: 'normal', icon: 'heart', word: 'Normal', line: 'Jantung Anda sedang dipantau. Tidak ada tanda bahaya.' },
-  WARNING: { cls: 'warning', icon: 'alert', word: 'Waspada', line: 'Pola detak jantung Anda tidak biasa. Lakukan ini sekarang:' },
-  CRITICAL: { cls: 'critical', icon: 'cross', word: 'Darurat', line: 'Telepon 119 sekarang. Keluarga sudah dikabari beserta lokasi Anda.' },
+  NORMAL: { cls: 'normal', icon: 'heart', word: 'Normal', line: 'Tidak ada tanda bahaya.' },
+  WARNING: { cls: 'warning', icon: 'alert', word: 'Waspada', line: 'Detak jantung tidak biasa.' },
+  CRITICAL: { cls: 'critical', icon: 'cross', word: 'Darurat', line: 'Keluarga sudah dikabari beserta lokasi Anda.' },
   // bukan state FSM: alat tidak mengirim data, jadi status jantung tidak diketahui
-  UNMONITORED: { cls: 'unmonitored', icon: 'unlinked', word: 'Tidak terpantau', line: 'Alat tidak mengirim data. Jantung Anda sedang tidak dipantau.' },
+  UNMONITORED: { cls: 'unmonitored', icon: 'unlinked', word: 'Tidak terpantau', line: 'Alat tidak mengirim data.' },
 };
 
 export const CONNECTION_TEXT = {
@@ -43,7 +43,7 @@ export function displayState(state, connection) {
  * kata. Warna mengikuti LED tiga warna di alat (hijau, kuning, merah). Saat status berubah, pelat
  * "berputar" seperti papan putar (key berubah memicu animasi; mati bila reduced motion).
  */
-export function StateBanner({ state, connection, sinceTs, lastSeen, children }) {
+export function StateBanner({ state, connection, sinceTs, lastSeen, line, children }) {
   const shown = displayState(state, connection);
   const t = STATE_TEXT[shown];
   const linked = connection === 'online' || connection === 'buffering';
@@ -55,12 +55,12 @@ export function StateBanner({ state, connection, sinceTs, lastSeen, children }) 
           {/* hanya kata status yang diumumkan pembaca layar; teks waktu berubah tiap 15 detik */}
           <h1 className="plate-word" id="status-word" aria-live={shown === 'CRITICAL' ? 'assertive' : 'polite'} aria-atomic="true">{t.word}</h1>
         </div>
-        <p className="plate-line">{t.line}</p>
+        <p className="plate-line">{line ?? t.line}</p>
         {!linked && shown !== 'UNMONITORED' && (
-          <p className="plate-offline">Alat terputus{lastSeen ? ` sejak ${since(lastSeen)}` : ''}. Status ini yang terakhir diketahui.</p>
+          <p className="plate-offline">Alat terputus{lastSeen ? ` sejak ${since(lastSeen)}` : ''}.</p>
         )}
         {children}
-        {shown !== 'NORMAL' && shown !== 'UNMONITORED' && sinceTs && <p className="plate-since">Status ini mulai {since(sinceTs)}.</p>}
+        {shown !== 'NORMAL' && shown !== 'UNMONITORED' && sinceTs && <p className="plate-since">Mulai {since(sinceTs)}</p>}
       </div>
     </section>
   );
@@ -130,13 +130,7 @@ export function BottomNav() {
 
 /** Disclaimer permanen di halaman aplikasi (Subbab 7.3.1). */
 export function Disclaimer() {
-  return (
-    <p className="disclaimer" role="note">
-      CardioVest adalah prototipe penelitian, bukan alat medis tersertifikasi. Peringatan dari aplikasi adalah
-      indikator kewaspadaan, bukan diagnosis. Bila ada nyeri dada, sesak, atau pingsan, langsung{' '}
-      <a href="tel:119">telepon 119</a>.
-    </p>
-  );
+  return <p className="disclaimer" role="note">Prototipe penelitian, bukan alat medis tersertifikasi.</p>;
 }
 
 export function ErrorNote({ error }) {
@@ -162,18 +156,45 @@ export const fmtDuration = (s) => {
 
 const PhoneIcon = () => <Icon name="phone" size={24} stroke={2.2} />;
 
+// Kontak utama darurat bila server tidak mengirim datanya (revisi dosen 28-10-2026)
+export const DEFAULT_AMBULANCE = { name: 'AmbulanMU Kota Yogyakarta', phone: '+6281319123637' };
+const shortName = (n) => n.replace(/\s+Kota Yogyakarta$/, '');
+const digits = (p) => {
+  const d = String(p).replace(/\D/g, '');
+  return d.startsWith('0') ? `62${d.slice(1)}` : d;
+};
+
 /**
- * Tombol telepon saat darurat. 119 (ambulans) satu-satunya tombol besar; kontak keluarga tombol
- * sekunder; 112 hanya tautan karena memilih di antara dua nomor darurat adalah keputusan yang tidak perlu.
+ * Tautan WhatsApp dengan pesan sudah terisi. Di ponsel dipakai skema whatsapp:// yang langsung membuka
+ * aplikasi WhatsApp tanpa halaman perantara; di komputer wa.me.
  */
-export function CallButtons({ contacts, ambulance = true, callRef }) {
+export function waLink(phone, text) {
+  const q = `phone=${digits(phone)}&text=${encodeURIComponent(text)}`;
+  const mobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  return mobile ? `whatsapp://send?${q}` : `https://wa.me/${digits(phone)}?text=${encodeURIComponent(text)}`;
+}
+
+export const mapsUrl = (g) => `https://www.google.com/maps?q=${g.lat.toFixed(6)},${g.lng.toFixed(6)}`;
+
+/**
+ * Tombol darurat, satu ketuk tanpa dialog di aplikasi: telepon AmbulanMU (tombol terbesar), WhatsApp
+ * AmbulanMU dengan pesan dan lokasi sudah terisi, lalu telepon keluarga. 119 hanya cadangan.
+ * `who` = nama pasien untuk isi pesan; `self` = dibuka oleh pasien sendiri (kalimat orang pertama).
+ */
+export function CallButtons({ ambulance, contacts, who, self = false, gps, callRef }) {
+  const amb = ambulance ?? DEFAULT_AMBULANCE;
+  const msg = [
+    self ? `DARURAT. Saya ${who} butuh ambulans.` : `DARURAT. ${who} butuh ambulans.`,
+    gps ? `Lokasi: ${mapsUrl(gps)}` : null,
+  ].filter(Boolean).join('\n');
   return (
     <div className="em-actions">
-      {ambulance && (
-        <a className="btn em-call" href="tel:119" ref={callRef}>
-          <PhoneIcon />Telepon ambulans 119
-        </a>
-      )}
+      <a className="btn em-call" href={`tel:${amb.phone}`} ref={callRef}>
+        <PhoneIcon />Telepon {shortName(amb.name)}
+      </a>
+      <a className="btn em-secondary em-wa" href={waLink(amb.phone, msg)}>
+        <Icon name="chat" size={22} stroke={2.2} />WhatsApp {shortName(amb.name)}
+      </a>
       {contacts?.length > 0 && (
         <div className="em-contacts">
           {contacts.map((c) => (
@@ -183,16 +204,17 @@ export function CallButtons({ contacts, ambulance = true, callRef }) {
           ))}
         </div>
       )}
-      {ambulance && <a className="em-alt" href="tel:112">Ambulans tidak bisa dihubungi? Telepon 112</a>}
+      <a className="em-alt" href="tel:119">Tidak tersambung? Telepon 119</a>
     </div>
   );
 }
 
-/** Bilah 119 yang menempel di atas navigasi saat tombol utama sudah tergulir keluar layar. */
-export function StickyCall() {
+/** Bilah telepon yang menempel di atas navigasi saat tombol utama sudah tergulir keluar layar. */
+export function StickyCall({ ambulance }) {
+  const amb = ambulance ?? DEFAULT_AMBULANCE;
   return (
-    <a className="sticky-call" href="tel:119">
-      <PhoneIcon />Telepon ambulans 119
+    <a className="sticky-call" href={`tel:${amb.phone}`}>
+      <PhoneIcon />Telepon {shortName(amb.name)}
     </a>
   );
 }

@@ -81,16 +81,12 @@ export default function History() {
         )}
       </div>
       <ErrorNote error={err} />
-      {rows === null && !err && <p className="muted">Memuat riwayat…</p>}
+      {rows === null && !err && <p className="muted">Memuat…</p>}
       {rows?.length === 0 && (
         filtered ? (
-          <p className="empty"><strong>Tidak ada kejadian yang cocok.</strong>Coba pilih jenis atau rentang waktu lain.</p>
+          <p className="empty"><strong>Tidak ada kejadian.</strong>Coba jenis atau rentang waktu lain.</p>
         ) : (
-          <p className="empty">
-            <strong>Belum pernah ada peringatan.</strong>
-            Setiap kali status berubah menjadi Waspada atau Darurat, kejadiannya tercatat di sini lengkap dengan
-            rekaman EKG yang bisa diunduh untuk dokter.
-          </p>
+          <p className="empty"><strong>Belum pernah ada peringatan.</strong>Waspada dan Darurat tercatat di sini.</p>
         )
       )}
       {days.map((d) => (

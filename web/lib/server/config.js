@@ -40,6 +40,13 @@ export const cfg = {
   dataDir: env('DATA_DIR', './data'),
   publicUrl: env('PUBLIC_URL', '').replace(/\/$/, ''),
   // asal (origin) frontend lain yang boleh membuka Socket.IO, mis. domain Vercel: https://cardiovest.vercel.app
+  // kontak utama darurat (revisi dosen 28-10-2026): selalu di urutan pertama, tidak bisa dihapus.
+  // Nomor dari pdmjogja.org/ambulanmu (tujuan WhatsApp formulir AmbulanMU Kota Yogyakarta).
+  ambulance: env('AMBULANCE_PHONE', '+6281319123637')
+    ? { name: env('AMBULANCE_NAME', 'AmbulanMU Kota Yogyakarta'), phone: env('AMBULANCE_PHONE', '+6281319123637') }
+    : null,
+  // WhatsApp otomatis saat Darurat lewat gateway Fonnte (fonnte.com). Kosong = pesan hanya dicetak ke log.
+  fonnteToken: env('FONNTE_TOKEN', ''),
   // rahasia bersama dengan proxy.js di Vercel; kosong = header IP dari Vercel tidak dipercaya
   proxySecret: env('PROXY_SECRET', ''),
   allowedOrigins: env('ALLOWED_ORIGINS', '').split(',').map((s) => s.trim().replace(/\/$/, '')).filter(Boolean),

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { api, getToken, setToken } from '../api.js';
+import { DEMO, api, getToken, setToken } from '../api.js';
 import { startSession } from '../session.js';
 import { ErrorNote, Wordmark } from '../components/ui.jsx';
 
@@ -56,8 +56,11 @@ export default function Login() {
   return (
     <main className="page login">
       <Brand>
-        <p className="muted">Kaos pemantau jantung yang mengabari keluarga saat kondisi Anda memburuk.</p>
+        <p className="muted">Kaos pemantau jantung yang mengabari keluarga saat darurat.</p>
       </Brand>
+      {DEMO && (
+        <p className="note-info">Mode demo: daftar dengan email apa saja. Alat <strong>cv-001</strong>, kode <strong>482913</strong>.</p>
+      )}
       <div className="tabs" role="tablist">
         <button role="tab" aria-selected={tab === 'masuk'} onClick={() => { setTab('masuk'); setErr(''); }}>Masuk</button>
         <button role="tab" aria-selected={tab === 'daftar'} onClick={() => { setTab('daftar'); setErr(''); }}>Daftar</button>
@@ -69,7 +72,7 @@ export default function Login() {
         <label>Email<input type="email" value={f.email} onChange={set('email')} autoComplete="email" required /></label>
         {tab === 'daftar' && (
           <label>
-            Nomor HP <span className="muted small">(opsional, agar kontak darurat bisa menelepon Anda)</span>
+            Nomor HP <span className="muted small">(opsional)</span>
             <input type="tel" value={f.phone} onChange={set('phone')} placeholder="+6281234567890" autoComplete="tel" />
           </label>
         )}
@@ -83,8 +86,8 @@ export default function Login() {
             <label className="consent">
               <input type="checkbox" checked={f.consent} onChange={set('consent')} required />
               <span>
-                Saya setuju data EKG, denyut, GSR, gerak, dan lokasi saya diproses untuk pemantauan dan dibagikan ke kontak
-                darurat yang saya daftarkan saat keadaan darurat (UU No. 27 Tahun 2022 tentang Pelindungan Data Pribadi).
+                Saya setuju data kesehatan dan lokasi saya diproses, dan dikirim ke AmbulanMU serta kontak darurat saat
+                darurat (UU No. 27/2022).
               </span>
             </label>
           </>
@@ -93,7 +96,7 @@ export default function Login() {
         <button className="btn primary" disabled={busy}>{busy ? 'Memproses…' : tab === 'masuk' ? 'Masuk' : 'Buat akun'}</button>
         {tab === 'masuk' && <Link href="/lupa-sandi" className="link">Lupa kata sandi?</Link>}
       </form>
-      <p className="disclaimer">CardioVest adalah prototipe penelitian dan alat pemantau pendamping, bukan pengganti diagnosis dokter.</p>
+      <p className="disclaimer">Prototipe penelitian, bukan alat medis tersertifikasi.</p>
     </main>
   );
 }
@@ -116,7 +119,7 @@ export function Forgot() {
       <Brand />
       <h2>Lupa kata sandi</h2>
       {done ? (
-        <p className="ok">Bila email itu terdaftar, tautan untuk membuat kata sandi baru sudah dikirim. Periksa juga folder spam.</p>
+        <p className="ok">Bila email terdaftar, tautan sudah dikirim. Cek juga folder spam.</p>
       ) : (
         <form className="form" onSubmit={submit}>
           <label>Email akun<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" /></label>

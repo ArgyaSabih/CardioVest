@@ -1,8 +1,14 @@
 // Web Push standar (VAPID) dari server CardioVest. Service worker kita (src/sw.js) yang menampilkan
 // notifikasi, sehingga peringatan tetap muncul walau aplikasi tertutup (F-APP-5).
-import { api } from './api.js';
+import { DEMO, api } from './api.js';
 
-export const pushSupported = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+// mode demo: tidak ada server Web Push, notifikasi ditampilkan langsung oleh browser ini
+export const pushSupported = () => (DEMO ? 'Notification' in window
+  : 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window);
+const demoSub = () => ({
+  endpoint: 'demo', toJSON: () => ({ endpoint: 'demo', keys: { p256dh: 'demo', auth: 'demo' } }),
+  unsubscribe: async () => true,
+});
 export const isIos = () => /iphone|ipad|ipod/i.test(navigator.userAgent);
 export const isStandalone = () => window.matchMedia?.('(display-mode: standalone)').matches || navigator.standalone === true;
 
@@ -18,12 +24,18 @@ function b64ToBytes(b64) {
 }
 
 export async function currentSubscription() {
+  if (DEMO) return (await import('./demo/backend.js')).pushOn() ? demoSub() : null;
   if (!pushSupported()) return null;
   const reg = await navigator.serviceWorker.getRegistration();
   return (await reg?.pushManager.getSubscription()) ?? null;
 }
 
 async function subscribe() {
+  if (DEMO) {
+    if (!pushSupported()) throw new Error('Browser ini tidak mendukung notifikasi.');
+    if ((await Notification.requestPermission()) !== 'granted') throw new Error('Izin notifikasi ditolak. Aktifkan lagi dari pengaturan situs di browser.');
+    return demoSub();
+  }
   if (!pushSupported()) {
     throw new Error(isIos() && !isStandalone()
       ? 'Di iPhone, notifikasi baru bisa dinyalakan setelah aplikasi ditambahkan ke Layar Utama (Bagikan → Tambahkan ke Layar Utama), lalu dibuka dari ikon itu.'

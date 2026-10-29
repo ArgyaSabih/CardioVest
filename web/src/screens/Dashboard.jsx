@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useSelector } from 'react-redux';
 import Link from 'next/link';
 import { api } from '../api.js';
+import DemoPanel from '../components/DemoPanel.jsx';
 import { LiveEcg } from '../components/EcgStrip.jsx';
 import Icon from '../components/icons.jsx';
 import { AckList, CallButtons, Connection, StateBanner, StickyCall, Wordmark, displayState, since } from '../components/ui.jsx';
@@ -55,7 +56,6 @@ function HrTrend({ nowHr }) {
       </div>
       <div className="row between muted small">
         <span>{new Date(t0).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</span>
-        <span>pita abu-abu: wajar saat istirahat</span>
         <span>sekarang</span>
       </div>
     </section>
@@ -74,31 +74,77 @@ function ResetAlarm({ allowed }) {
       setTimeout(() => {
         setBusy(false);
         setAsk(false);
-        setErr('Alat belum menanggapi. Coba lagi, atau tahan tombol reset di alat selama 3 detik.');
+        setErr('Alat belum menanggapi. Coba lagi, atau tahan tombol reset di alat 3 detik.');
       }, 15_000);
     } catch (e) {
       setErr(e.message);
       setBusy(false);
     }
   };
-  if (!allowed) {
-    return <p className="state-note">Setelah pertolongan datang, tahan tombol reset di alat selama 3 detik untuk menghentikan alarm.</p>;
-  }
+  if (!allowed) return <p className="state-note">Sudah ditolong? Tahan tombol reset di alat 3 detik.</p>;
   return (
     <div className="reset-alarm">
+      <p className="state-note">Sudah ditolong? Hentikan alarm di sini, atau tahan tombol reset di alat 3 detik.</p>
       {!ask && !busy && (
         <button type="button" className="btn danger wide" onClick={() => setAsk(true)}>Hentikan alarm</button>
       )}
       {ask && !busy && (
         <>
-          <p className="state-note strong">Hentikan alarm hanya bila pertolongan sudah datang dan keadaan sudah aman.</p>
+          <p className="state-note strong">Hanya bila pertolongan sudah datang.</p>
           <button type="button" className="btn danger solid wide" onClick={send}>Ya, hentikan alarm</button>
           <button type="button" className="btn ghost wide" onClick={() => setAsk(false)}>Batal</button>
         </>
       )}
-      {busy && <p className="state-note" role="status">Menghentikan alarm… menunggu alat menanggapi.</p>}
+      {busy && <p className="state-note" role="status">Menunggu alat…</p>}
       {err && <p className="state-note" role="alert">{err}</p>}
-      <p className="state-note">Bisa juga dengan menahan tombol reset di alat selama 3 detik.</p>
+    </div>
+  );
+}
+
+/**
+ * Tombol "Matikan bunyi alat" saat rompi berbunyi (Waspada/Darurat). Yang diam hanya buzzer; status,
+ * LED, dan kabar ke keluarga tetap. Alat sendiri yang mengonfirmasi lewat data vital (buzzer_muted).
+ */
+function MuteButton({ muted, state, linked }) {
+  const [sentAt, setSentAt] = useState(null);
+  const [err, setErr] = useState('');
+  useEffect(() => {
+    setSentAt(null);
+    setErr('');
+  }, [state]);
+  useEffect(() => {
+    if (!sentAt || muted) return undefined;
+    const t = setTimeout(() => {
+      setSentAt(null);
+      setErr('Alat belum menjawab. Coba lagi.');
+    }, 10_000);
+    return () => clearTimeout(t);
+  }, [sentAt, muted]);
+  if (!linked) return null;
+  if (muted) {
+    return (
+      <p className="state-note mute-done">
+        <Icon name="mute" size={22} stroke={2.4} />
+        {state === 'CRITICAL' ? 'Bunyi alat dimatikan. Darurat tetap aktif.' : 'Bunyi alat dimatikan.'}
+      </p>
+    );
+  }
+  const send = async () => {
+    setErr('');
+    setSentAt(Date.now());
+    try {
+      await api('/devices/mute', { method: 'POST' });
+    } catch (e) {
+      setSentAt(null);
+      setErr(e.message);
+    }
+  };
+  return (
+    <div className="mute">
+      <button className="btn em-secondary" onClick={send} disabled={!!sentAt}>
+        <Icon name="mute" size={22} stroke={2.4} />{sentAt ? 'Mematikan bunyi…' : 'Matikan bunyi alat'}
+      </button>
+      {err && <p className="state-note strong" role="alert">{err}</p>}
     </div>
   );
 }
@@ -112,6 +158,7 @@ function hrRead(hr, flagged) {
 
 export default function Dashboard() {
   const live = useSelector((s) => s.live);
+  const { user, whatsapp } = useSelector((s) => s.auth);
   const [, tick] = useState(0);
   const callRef = useRef(null);
   const [callHidden, setCallHidden] = useState(false);
@@ -138,9 +185,9 @@ export default function Dashboard() {
   const critical = live.state === 'CRITICAL';
   const warning = live.state === 'WARNING';
   const fresh = linked && v && !v.stale;
-  const firstContact = live.contacts?.[0];
+  const amb = live.ambulance;
 
-  // bilah 119 menempel bila tombol utama sudah tergulir keluar layar
+  // bilah telepon AmbulanMU menempel bila tombol utama sudah tergulir keluar layar
   useEffect(() => {
     if (!critical || !callRef.current) {
       setCallHidden(false);
@@ -153,12 +200,10 @@ export default function Dashboard() {
 
   const hr = hrRead(v?.hr ? Math.round(v.hr) : null, val?.ind_hr);
   const gsrWord = !v || v.gsr == null ? null
-    : cal && !cal.calibrated ? 'Dikenali…'
+    : cal && !cal.calibrated ? '…'
       : val?.ind_gsr ? 'Lebih banyak' : 'Biasa';
   const moveWord = !v ? null : v.fall ? 'Jatuh' : v.moving == null ? null : v.moving ? 'Bergerak' : 'Diam';
   const staleNote = v?.ts ? `Terakhir ${since(v.ts)}` : 'Belum ada data';
-
-  const dec = (x) => x.toLocaleString('id-ID', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
   return (
     <>
@@ -166,12 +211,17 @@ export default function Dashboard() {
         <Wordmark small />
         <span className="signbar-side"><Connection connection={live.connection} hr={fresh ? v?.hr : null} /></span>
       </header>
-      <StateBanner state={live.state} connection={live.connection} sinceTs={live.since} lastSeen={v?.ts}>
+      <StateBanner
+        state={live.state}
+        connection={live.connection}
+        sinceTs={live.since}
+        lastSeen={v?.ts}
+        line={critical ? `${whatsapp && amb ? `${amb.name.replace(/ Kota Yogyakarta$/, '')} dan keluarga` : 'Keluarga'} sudah dikabari beserta lokasi Anda.` : undefined}
+      >
         {shown === 'UNMONITORED' && (
           <ol className="state-steps">
-            <li>Pastikan kaos CardioVest dipakai dan alatnya menyala.</li>
-            <li>Periksa baterai, lalu tunggu satu menit.</li>
-            <li>Data selama terputus tersimpan di alat sampai ±10 menit dan terkirim begitu tersambung lagi.</li>
+            <li>Pakai kaos dan nyalakan alat.</li>
+            <li>Periksa baterai.</li>
           </ol>
         )}
 
@@ -182,58 +232,26 @@ export default function Dashboard() {
               <li>Duduk.</li>
               <li>Tarik napas pelan.</li>
             </ol>
-            <p className="state-note strong">Bila dada terasa nyeri atau sesak:</p>
-            <a className="btn primary" href="tel:119"><Icon name="phone" />Telepon 119</a>
-            {firstContact && (
-              <a className="btn" href={`tel:${firstContact.phone}`}><Icon name="phone" />Telepon {firstContact.name}</a>
-            )}
-            <p className="state-note">
-              Keluarga belum dikabari. Mereka dikabari otomatis beserta lokasi Anda bila status menjadi Darurat.
-            </p>
+            <MuteButton muted={!!v?.buzzer_muted} state={live.state} linked={linked} />
+            <p className="state-note strong">Dada nyeri atau sesak?</p>
+            <CallButtons ambulance={amb} who={user?.name} self gps={null} />
           </div>
         )}
 
         {critical && (
           <div className="critical-actions">
-            <CallButtons contacts={live.contacts} callRef={callRef} />
-            {live.event?.acks?.length ? (
-              <AckList acks={live.event.acks} />
-            ) : (
-              <p className="state-note">Begitu ada keluarga yang membuka kabarnya, namanya muncul di sini.</p>
-            )}
-            {live.fall && <p className="state-note">Keluarga juga diberi tahu bahwa Anda terjatuh.</p>}
-            {live.gps ? (
-              <p className="state-note">
-                Lokasi Anda sudah terkirim{live.gps.acc ? ` (akurasi sekitar ${Math.round(live.gps.acc)} m)` : ''}.
-              </p>
-            ) : (
-              <p className="state-note">GPS sedang mencari sinyal. Lokasi dikirim ke keluarga begitu didapat.</p>
-            )}
-            {!linked && (
-              <p className="state-note">Bila alat terputus lebih dari 30 detik, alat mengirim SMS berisi lokasi ke keluarga.</p>
-            )}
+            <CallButtons ambulance={amb} contacts={live.contacts} who={user?.name} self gps={live.gps} callRef={callRef} />
+            <AckList acks={live.event?.acks} />
+            <MuteButton muted={!!v?.buzzer_muted} state={live.state} linked={linked} />
+            <p className="state-note">{live.gps ? 'Lokasi terkirim.' : 'Mencari sinyal GPS…'}</p>
             <ResetAlarm allowed={live.remoteReset && linked} />
-            <details className="state-more">
-              <summary>Kenapa status ini Darurat?</summary>
-              <p>EKG, denyut jantung, dan keringat Anda sama-sama menunjukkan tanda bahaya pada jantung pada saat yang sama.</p>
-              {live.event?.public_token && (
-                <p><Link href={`/darurat/${live.event.public_token}`}>Buka halaman darurat yang dilihat keluarga</Link></p>
-              )}
-            </details>
-            <p className="state-stranger">
-              Bukan pemilik ponsel ini? Pemiliknya mungkin mengalami gangguan jantung. Telepon 119.
-            </p>
+            <p className="state-stranger">Menemukan ponsel ini? Pemiliknya butuh ambulans. Tekan tombol telepon di atas.</p>
           </div>
         )}
       </StateBanner>
 
       {endedAt && Date.now() - endedAt < 10 * 60_000 && (
-        <p className="note-info">
-          Kejadian tadi sudah selesai dan tersimpan di <Link href="/riwayat">Riwayat</Link>, lengkap dengan rekaman EKG-nya.
-        </p>
-      )}
-      {live.connection === 'buffering' && (
-        <p className="note-info">Alat baru tersambung lagi dan sedang mengirim data yang tertunda. Riwayat lengkap sebentar lagi.</p>
+        <p className="note-info">Kejadian tadi tersimpan di <Link href="/riwayat">Riwayat</Link>.</p>
       )}
 
       <LiveEcg
@@ -242,7 +260,7 @@ export default function Dashboard() {
         overlay={
           live.leadOff ? 'Elektroda lepas. Rapatkan kaos ke dada.'
             : !linked ? `Rekaman terakhir, ${v?.ts ? since(v.ts) : 'sebelum alat terputus'}`
-              : live.signal?.ok === false ? 'Sinyal kurang bersih karena banyak bergerak atau kaos kurang menempel. Pemeriksaan ditunda sebentar.'
+              : live.signal?.ok === false ? 'Sinyal kurang bersih. Kurangi gerakan.'
                 : null
         }
       />
@@ -257,28 +275,26 @@ export default function Dashboard() {
           <span className="vital-label"><Icon name="drop" size={18} stroke={2.4} />Keringat</span>
           <span className="vital-value word">{gsrWord ?? '–'}</span>
           <span className="vital-note">
-            {!fresh ? staleNote
-              : cal && !cal.calibrated ? `Mengenali pola Anda (${Math.round(cal.progress_s)} dari ${cal.target_s} detik)`
-                : `${val?.ind_gsr ? 'Lebih dari biasanya' : 'Seperti biasanya'}${v?.gsr != null ? ` (indeks ${dec(v.gsr)})` : ''}`}
+            {fresh && cal && !cal.calibrated ? 'Mengenali pola Anda' : '\u00a0'}
           </span>
         </div>
         <div className={`vital ${fresh && v?.fall ? 'abn' : ''}`}>
           <span className="vital-label"><Icon name="walk" size={18} stroke={2.4} />Gerakan</span>
           <span className="vital-value word">{moveWord ?? '–'}</span>
-          <span className="vital-note">{!fresh ? staleNote : v?.fall ? (critical ? 'Keluarga diberi tahu' : 'Tercatat') : '\u00a0'}</span>
+          <span className="vital-note">{'\u00a0'}</span>
         </div>
       </section>
 
       <HrTrend nowHr={fresh ? v?.hr : null} />
+      <DemoPanel />
 
       {!live.contacts.length && (
         <p className="note-warn">
-          Belum ada kontak darurat, jadi saat darurat tidak ada yang dikabari.{' '}
-          <Link className="inline-action" href="/kontak">Tambahkan kontak</Link>
+          Belum ada kontak keluarga. <Link className="inline-action" href="/kontak">Tambah</Link>
         </p>
       )}
-      {!live.connected && <p className="offline-note" role="status">Ponsel ini terputus dari server. Menyambung lagi…</p>}
-      {critical && callHidden && <StickyCall />}
+      {!live.connected && <p className="offline-note" role="status">Terputus dari server. Menyambung lagi…</p>}
+      {critical && callHidden && <StickyCall ambulance={amb} />}
     </>
   );
 }

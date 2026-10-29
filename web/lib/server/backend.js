@@ -7,6 +7,8 @@
 // Backend tidak pernah mengubah state alat: keputusan tetap di layanan cloud. CRITICAL dilepas dengan tombol
 // fisik di alat (F-HW-6) atau, bila REMOTE_RESET=1, lewat permintaan reset dari beranda User Utama yang
 // diteruskan ke cloud (topik device/{id}/remote) dan baru berlaku setelah cloud memerintahkan alat.
+// Perintah langsung ke alat hanya "matikan bunyi" (app/api/devices/mute, topik device/{id}/buzzer):
+// buzzer diam, state tetap.
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import jwt from 'jsonwebtoken';
@@ -17,6 +19,7 @@ import { decodeEcg, toMv } from './codec.js';
 import * as cloud from './db.js';
 import { mailConfigured, resetMail, verifyMail } from './mail.js';
 import { dispatch, vapidPublicKey } from './push.js';
+import { sendWhatsApp, waConfigured } from './wa.js';
 import {
   MAX_CONTACTS, acks, checkSecret, contacts, devices, linkOf, notifLog, publicTokenFor, subs, tokens, users,
 } from './store.js';
@@ -60,6 +63,7 @@ const slimVital = (v) => ({
   gsr: v.gsr,
   fall: !!v.fall_detected,
   lead_off: !!v.lead_off,
+  buzzer_muted: !!v.buzzer_muted,
   local_state: v.local_state,
   moving: v.accel?.sd != null ? v.accel.sd > 0.08 : null,
 });
@@ -96,6 +100,7 @@ export function statusOf(dev, user) {
       public_token: ev.type === 'critical' ? publicTokenFor(dev, ev.id) : null,
       acks: acks.forEvent(dev, ev.id),
     } : null,
+    ambulance: cfg.ambulance,
     contacts: contacts.ofUser(user.id).map((c) => ({ name: c.name, relation: c.relation, phone: c.phone })),
     cloud_db: cloud.cloudDbReady(),
     remote_reset: cfg.remoteReset,
@@ -150,7 +155,7 @@ export function composeAlert(dev, a) {
     const token = a.event_id ? publicTokenFor(dev, a.event_id) : null;
     const titles = { critical: `DARURAT: ${name}`, critical_fall: `DARURAT: ${name} terjatuh`, critical_location: `Lokasi ${name} sudah tersedia` };
     const bodies = {
-      critical: 'Tanda bahaya pada jantung terdeteksi oleh EKG, denyut, dan keringat. Telepon 119, ketuk untuk lokasi.',
+      critical: 'Tanda bahaya pada jantung. Ketuk untuk menelepon AmbulanMU dan melihat lokasi.',
       critical_fall: 'Sensor gerak mencatat jatuh saat keadaan darurat. Ketuk untuk melihat lokasi.',
       critical_location: 'GPS alat sudah mendapat koordinat. Ketuk untuk petunjuk arah.',
     };
@@ -167,6 +172,64 @@ export function composeAlert(dev, a) {
       body: a.source === 'remote' ? 'Alarm dihentikan dari aplikasi.' : 'Tombol reset di alat sudah ditekan.', url: link('/') }) };
   }
   return null;
+}
+
+// ------------------------------------------------------------------ WhatsApp otomatis (revisi dosen)
+const clockWib = (ts) => new Intl.DateTimeFormat('id-ID', { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit' }).format(ts);
+const mapsUrl = (g) => `https://www.google.com/maps?q=${g.lat.toFixed(6)},${g.lng.toFixed(6)}`;
+// tautan halaman darurat hanya berguna bila alamatnya bisa dibuka dari ponsel lain
+const reachable = () => cfg.publicUrl && !/\/\/(localhost|127\.|0\.0\.0\.0)/.test(cfg.publicUrl);
+const waLocated = new Set(); // kejadian yang pesan pertamanya sudah berisi lokasi
+
+/** Pesan WhatsApp per penerima untuk satu peringatan, atau [] bila jenis ini tidak dikirim lewat WA. */
+export function composeWhatsApp(dev, a) {
+  const owner = devices.ownerOf(dev);
+  if (!owner || !a.event_type || a.event_type === 'warning') return [];
+  const name = owner.name;
+  const family = contacts.ofUser(owner.id);
+  const amb = cfg.ambulance;
+  const key = `${dev}:${a.event_id}`;
+  const gps = a.gps?.lat != null ? { lat: a.gps.lat, lng: a.gps.lng ?? a.gps.lon } : live(dev).trail.at(-1) ?? null;
+  const token = a.event_id ? publicTokenFor(dev, a.event_id) : null;
+  const page = (c) => (reachable() && token ? `${cfg.publicUrl}/darurat/${token}${c ? `?k=${c.invite_code}` : ''}` : null);
+  const where = gps ? `Lokasi: ${mapsUrl(gps)}` : 'Lokasi: menyusul, GPS alat masih mencari sinyal.';
+  const lines = (...xs) => xs.filter(Boolean).join('\n');
+  const at = clockWib(a.timestamp ?? now());
+
+  if (a.event_type === 'critical') {
+    if (gps) waLocated.add(key);
+    const fell = a.fall_detected ? ' dan terjatuh' : '';
+    const out = family.map((c) => ({ name: c.name, phone: c.phone, text: lines(
+      `DARURAT CardioVest`,
+      `${name} diduga mengalami serangan jantung${fell} pukul ${at} WIB.${amb ? ` ${amb.name} sudah dikabari.` : ''}`,
+      where,
+      owner.phone && `Telepon ${name}: ${owner.phone}`,
+      page(c) && `Lokasi terkini: ${page(c)}`,
+    ) }));
+    if (amb) out.unshift({ name: amb.name, phone: amb.phone, text: lines(
+      `DARURAT CardioVest`,
+      `${name} diduga mengalami serangan jantung${fell} pukul ${at} WIB. Mohon kirim ambulans.`,
+      where,
+      owner.phone && `Telepon pasien: ${owner.phone}`,
+      family[0] && `Keluarga: ${family[0].name}, ${family[0].phone}`,
+      page(null) && `Lokasi terkini: ${page(null)}`,
+    ) });
+    return out;
+  }
+  const everyone = [...(amb ? [{ name: amb.name, phone: amb.phone }] : []), ...family.map((c) => ({ name: c.name, phone: c.phone }))];
+  if (a.event_type === 'critical_location') {
+    if (!gps || waLocated.has(key)) return [];
+    waLocated.add(key);
+    return everyone.map((p) => ({ ...p, text: lines(`CardioVest: lokasi ${name} sudah ditemukan.`, `Lokasi: ${mapsUrl(gps)}`) }));
+  }
+  if (a.event_type === 'critical_fall') {
+    return everyone.map((p) => ({ ...p, text: lines(`CardioVest: ${name} terjatuh pukul ${at} WIB. Keadaan darurat masih berlangsung.`, gps && `Lokasi: ${mapsUrl(gps)}`) }));
+  }
+  if (a.event_type === 'resolved') {
+    waLocated.delete(key);
+    return family.map((c) => ({ name: c.name, phone: c.phone, text: `CardioVest: alarm darurat ${name} dimatikan dari alat pukul ${at} WIB.` }));
+  }
+  return [];
 }
 
 // ------------------------------------------------------------------ Socket.IO + MQTT, dipasang ke server HTTP
@@ -223,8 +286,11 @@ export function startBackend(server) {
   async function notify(dev, a) {
     const m = composeAlert(dev, a);
     if (!m) return;
+    const wa = composeWhatsApp(dev, a);
+    const whatsapp = wa.length ? sendWhatsApp({ deviceId: dev, eventId: a.event_id ?? null, eventType: a.event_type, recipients: wa }) : null;
     const r = await dispatch({ deviceId: dev, audience: m.audience, build: m.build, urgent: m.urgent, eventId: a.event_id ?? null, eventType: a.event_type });
     console.log(`[push] ${dev} ${a.event_type} -> ${m.audience === 'user' ? 'User Utama' : 'User Utama + kontak'}: ${r.delivered}/${r.recipients} terkirim, ${r.attempts} percobaan`);
+    await whatsapp;
   }
 
   const handlers = {
@@ -320,7 +386,7 @@ export function startBackend(server) {
   // semua yang dibutuhkan Route Handlers (app/api) — satu instans untuk seluruh proses
   const ctx = {
     cfg, cloud, users, tokens, devices, contacts, subs, acks, notifLog, linkOf, publicTokenFor, checkSecret,
-    MAX_CONTACTS, dispatch, vapidPublicKey, mailConfigured, verifyMail, resetMail,
+    MAX_CONTACTS, dispatch, vapidPublicKey, waConfigured, mailConfigured, verifyMail, resetMail,
     live, connection, statusOf, sign, userFromAuth, limited, clearLimit, io, mq, notify, remoteReset,
   };
   globalThis.__cardiovest = ctx;

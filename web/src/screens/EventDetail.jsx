@@ -13,13 +13,15 @@ import { AckList, CLASS_TEXT, END_TEXT, ErrorNote, SignBar, fmtDuration, fmtTime
 
 Chart.register(LineController, LineElement, PointElement, LinearScale, Tooltip, Filler);
 const STATE_ID = { NORMAL: 'Normal', WARNING: 'Waspada', CRITICAL: 'Darurat' };
-const AUDIENCE = { user: 'Anda', all: 'Anda dan kontak darurat' };
-const KIND = { warning: 'Peringatan waspada', critical: 'Kabar darurat', critical_fall: 'Kabar terjatuh', critical_location: 'Lokasi', resolved: 'Kabar darurat selesai' };
+const AUDIENCE = { user: 'Anda', all: 'Anda dan keluarga', whatsapp: 'WhatsApp AmbulanMU dan keluarga' };
+const KIND = { mute: 'Bunyi alat dimatikan', warning: 'Peringatan waspada', critical: 'Kabar darurat', critical_fall: 'Kabar terjatuh', critical_location: 'Lokasi', resolved: 'Kabar darurat selesai' };
 const clock = (ts) => new Date(ts).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
 function delivery(n) {
+  const unit = n.audience === 'whatsapp' ? 'nomor' : 'ponsel';
+  if (n.audience === 'whatsapp' && n.attempts === 0) return 'belum aktif, gateway WhatsApp belum diisi';
   if (!n.recipients) return 'belum ada ponsel yang menyalakan notifikasi';
-  const ok = n.delivered === n.recipients ? `sampai di ${n.recipients} ponsel` : `sampai di ${n.delivered} dari ${n.recipients} ponsel`;
+  const ok = n.delivered === n.recipients ? `sampai di ${n.recipients} ${unit}` : `sampai di ${n.delivered} dari ${n.recipients} ${unit}`;
   return n.attempts > 1 ? `${ok} setelah ${n.attempts} kali coba` : ok;
 }
 
@@ -149,7 +151,7 @@ export default function EventDetail() {
       <SignBar tone={ev.type} icon={ev.type === 'critical' ? 'cross' : 'alert'} title={ev.type === 'critical' ? 'Kejadian darurat' : 'Kejadian waspada'} />
       <dl className="facts">
         <dt>Waktu</dt><dd>{fmtTime(ev.start_ts)}, {ev.end_ts ? fmtDuration(dur) : `berlangsung ${fmtDuration(dur)}`}</dd>
-        <dt>Pola EKG</dt><dd>{CLASS_TEXT[ev.class] ?? 'diputuskan oleh alat'}{ev.peak_conf != null ? `, keyakinan tertinggi ${Math.round(ev.peak_conf * 100)}%` : ''}</dd>
+        <dt>Pola EKG</dt><dd>{CLASS_TEXT[ev.class] ?? 'diputuskan oleh alat'}</dd>
         {ev.type === 'critical' && <><dt>Jatuh</dt><dd>{ev.fall_detected ? 'Ya, terdeteksi' : 'Tidak terdeteksi'}</dd></>}
         {ev.end_reason && <><dt>Berakhir</dt><dd>{END_TEXT[ev.end_reason] ?? ev.end_reason}</dd></>}
       </dl>
@@ -163,24 +165,8 @@ export default function EventDetail() {
         </div>
         {!hasEcg && <p className="muted">Rekaman EKG untuk kejadian ini tidak tersedia.</p>}
         {hasEcg && <StaticEcg samples={ev.ecg.mv} fs={ev.ecg.fs} pxPerMm={zoom} markAt={ev.ecg.mark_at} />}
-        <p className="muted small">Dimulai 20 detik sebelum kejadian. Garis merah menandai awalnya. Geser ke samping untuk melihat sisanya.</p>
+        <p className="muted small">Garis merah = awal kejadian. Geser ke samping.</p>
       </section>
-
-      {ev.probs && (
-        <section className="block">
-          <h2>Penilaian EKG oleh model</h2>
-          <p className="muted small">Pada potongan EKG yang paling menentukan di kejadian ini. Hanya sebagai catatan untuk dokter, bukan diagnosis.</p>
-          <div className="probs neutral">
-            {['Normal', 'Pra-Serangan', 'Serangan'].map((k, i) => (
-              <div key={k} className="prob">
-                <span>{CLASS_TEXT[k]}</span>
-                <span className="bar"><span className="fill" style={{ width: `${(ev.probs[i] ?? 0) * 100}%` }} /></span>
-                <span className="num">{Math.round((ev.probs[i] ?? 0) * 100)}%</span>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
 
       {ev.vitals.length > 0 && (
         <section className="block">
@@ -202,7 +188,18 @@ export default function EventDetail() {
             ))}
           </ol>
           <details className="tech">
-            <summary>Catatan sistem</summary>
+            <summary>Catatan teknis untuk dokter</summary>
+            {ev.probs && (
+              <div className="probs neutral" aria-label="Penilaian EKG oleh model">
+                {['Normal', 'Pra-Serangan', 'Serangan'].map((k, i) => (
+                  <div key={k} className="prob">
+                    <span>{CLASS_TEXT[k]}</span>
+                    <span className="bar"><span className="fill" style={{ width: `${(ev.probs[i] ?? 0) * 100}%` }} /></span>
+                    <span className="num">{Math.round((ev.probs[i] ?? 0) * 100)}%</span>
+                  </div>
+                ))}
+              </div>
+            )}
             <ul className="plain small">
               {ev.transitions.map((t) => <li key={t.ts}><time>{clock(t.ts)}</time> {t.reason}</li>)}
             </ul>
@@ -222,12 +219,14 @@ export default function EventDetail() {
         <section className="block">
           <h2>Siapa yang dikabari</h2>
           <ul className="plain">
-            {ev.notifications.map((n) => (
+            {ev.notifications.map((n) => (n.event_type === 'mute' ? (
+              <li key={n.id}><time>{clock(n.ts)}</time> Bunyi alat dimatikan dari aplikasi.</li>
+            ) : (
               <li key={n.id}>
                 <time>{clock(n.ts)}</time> {KIND[n.event_type] ?? n.event_type} untuk {AUDIENCE[n.audience] ?? n.audience}: {delivery(n)}.
-                {n.error ? <span className="muted"> Gagal: {n.error}.</span> : null}
+                {n.error && n.attempts > 0 ? <span className="muted"> Gagal: {n.error}.</span> : null}
               </li>
-            ))}
+            )))}
           </ul>
           <AckList acks={ev.acks} />
         </section>

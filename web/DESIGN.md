@@ -160,7 +160,7 @@ Satu-satunya ornamen adalah kertas EKG, karena ornamen itu berguna.
 ### Status (warna LED alat)
 - **Hijau LED (`led-green`):** pelat Normal, tanda "sudah menerima kabar", dan notifikasi aktif.
 - **Kuning rambu (`led-amber`):** pelat Waspada. Teks di atasnya selalu `amber-ink`.
-- **Merah IGD (`igd-red`, `igd-red-deep`):** hanya untuk pelat Darurat dan tombol telepon 119.
+- **Merah IGD (`igd-red`, `igd-red-deep`):** hanya untuk pelat Darurat dan tombol telepon AmbulanMU saat Darurat.
 - **Abu pelat (`idle-gray`):** pelat "Tidak terpantau" saat alat tidak mengirim data.
 
 ### Neutral
@@ -234,11 +234,19 @@ dibingkai tinta. Satu-satunya bayangan ada pada bilah 119 yang menempel saat men
   - Tinggi minimal 52 px, teks seimbang (`text-wrap: balance`).
   - Tombol utama biru penuh; tombol kedua bergaris biru.
   - Aksi merusak bergaris atau berisi tinta.
-  - Di pelat kuning, tombol memakai `amber-ink`; di pelat merah, tombol 119 putih.
-- **Darurat:**
-  - Hanya satu tombol besar, yaitu 119 (72 px).
-  - Kontak keluarga menjadi tombol sekunder, dan 112 menjadi tautan teks.
-  - Bilah 119 menempel di atas navigasi saat tombol utama tergulir keluar layar.
+  - Di pelat kuning, tombol memakai `amber-ink`; di pelat merah, tombol telepon putih.
+- **Darurat (revisi dosen 28-10-2026):**
+  - AmbulanMU Kota Yogyakarta adalah kontak utama. Satu tombol besar "Telepon AmbulanMU" (72 px).
+  - Di bawahnya "WhatsApp AmbulanMU" dengan pesan dan lokasi sudah terisi, lalu tombol telepon keluarga.
+  - 119 hanya tautan teks cadangan ("Tidak tersambung? Telepon 119").
+  - Semua tombol langsung membuka panggilan atau WhatsApp; tidak ada dialog konfirmasi di aplikasi.
+  - Bilah telepon AmbulanMU menempel di atas navigasi saat tombol utama tergulir keluar layar.
+- **Matikan bunyi alat:** tombol sekunder di pelat Waspada dan Darurat dengan piktogram pengeras suara
+  dicoret. Setelah alat mengonfirmasi, tombol berganti menjadi baris tebal "Bunyi alat dimatikan"
+  (di Darurat ditambah "Darurat tetap aktif"). Tidak ada dialog konfirmasi; bunyi kembali sendiri
+  bila status berubah.
+- **Kontak utama:** baris AmbulanMU selalu paling atas di Kontak, berlabel pelat biru "Kontak utama",
+  tidak bisa diubah atau dihapus, dipisah garis biru 4 px dari kontak keluarga.
 - **Pelat vital:** kepala biru dengan piktogram, isi putih dengan angka atau kata ("Wajar", "Lebih
   banyak"). Kepala menjadi merah saat Darurat abnormal dan abu saat data lama.
 - **Papan direktori:**
@@ -248,13 +256,16 @@ dibingkai tinta. Satu-satunya bayangan ada pada bilah 119 yang menempel saat men
 - **Konfirmasi (`.confirm`):** muncul di tempat, putih bergaris tinta, tombolnya menyebut aksinya.
 - **Galat (`.error`):** tinta di atas putih dengan piktogram peringatan.
 - **Navigasi bawah:** papan penunjuk biru. Tab aktif menjadi pelat putih dengan teks biru.
-- **Disclaimer:** pelat kecil bergaris 2 px di bawah setiap halaman, dengan "telepon 119" yang bisa
-  ditekan.
+- **Disclaimer:** pelat kecil bergaris 2 px di bawah setiap halaman, satu kalimat: "Prototipe penelitian,
+  bukan alat medis tersertifikasi."
 
 ## Do's and Don'ts
 
 **Do**
-- Mulai setiap status dengan satu kalimat tindakan.
+- Satu kalimat pendek per status; tindakan ada di tombol, bukan di paragraf.
+- Tulis hanya yang membantu orang bertindak sekarang. Penjelasan cara kerja sistem tempatnya di README,
+  bukan di layar.
+- Semua teks minimal 1rem (16 px), termasuk label, tombol kecil, dan catatan.
 - Tampilkan "Tidak terpantau", bukan "Normal", saat alat tidak mengirim data.
 - Pakai kata ("Wajar", "Tinggi") di samping warna.
 - Pakai panah piktogram untuk menunjuk tujuan.

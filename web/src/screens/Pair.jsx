@@ -100,9 +100,7 @@ export default function Pair() {
   return (
     <>
       <SignBar icon="qr" title="Pasangkan alat" />
-      <p className="muted">
-        Satu akun dipasangkan dengan satu alat CardioVest. ID alat dan kode pairing tertera di label pada alat.
-      </p>
+      <p className="muted">ID dan kode ada di label alat.</p>
       {scan ? (
         <Scanner
           onResult={(p) => {
@@ -122,9 +120,6 @@ export default function Pair() {
         <ErrorNote error={err} />
         <button className="btn primary" disabled={busy}>{busy ? 'Memasangkan…' : 'Pasangkan'}</button>
       </form>
-      <p className="muted small">
-        Kontak darurat bisa Anda tambahkan sekarang atau setelah pairing di menu Kontak.
-      </p>
     </>
   );
 }

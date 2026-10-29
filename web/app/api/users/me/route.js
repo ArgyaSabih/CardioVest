@@ -3,7 +3,10 @@ import { bad, cleanPhone, json, PHONE, route } from '@/lib/api';
 export const dynamic = 'force-dynamic';
 
 export const GET = route(async (r) =>
-  json({ user: r.user, device: r.ctx.devices.ofUser(r.user.id), email_configured: r.ctx.mailConfigured() }), { auth: true });
+  json({
+    user: r.user, device: r.ctx.devices.ofUser(r.user.id), email_configured: r.ctx.mailConfigured(),
+    ambulance: r.ctx.cfg.ambulance, whatsapp_configured: r.ctx.waConfigured(),
+  }), { auth: true });
 
 export const PUT = route(async (r) => {
   const { users, checkSecret } = r.ctx;

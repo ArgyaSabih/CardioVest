@@ -21,8 +21,10 @@ Semuanya satu proyek Next.js 16 (App Router). `server.mjs` menjalankan Next.js b
 harus hidup terus: pelanggan MQTT, Socket.IO, dan pengirim Web Push. Bagian itu tidak bisa berjalan
 di layanan serverless, jadi ada dua cara memasang aplikasi ini (lihat [Vercel](#vercel) di bawah).
 
-Server **tidak pernah** mengirim perintah ke alat. Keputusan tetap di layanan cloud, dan CRITICAL
-hanya bisa dilepas dengan tombol di rompi (F-HW-6, tahan 3 detik).
+Server tidak pernah mengubah status alat sendiri. Keputusan tetap di layanan cloud. CRITICAL dilepas
+dengan tombol di rompi (F-HW-6, tahan 3 detik), atau lewat **Hentikan alarm** di Beranda bila
+`REMOTE_RESET=1` (permintaannya diteruskan ke cloud). Perintah langsung dari aplikasi ke alat hanya
+**"Matikan bunyi alat"** (lihat di bawah).
 
 ## Isi folder
 
@@ -136,13 +138,78 @@ Ambil dengan `docker compose cp web:/data/label-cv-001.svg .`, cetak, lalu tempe
 5. Saat alat mendeteksi sesuatu:
    - **WARNING** → hanya ke User Utama ("istirahat dulu").
    - **CRITICAL** → User Utama dan semua kontak, berisi lokasi GPS dan status jatuh. Kontak membuka
-     Halaman 6 tanpa login, bisa menelepon 119/112 atau User Utama, dan menekan **"Saya terima"**.
-     Konfirmasi itu langsung muncul di beranda User Utama.
+     Halaman 6 tanpa login, bisa menelepon atau WhatsApp AmbulanMU dan User Utama, dan menekan
+     **"Saya terima"**. Konfirmasi itu langsung muncul di beranda User Utama.
+   - **CRITICAL** juga langsung mengirim **WhatsApp otomatis** ke AmbulanMU dan semua kontak (lihat di
+     bawah), tanpa ada yang perlu menekan tombol.
    - Kegagalan kirim dicoba sampai 5 kali dengan jeda 1, 2, 4, 8 detik + jitter (maksimal 32 s). Setiap
      percobaan dicatat dan bisa dilihat di detail kejadian.
 6. **Riwayat** (Halaman 5): filter jenis dan tanggal. Detail kejadian berisi EKG 20 detik sebelum
    sampai 20 detik sesudah, kelas CNN, urutan status, siapa saja yang dikirimi notifikasi, siapa yang
    sudah mengonfirmasi, dan tombol unduh PDF untuk dokter.
+
+## Tombol "Matikan bunyi alat"
+
+Saat rompi berbunyi (Waspada atau Darurat), Beranda menampilkan tombol **Matikan bunyi alat**. Begitu
+ditekan:
+
+- Yang diam **hanya buzzer**. Status Waspada/Darurat, LED, peringatan ke AmbulanMU dan keluarga, serta
+  halaman darurat tetap berjalan.
+- Bunyi kembali sendiri bila status berubah, misalnya Waspada naik menjadi Darurat.
+- Mematikan bunyi tidak mengakhiri Darurat. Untuk itu tetap dipakai tombol reset di alat (tahan 3 detik)
+  atau **Hentikan alarm** di Beranda (bila `REMOTE_RESET=1`).
+- Alat mengonfirmasi lewat data vitalnya (`buzzer_muted`), dan Beranda menulis "Bunyi alat dimatikan".
+  Kejadian ini tercatat di detail kejadian.
+- Bila alat sedang terputus dari internet, perintah tidak bisa sampai, dan aplikasi memberi tahu bahwa
+  bunyinya hanya bisa dihentikan di alat.
+
+Perintah dikirim ke topik MQTT `device/{id}/buzzer`, terpisah dari `device/{id}/cmd` milik layanan
+cloud. Di server produksi, akun MQTT `web` hanya boleh menulis topik ini
+(`mosquitto/produksi/acl`), jadi aplikasi tidak bisa mengubah status alat.
+
+## AmbulanMU dan WhatsApp otomatis
+
+Revisi dosen pembimbing (28-10-2026): saat Darurat, bantuan harus terpanggil tanpa menunggu orang
+menekan tombol, dan kontak utamanya AmbulanMU.
+
+**Kenapa tidak "telepon otomatis dari website".** Browser dan sistem operasi ponsel tidak mengizinkan
+halaman web menelepon tanpa sentuhan pengguna (di iPhone selalu muncul "Panggil?"). Karena itu
+panggilan bantuan dipindah ke server:
+
+- **WhatsApp otomatis.** Begitu status CRITICAL, server mengirim pesan WhatsApp ke AmbulanMU dan semua
+  kontak: nama pasien, jam, tanda jatuh, tautan Google Maps lokasi, dan nomor pasien. Bila GPS belum
+  dapat sinyal, lokasinya dikirim menyusul satu kali. Kontak keluarga juga mendapat kabar saat alarm
+  dimatikan. Gagal sementara diulang sampai 5 kali (backoff sama dengan Web Push) dan semuanya tercatat
+  di detail kejadian.
+- **Satu ketuk di aplikasi.** Tombol "Telepon AmbulanMU" dan "WhatsApp AmbulanMU" langsung membuka
+  panggilan atau WhatsApp dengan pesan dan lokasi sudah terisi, tanpa dialog di aplikasi.
+- **SMS dari alat.** Bila internet alat putus lebih dari 30 detik saat CRITICAL, SIM7600 mengirim SMS
+  ke AmbulanMU (nomor di `SMS_NOMOR`, bagian atas `firmware/cardiovest_c251/cardiovest_c251.ino`).
+
+Nomor AmbulanMU Kota Yogyakarta (`+62 813-1912-3637`) diambil dari tujuan WhatsApp formulir di
+[pdmjogja.org/ambulanmu](https://pdmjogja.org/ambulanmu/). Halaman itu berupa formulir permohonan
+jemput, jadi **pastikan ke AmbulanMU** bahwa nomor ini juga melayani panggilan darurat dan pesan
+otomatis, lalu ganti `AMBULANCE_PHONE` bila perlu.
+
+**Mengaktifkan WhatsApp otomatis** (gateway [Fonnte](https://fonnte.com)):
+
+1. Daftar di fonnte.com, tambahkan perangkat, lalu pindai QR-nya dengan WhatsApp nomor pengirim
+   (sebaiknya nomor khusus CardioVest, bukan nomor pribadi).
+2. Salin token perangkat dari dashboard Fonnte ke `.env` folder utama: `FONNTE_TOKEN=...`.
+3. `docker compose up -d web`. Di menu Kontak, baris AmbulanMU berubah menjadi "Dikabari otomatis
+   lewat WhatsApp saat Darurat".
+
+Tanpa token, isi setiap pesan dicetak ke `docker compose logs web` dan tercatat "belum aktif" di detail
+kejadian, jadi alurnya tetap bisa dicoba.
+
+**Saat uji coba dengan token terisi,** pesan dari skenario simulator akan sampai ke nomor AmbulanMU yang
+asli. Selama pengujian, isi `AMBULANCE_PHONE` dengan nomor anggota tim, lalu kembalikan sebelum
+dipakai sungguhan.
+
+| Variabel | Isi |
+|---|---|
+| `AMBULANCE_NAME`, `AMBULANCE_PHONE` | kontak utama darurat. Default AmbulanMU Kota Yogyakarta |
+| `FONNTE_TOKEN` | token perangkat Fonnte. Kosong = pesan hanya dicetak ke log |
 
 ## Endpoint
 
@@ -151,7 +218,7 @@ Semua REST di bawah `/api`, real-time lewat Socket.IO di `/data/realtime`.
 | Kelompok | Endpoint |
 |---|---|
 | Akun | `POST /auth/signup`, `/auth/login`, `/auth/verify`, `/auth/verify/kirim-ulang`, `/auth/forgot`, `/auth/reset` · `GET`/`PUT /users/me` |
-| Alat | `POST`/`DELETE /devices/pair` · `GET /status` · `GET /trend` · `POST /reset` (hentikan alarm CRITICAL; body `{"confirm":true}`, dimatikan oleh `REMOTE_RESET=0`) |
+| Alat | `POST`/`DELETE /devices/pair` · `POST /devices/mute` (matikan bunyi) · `GET /status` · `GET /trend` · `POST /reset` (hentikan alarm CRITICAL; body `{"confirm":true}`, dimatikan oleh `REMOTE_RESET=0`) |
 | Kontak | `GET`/`POST /contacts` · `PUT`/`DELETE /contacts/:id` · `POST /contacts/:id/undangan-baru` |
 | Undangan kontak (tanpa akun) | `GET /join/:code` · `POST /join/:code/push` · `POST /join/:code/uji` |
 | Riwayat | `GET /history?type=&from=&to=` · `GET /history/:id` · `GET /history/:id/ecg` |
@@ -174,7 +241,35 @@ Domain harus sudah mengarah ke IP server dan port 80/443 terbuka. Caddy mengurus
 ## Vercel
 
 Vercel hanya menjalankan fungsi yang hidup sebentar per permintaan. Pelanggan MQTT, koneksi
-Socket.IO, dan berkas SQLite tidak bisa tinggal di sana. Karena itu pembagiannya begini:
+Socket.IO, dan berkas SQLite tidak bisa tinggal di sana. Proyek ini punya dua cara pasang di Vercel,
+dan dipilih otomatis saat build:
+
+| `CARDIOVEST_API` di Vercel | Yang terjadi |
+|---|---|
+| kosong | **Mode demo.** Server CardioVest ditiru di browser: akun, alat `cv-001` (kode `482913`), EKG, riwayat, dan alur Normal, Waspada, Darurat. Di Beranda ada panel "Simulasi alat". Tidak butuh VPS. |
+| diisi alamat VPS | **Tersambung.** Data asli dari alat atau simulator di VPS. |
+
+### Mode demo (tanpa VPS)
+
+1. Unggah folder `web` ke repositori GitHub (atau isi `CardioVest-Vercel.zip`).
+2. Di vercel.com: **Add New → Project**, impor repositori itu. Bila `web` bukan folder teratas, isi
+   **Root Directory** dengan `web`.
+3. Tanpa Environment Variables, klik **Deploy**.
+4. Buka alamatnya, lalu daftar dengan email apa saja, pasangkan `cv-001` / `482913`, dan pakai tombol
+   di panel "Simulasi alat".
+
+Dengan Vercel CLI: `npx vercel` dari folder `web`, lalu `npx vercel --prod`.
+
+Data demo tersimpan di browser masing-masing (localStorage), jadi akun yang dibuat di satu HP tidak
+terlihat di HP lain. Halaman darurat keluarga dan undangan kontak bisa dicoba di tab lain pada browser
+yang sama. Notifikasi muncul dari browser itu sendiri. Tidak ada WhatsApp, Web Push, maupun model CNN
+yang sungguhan; EKG-nya sintetis.
+
+Mode demo juga bisa dicoba di laptop: `CARDIOVEST_DEMO=1 npm run build && npx next start`.
+
+### Tersambung ke VPS
+
+Pembagiannya begini:
 
 - **VPS** tetap menjalankan semuanya seperti di bagian sebelumnya (Docker + Caddy), misalnya di
   `https://api.cardiovest.contoh.id`.
@@ -232,8 +327,8 @@ Tampilannya memakai bahasa **papan penunjuk rumah sakit**:
 Arah ini dipilih karena laporan meminta tipografi besar, kontras tinggi, dan navigasi sederhana untuk
 lansia, plus indikator hijau/kuning/merah yang menonjol di atas.
 
-Aturan lengkap ada di [`DESIGN.md`](DESIGN.md). Token mesinnya ada di `.impeccable/design.json` di folder
-utama, dan fakta produknya di `PRODUCT.md`.
+Aturan lengkap dan tokennya ada di [`DESIGN.md`](DESIGN.md), dan fakta produknya di `PRODUCT.md` di folder
+utama.
 
 Tangkapan layar tiap halaman (lebar 390 px dan desktop) ada di `docs/tangkapan_layar/`.
 

@@ -1,14 +1,19 @@
 'use client';
-// Halaman 3: Manajemen kontak darurat (F-APP-4), maksimal 5. Perubahan saat offline diantrekan Service
-// Worker (Background Sync) dan dikirim otomatis begitu ada koneksi.
+// Halaman 3: Manajemen kontak darurat (F-APP-4). AmbulanMU selalu menjadi kontak utama (revisi dosen
+// 28-10-2026) dan tidak bisa dihapus; di bawahnya maksimal 5 kontak keluarga. Perubahan saat offline
+// diantrekan Service Worker (Background Sync) dan dikirim otomatis begitu ada koneksi.
 import { useEffect, useState } from 'react';
+import { useSelector } from 'react-redux';
 import { api } from '../api.js';
-import { ErrorNote, SignBar } from '../components/ui.jsx';
+import Icon from '../components/icons.jsx';
+import { DEFAULT_AMBULANCE, ErrorNote, SignBar } from '../components/ui.jsx';
 
 const empty = { name: '', phone: '', relation: '' };
 const fullUrl = (u) => (u.startsWith('http') ? u : `${window.location.origin}${u}`);
 
 export default function Contacts() {
+  const { ambulance, whatsapp } = useSelector((s) => s.auth);
+  const amb = ambulance ?? DEFAULT_AMBULANCE;
   const [list, setList] = useState(null);
   const [form, setForm] = useState(empty);
   const [editing, setEditing] = useState(null); // id | 'new' | null
@@ -30,7 +35,7 @@ export default function Contacts() {
       const r = editing === 'new'
         ? await api('/contacts', { method: 'POST', body: form, queueable: true })
         : await api(`/contacts/${editing}`, { method: 'PUT', body: form, queueable: true });
-      if (r?.queued) setNote('Sedang offline. Perubahan disimpan dan dikirim otomatis begitu ada koneksi.');
+      if (r?.queued) setNote('Offline. Perubahan dikirim begitu ada koneksi.');
       setEditing(null);
       setForm(empty);
       load();
@@ -42,12 +47,12 @@ export default function Contacts() {
   const remove = async (c) => {
     setConfirm(null);
     const r = await api(`/contacts/${c.id}`, { method: 'DELETE', queueable: true }).catch((e) => setErr(e.message));
-    if (r?.queued) setNote('Sedang offline. Penghapusan dikirim otomatis begitu ada koneksi.');
+    if (r?.queued) setNote('Offline. Penghapusan dikirim begitu ada koneksi.');
     load();
   };
 
   const share = async (c) => {
-    const text = `Halo ${c.name}, saya mendaftarkan Anda sebagai kontak darurat CardioVest. Buka tautan ini lalu izinkan notifikasi, supaya Anda dikabari beserta lokasi saya bila kondisi jantung saya kritis: ${fullUrl(c.invite_url)}`;
+    const text = `Halo ${c.name}, Anda saya daftarkan sebagai kontak darurat CardioVest. Buka tautan ini dan izinkan notifikasi supaya dikabari beserta lokasi saya saat darurat: ${fullUrl(c.invite_url)}`;
     if (navigator.share) {
       navigator.share({ text }).catch(() => {});
     } else {
@@ -72,30 +77,48 @@ export default function Contacts() {
         <button className="btn primary">{editing === 'new' ? 'Simpan kontak' : 'Simpan perubahan'}</button>
         <button type="button" className="btn ghost" onClick={() => { setEditing(null); setErr(''); }}>Batal</button>
       </div>
+      {editing !== 'new' && editing !== null && (
+        <button type="button" className="text-btn" onClick={() => setConfirm({ id: editing, kind: 'tautan' })}>Buat tautan undangan baru</button>
+      )}
     </form>
   );
 
+  const renewBox = (c) => (
+    <div className="confirm neutral" role="group" aria-label="Konfirmasi">
+      <p>Tautan lama {c.name} berhenti berlaku.</p>
+      <div className="row">
+        <button className="btn small primary" onClick={() => { renew(c); setEditing(null); }}>Buat tautan baru</button>
+        <button className="text-btn" onClick={() => setConfirm(null)}>Batal</button>
+      </div>
+    </div>
+  );
+
   const status = (c) => {
-    if (c.notifications) return { on: true, text: 'Notifikasi darurat aktif di ponselnya' };
-    if (c.joined) return { on: false, text: 'Sudah membuka undangan, tapi notifikasinya belum dinyalakan' };
-    return { on: false, text: 'Belum membuka undangan' };
+    if (c.notifications) return { on: true, text: 'Notifikasi aktif' };
+    if (c.joined) return { on: false, text: 'Notifikasi belum dinyalakan' };
+    return { on: false, text: 'Undangan belum dibuka' };
   };
 
   return (
     <>
       <SignBar icon="people" title="Kontak darurat" />
-      <p className="muted">
-        Saat status Darurat, semua orang di sini dikabari beserta lokasi Anda. Mereka tidak perlu membuat akun,
-        cukup membuka undangan sekali dan menyalakan notifikasi.
-      </p>
       {note && <p className="note-info">{note}</p>}
-      {list === null && !err && <p className="muted">Memuat kontak…</p>}
-      {list?.length === 0 && editing === null && (
-        <p className="empty"><strong>Belum ada kontak darurat.</strong>Pilih orang yang paling cepat bisa datang, misalnya keluarga serumah atau tetangga.</p>
-      )}
       <ul className="contacts">
+        <li className="contact contact-main">
+          <div>
+            <div className="contact-tag">Kontak utama</div>
+            <div className="contact-name">{amb.name}</div>
+            <div className="contact-phone">{amb.phone}</div>
+            <div className={`status-line ${whatsapp ? 'on' : 'off'}`}>
+              {whatsapp ? 'Dikabari otomatis lewat WhatsApp saat Darurat' : 'Ditelepon dari tombol Darurat'}
+            </div>
+          </div>
+          <div className="contact-actions">
+            <a className="btn small" href={`tel:${amb.phone}`}><Icon name="phone" size={20} />Telepon</a>
+          </div>
+        </li>
         {list?.map((c) => {
-          if (editing === c.id) return <li key={c.id} className="contact">{formEl}</li>;
+          if (editing === c.id) return <li key={c.id} className="contact">{confirm?.id === c.id ? null : formEl}{confirm?.id === c.id && renewBox(c)}</li>;
           const st = status(c);
           return (
             <li key={c.id} className="contact">
@@ -105,26 +128,19 @@ export default function Contacts() {
                 <div className={`status-line ${st.on ? 'on' : 'off'}`}>{st.text}</div>
               </div>
               {confirm?.id === c.id ? (
-                <div className={`confirm ${confirm.kind === 'tautan' ? 'neutral' : ''}`} role="group" aria-label="Konfirmasi">
-                  <p>
-                    {confirm.kind === 'hapus'
-                      ? `Hapus ${c.name}? Ponselnya tidak akan dikabari lagi saat darurat.`
-                      : `Buat tautan undangan baru untuk ${c.name}? Tautan lama berhenti berlaku, dan ${c.name} perlu membuka tautan baru untuk menyalakan notifikasi lagi.`}
-                  </p>
+                <div className="confirm" role="group" aria-label="Konfirmasi">
+                  <p>Hapus {c.name}?</p>
                   <div className="row">
-                    {confirm.kind === 'hapus'
-                      ? <button className="btn small danger solid" onClick={() => remove(c)}>Hapus {c.name}</button>
-                      : <button className="btn small primary" onClick={() => renew(c)}>Buat tautan baru</button>}
+                    <button className="btn small danger solid" onClick={() => remove(c)}>Hapus</button>
                     <button className="text-btn" onClick={() => setConfirm(null)}>Batal</button>
                   </div>
                 </div>
               ) : (
                 <div className="contact-actions">
                   <button className={`btn small ${st.on ? '' : 'primary'}`} onClick={() => share(c)}>
-                    {copied === c.id ? 'Pesan undangan disalin' : st.on ? 'Kirim ulang undangan' : 'Kirim undangan'}
+                    {copied === c.id ? 'Undangan disalin' : st.on ? 'Kirim ulang undangan' : 'Kirim undangan'}
                   </button>
-                  <button className="text-btn" onClick={() => { setEditing(c.id); setForm({ name: c.name, phone: c.phone, relation: c.relation || '' }); }}>Ubah</button>
-                  <button className="text-btn" onClick={() => setConfirm({ id: c.id, kind: 'tautan' })}>Tautan baru</button>
+                  <button className="text-btn" onClick={() => { setConfirm(null); setEditing(c.id); setForm({ name: c.name, phone: c.phone, relation: c.relation || '' }); }}>Ubah</button>
                   <button className="text-btn danger" onClick={() => setConfirm({ id: c.id, kind: 'hapus' })}>Hapus</button>
                 </div>
               )}
@@ -132,15 +148,12 @@ export default function Contacts() {
           );
         })}
       </ul>
+      {list === null && !err && <p className="muted">Memuat…</p>}
       {editing === 'new' ? formEl : list && list.length < 5 && editing === null && (
-        <button className="btn wide" onClick={() => { setEditing('new'); setForm(empty); }}>Tambah kontak</button>
+        <button className="btn wide" onClick={() => { setEditing('new'); setForm(empty); }}><Icon name="plus" />Tambah kontak keluarga</button>
       )}
-      {list?.length >= 5 && <p className="muted small">Sudah 5 kontak, batas maksimal. Hapus salah satu untuk menambah yang baru.</p>}
+      {list?.length >= 5 && <p className="muted small">Maksimal 5 kontak keluarga.</p>}
       {editing === null && <ErrorNote error={err} />}
-      <p className="muted small block">
-        Bila internet di alat putus saat darurat, alat mengirim SMS sendiri lewat kartu SIM-nya. Nomor tujuan SMS
-        itu disetel saat alat dipasang, terpisah dari daftar ini, jadi pastikan isinya sama.
-      </p>
     </>
   );
 }
