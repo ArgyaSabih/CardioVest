@@ -27,6 +27,7 @@ const liveInit = {
   connected: false,
   deviceId: '',
   state: 'NORMAL',
+  mode: 'demo',
   remoteReset: true,
   since: null,
   reason: null,
@@ -57,6 +58,7 @@ const live = createSlice({
         loaded: true,
         deviceId: d.device_id,
         state: d.state,
+        mode: d.mode === 'test' ? 'test' : 'demo',
         since: d.since,
         reason: d.reason,
         online: d.online,
@@ -83,6 +85,7 @@ const live = createSlice({
         s.gps = null;
       }
       s.state = d.state;
+      if (d.mode) s.mode = d.mode;
       s.since = d.since;
       s.reason = d.reason;
       s.signal = d.signal;

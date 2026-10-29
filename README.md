@@ -110,6 +110,14 @@ docker compose logs -f cloud          # log inferensi & transisi state (Ctrl+C u
 docker compose down # exit server
 ```
 
+cara pull:
+git pull origin main
+
+cara push:
+git add .
+git commit -m "fix: file .ino"
+git push origin inge
+
 Setelah jalan, ada lima cara melihat hasil:
 
 | Cara | Perintah / alamat | Isi |

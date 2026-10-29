@@ -8,6 +8,7 @@ import Link from 'next/link';
 import { api } from '../api.js';
 import { LiveEcg } from '../components/EcgStrip.jsx';
 import Icon from '../components/icons.jsx';
+import { ModeSwitch, TestPanel } from '../components/TestMode.jsx';
 import { AckList, CallButtons, Connection, StateBanner, StickyCall, Wordmark, displayState, since } from '../components/ui.jsx';
 
 const HR_HIGH = 120; // sama dengan HR_HIGH / HR_LOW di layanan cloud (Tabel 4.3)
@@ -274,6 +275,11 @@ export default function Dashboard() {
           <span className="vital-note">{!fresh ? staleNote : v?.fall ? (critical ? 'Keluarga diberi tahu' : 'Tercatat') : '\u00a0'}</span>
         </div>
       </section>
+
+      <ModeSwitch mode={live.mode} deviceMode={fresh ? v?.mode : null} disabled={!live.connected} />
+      {live.mode === 'test' && (
+        <TestPanel vital={v} fresh={fresh} inference={live.inference} calibration={cal} signal={live.signal} state={live.state} />
+      )}
 
       <HrTrend nowHr={fresh ? v?.hr : null} />
 

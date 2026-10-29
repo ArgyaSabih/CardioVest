@@ -65,6 +65,7 @@ class VirtualDevice:
         self.accel = AccelSim(self.rng)
         self.fall = FallDetector()
         self.gps = GpsSim(self.rng)
+        self.test_mode = False
 
         self.local_state = C.STATE_NORMAL
         # sama dengan firmware (NVS "reset_pend"): reset ditekan tetapi event belum sampai ke cloud
@@ -289,7 +290,7 @@ class VirtualDevice:
         if self.local_state != C.STATE_NORMAL:
             log.info("STATE LOKAL %s -> NORMAL | aksi: %s", self.local_state, LOCAL_ACTIONS[C.STATE_NORMAL])
             self.local_state = C.STATE_NORMAL
-            self.gps.set_active(False, time.monotonic())
+            self.gps.set_active(self.test_mode, time.monotonic())
         if self.online:
             self._send_pending_reset()
         else:
@@ -305,7 +306,7 @@ class VirtualDevice:
             return
         log.info("STATE LOKAL %s -> NORMAL | reset dari aplikasi web", self.local_state)
         self.local_state = C.STATE_NORMAL
-        self.gps.set_active(False, time.monotonic())
+        self.gps.set_active(self.test_mode, time.monotonic())
         self.accel.mode = "rest"
         self.fall_flag_until = 0.0
         self.set_scenario("normal")
@@ -324,8 +325,16 @@ class VirtualDevice:
             return
         prev, self.local_state = self.local_state, state
         log.info("STATE LOKAL %s -> %s | aksi: %s", prev, state, LOCAL_ACTIONS[state])
-        self.gps.set_active(state == C.STATE_CRITICAL, time.monotonic())
+        self.gps.set_active(state == C.STATE_CRITICAL or self.test_mode, time.monotonic())
         self._publish_status()
+
+    def _apply_mode(self, mode: str) -> None:
+        test = mode == C.MODE_TEST
+        if test == self.test_mode:
+            return
+        self.test_mode = test
+        log.info("MODE %s", C.MODE_TEST if test else C.MODE_DEMO)
+        self.gps.set_active(test or self.local_state == C.STATE_CRITICAL, time.monotonic())
 
     def _handle_command(self, kind: str, data: dict) -> None:
         if kind == "cloud_cmd":
@@ -333,6 +342,8 @@ class VirtualDevice:
                 self._apply_cloud_state(data.get("state", ""))
             elif data.get("cmd") == "clear_latch":
                 self.remote_clear()
+            elif data.get("cmd") == "set_mode":
+                self._apply_mode(str(data.get("mode", "")))
             return
         cmd = str(data.get("cmd", "")).lower()
         if cmd in ("scenario", "skenario"):
@@ -387,6 +398,7 @@ class VirtualDevice:
             "fall_detected": now < self.fall_flag_until,
             "fall_ts": self.fall_ts if now < self.fall_flag_until else None,
             "local_state": self.local_state,
+            "mode": C.MODE_TEST if self.test_mode else C.MODE_DEMO,
             "lead_off": ph.lead_off,
             "gps": self.gps.read(now),
             "buffered": False,

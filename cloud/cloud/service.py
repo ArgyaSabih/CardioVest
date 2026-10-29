@@ -66,6 +66,9 @@ class DeviceCtx:
     reset_source: str = "device"
     remote_clear_at: int = 0            # waktu reset jarak jauh; >0 = menunggu alat melepas latch
     remote_clear_sent: int = 0
+    mode: str = C.MODE_DEMO
+    mode_req_at: int = 0
+    mode_sent: int = 0
 
 
 class CloudService:
@@ -141,7 +144,8 @@ class CloudService:
             "since": d.state_since,
             "reason": d.last_reason,
             "online": d.online,
-            "gps": d.last_gps if d.engine.state == C.STATE_CRITICAL else None,
+            "mode": d.mode,
+            "gps": d.last_gps if d.engine.state == C.STATE_CRITICAL or d.mode == C.MODE_TEST else None,
             "calibration": d.validators.calibration_info(),
             "signal": d.quality,
             "ts": now_ms(),
@@ -298,6 +302,7 @@ class CloudService:
         v.setdefault("device_id", device_id)
         self.repo.save_vital(v)
         self._reconcile_latch(d, v)
+        self._reconcile_mode(d, v)
         d.validators.add(v, d.engine.state)
         g = v.get("gps")
         if g and g.get("fix") and not v.get("buffered"):
@@ -318,6 +323,41 @@ class CloudService:
             p = self._alert_payload(d, "critical_fall", d.event_peak, None, None)
             self._pub(device_id, "alert", p)
             self.notifier.dispatch("critical_fall", device_id, p)
+
+    def _reconcile_mode(self, d: DeviceCtx, v: dict) -> None:
+        if v.get("buffered"):
+            return
+        m = v.get("mode")
+        if m not in C.MODES:
+            return
+        t = now_ms()
+        if d.mode_req_at:
+            if m == d.mode:
+                d.mode_req_at = 0
+                log.info("%s: mode %s aktif di perangkat", d.device_id, m)
+            elif t - d.mode_req_at >= C.MODE_GIVEUP_S * 1000:
+                log.warning("%s: perangkat tidak menanggapi perintah mode %s, tetap %s", d.device_id, d.mode, m)
+                d.mode_req_at = 0
+                d.mode = m
+                self._publish_state(d)
+            elif t - d.mode_sent >= C.MODE_RETRY_S * 1000:
+                d.mode_sent = t
+                self._pub(d.device_id, "cmd", {"cmd": "set_mode", "mode": d.mode, "ts": t})
+        elif m != d.mode:
+            d.mode = m
+            self._publish_state(d)
+
+    def _set_mode(self, d: DeviceCtx, e: dict) -> None:
+        m = str(e.get("mode") or "").lower()
+        if m not in C.MODES:
+            return
+        who = str(e.get("by") or "aplikasi web")[:60]
+        t = now_ms()
+        d.mode = m
+        d.mode_req_at = d.mode_sent = t
+        log.warning("%s: mode %s diminta oleh %s", d.device_id, m, who)
+        self._pub(d.device_id, "cmd", {"cmd": "set_mode", "mode": m, "by": who, "ts": t})
+        self._publish_state(d)
 
     def _reconcile_latch(self, d: DeviceCtx, v: dict) -> None:
         """Samakan state cloud dengan latch CRITICAL perangkat (field local_state pada vital)."""
@@ -387,6 +427,9 @@ class CloudService:
         try:
             e = json.loads(payload or b"{}")
         except json.JSONDecodeError:
+            return
+        if e.get("type") == "set_mode":
+            self._set_mode(d, e)
             return
         if e.get("type") != "remote_reset":
             return

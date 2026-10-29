@@ -52,6 +52,12 @@ STATE_WARNING = "WARNING"    # S2
 STATE_CRITICAL = "CRITICAL"  # S3 (latching)
 STATES = [STATE_NORMAL, STATE_WARNING, STATE_CRITICAL]
 
+MODE_DEMO = "demo"
+MODE_TEST = "test"
+MODES = [MODE_DEMO, MODE_TEST]
+MODE_RETRY_S = env_int("MODE_RETRY_S", 5)
+MODE_GIVEUP_S = env_int("MODE_GIVEUP_S", 60)
+
 TAU_CONF = env_float("TAU_CONF", 0.44)          # hasil kalibrasi validasi (cloud/model/kalibrasi_tau.py); BAB 4.4.4 target awal 0,70–0,85
 # tau adaptif gerak: saat IMU mendeteksi aktivitas, artefak gerak mudah terbaca sebagai pola abnormal,
 # sehingga ambang dinaikkan (hasil kalibrasi artefak, cloud/model/kalibrasi_tau.py tahap 3)

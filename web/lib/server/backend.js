@@ -44,6 +44,7 @@ export const live = (id) => {
 const slimState = (s) =>
   s && {
     state: s.state,
+    mode: s.mode === 'test' ? 'test' : 'demo',
     since: s.since,
     reason: s.reason,
     gps: s.gps?.fix ? { lat: s.gps.lat, lng: s.gps.lon, acc: s.gps.accuracy_m } : null,
@@ -62,6 +63,13 @@ const slimVital = (v) => ({
   lead_off: !!v.lead_off,
   local_state: v.local_state,
   moving: v.accel?.sd != null ? v.accel.sd > 0.08 : null,
+  mode: v.mode ?? null,
+  hr_ppg: v.hr_ppg ?? null,
+  hr_ecg: v.hr_ecg ?? null,
+  accel: v.accel ?? null,
+  gps: v.gps ?? null,
+  sensors: v.sensors ?? null,
+  charging: !!v.charging,
 });
 
 /** online / offline / buffering (F-APP-3): buffering = alat baru tersambung lagi dan mengirim data tertahan. */
@@ -81,6 +89,7 @@ export function statusOf(dev, user) {
     user_name: user.name,
     user_phone: user.phone,
     state: s?.state ?? 'NORMAL',
+    mode: s?.mode ?? 'demo',
     since: s?.since ?? null,
     reason: s?.reason ?? null,
     signal: s?.signal ?? null,
@@ -317,11 +326,19 @@ export function startBackend(server) {
     return { ok: true, status: 202 };
   }
 
+  function setMode(dev, user, mode) {
+    if (mode !== 'demo' && mode !== 'test') return { ok: false, status: 400, error: 'Mode harus demo atau test.' };
+    if (!mq.connected) return { ok: false, status: 503, error: 'Server belum tersambung ke broker. Coba lagi sebentar lagi.' };
+    mq.publish(`device/${dev}/remote`, JSON.stringify({ type: 'set_mode', mode, by: user.name, user_id: user.id, ts: now() }), { qos: 1 });
+    console.log(`[mode] ${dev}: mode ${mode} diminta oleh ${user.name}`);
+    return { ok: true, status: 202 };
+  }
+
   // semua yang dibutuhkan Route Handlers (app/api) — satu instans untuk seluruh proses
   const ctx = {
     cfg, cloud, users, tokens, devices, contacts, subs, acks, notifLog, linkOf, publicTokenFor, checkSecret,
     MAX_CONTACTS, dispatch, vapidPublicKey, mailConfigured, verifyMail, resetMail,
-    live, connection, statusOf, sign, userFromAuth, limited, clearLimit, io, mq, notify, remoteReset,
+    live, connection, statusOf, sign, userFromAuth, limited, clearLimit, io, mq, notify, remoteReset, setMode,
   };
   globalThis.__cardiovest = ctx;
   return ctx;

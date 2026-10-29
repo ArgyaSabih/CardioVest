@@ -700,6 +700,7 @@ private:
 
 static Preferences s_nvs;
 static volatile bool s_reset_pending = false;
+static volatile bool s_test_mode = false;
 
 void set_state(DevState s)
 {
@@ -721,6 +722,17 @@ void state_begin()
   s_nvs.putBool("crit_latch", false);
   g_state = ST_NORMAL;
   LOGF("STATE: Perangkat dihidupkan ulang -> Status di-reset ke NORMAL");
+  s_test_mode = s_nvs.getBool("test_mode", false);
+  LOGF("MODE: %s", s_test_mode ? "test" : "demo");
+}
+
+void mode_apply(bool test)
+{
+  if (test == s_test_mode)
+    return;
+  s_test_mode = test;
+  s_nvs.putBool("test_mode", test);
+  LOGF("MODE: %s", test ? "test (semua sensor aktif)" : "demo (GPS siaga)");
 }
 
 void state_apply_cloud(DevState s)
@@ -1459,7 +1471,7 @@ void task_gps(void *)
       s_gps_len = 0;
     }
     GpsFix f;
-    f.active = (g_state == ST_CRITICAL);
+    f.active = (g_state == ST_CRITICAL) || s_test_mode;
     f.fix = locked && s_gps_quality > 0 && s_gps_rmc_valid;
     f.lat = s_gps_lat;
     f.lon = s_gps_lon;
@@ -1861,7 +1873,7 @@ size_t encode_vital_json(const Vitals &v, float hr_ecg, const GpsFix &g, bool bu
     json_add(out, cap, &n, "\"fall_detected\":true,\"fall_ts\":%llu,", (unsigned long long)v.fall_ts);
   else
     json_add(out, cap, &n, "\"fall_detected\":false,\"fall_ts\":null,");
-  json_add(out, cap, &n, "\"local_state\":\"%s\",", stateName(g_state));
+  json_add(out, cap, &n, "\"local_state\":\"%s\",\"mode\":\"%s\",", stateName(g_state), s_test_mode ? "test" : "demo");
   if (!g.active)
   {
     json_add(out, cap, &n, "\"gps\":null,");
@@ -2140,6 +2152,13 @@ void on_mqtt_message(String &topic, String &payload)
     LOGF("CMD: clear_latch dari cloud (reset dari aplikasi): %s", was_critical ? "CRITICAL dibersihkan" : "tidak ada latch");
     return;
   }
+  if (strstr(p, "\"set_mode\""))
+  {
+    const char *m = strstr(p, "\"mode\"");
+    if (m && (m = strchr(m + 6, '"')))
+      mode_apply(!strncmp(m + 1, "test\"", 5));
+    return;
+  }
   if (!strstr(p, "\"set_state\""))
     return;
   const char *k = strstr(p, "\"state\"");
@@ -2400,8 +2419,8 @@ void print_status()
   Vitals v = vitals_get();
   GpsFix g = gps_get();
   Serial.printf("\n=== STATUS %s ===\n", DEVICE_ID);
-  Serial.printf("state=%s online=%d waktu_sinkron=%d buffer=%u B terkirim ecg=%lu vital=%lu byte=%lu\n",
-                stateName(g_state), g_net_online, time_valid(), (unsigned)obuf_size(), (unsigned long)s_tx_ecg,
+  Serial.printf("state=%s mode=%s online=%d waktu_sinkron=%d buffer=%u B terkirim ecg=%lu vital=%lu byte=%lu\n",
+                stateName(g_state), s_test_mode ? "test" : "demo", g_net_online, time_valid(), (unsigned)obuf_size(), (unsigned long)s_tx_ecg,
                 (unsigned long)s_tx_vital, (unsigned long)s_tx_bytes);
   Serial.printf("modem=%d CSQ=%d | ECG lead_off=%d HR_ecg=%.1f adc_gagal=%lu | PPG %s HR=%.1f SQI=%.2f | GSR %.2f uS (ADC %.0f)\n",
                 s_modem_ok, s_modem_csq, g_lead_off, s_hr_ecg, (unsigned long)s_adc_fail, s_has.ppg ? "on" : "off", v.hr_ppg, v.sqi, v.gsr_us, s_gsr_adc_last);

@@ -461,3 +461,14 @@ details.tech p, details.tech li { color: var(--ink-2); overflow-wrap: anywhere; 
   .plate-critical .plate-word { font-size: 2.5rem; }
   .plate-icon { width: 48px; height: 48px; }
 }
+
+.mode-switch .seg { margin-bottom: 8px; }
+.test-panel { display: grid; gap: 12px; }
+.test-card { background: var(--surface); border: 2px solid var(--line); border-radius: var(--r); padding: 12px var(--pad); min-width: 0; }
+.test-card h3 { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 0 0 8px; font-size: 1.05rem; }
+.test-card dl { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, auto); gap: 4px 12px; margin: 0; }
+.test-card dt { color: var(--ink-2); }
+.test-card dd { margin: 0; text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.test-tag { flex: none; padding: 2px 8px; border: 1px solid var(--ok-line); border-radius: var(--r); background: var(--ok-bg); color: var(--ok); font-size: 0.85rem; font-weight: 700; }
+.test-tag.off { border-color: var(--crit-line); background: var(--crit-bg); color: var(--crit-dark); }
+@media (min-width: 720px) { .test-panel { grid-template-columns: 1fr 1fr; } }
