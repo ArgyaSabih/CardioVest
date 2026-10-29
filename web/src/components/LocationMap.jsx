@@ -11,10 +11,11 @@ export default function LocationMap({ lat, lng, acc, trail = [], height = 260 })
 
   useEffect(() => {
     map.current = L.map(el.current, { zoomControl: true, attributionControl: true }).setView([lat, lng], 17);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: '&copy; OpenStreetMap',
-    }).addTo(map.current);
+    const google = { subdomains: ['mt0', 'mt1', 'mt2', 'mt3'], maxZoom: 20, attribution: '&copy; Google' };
+    const road = L.tileLayer('https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', google).addTo(map.current);
+    const sat = L.tileLayer('https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', google);
+    const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' });
+    L.control.layers({ 'Google Maps': road, 'Google Satelit': sat, OpenStreetMap: osm }).addTo(map.current);
     layer.current = L.layerGroup().addTo(map.current);
     return () => map.current.remove();
     // eslint-disable-next-line react-hooks/exhaustive-deps

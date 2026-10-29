@@ -73,14 +73,11 @@
 #define KALMAN_R_MOTION 40.0f
 #define SQI_WINDOW_S 5
 
-#define FALL_FREEFALL_G 0.5f
-#define FALL_FREEFALL_MIN_MS 70
-#define FALL_FREEFALL_MAX_MS 300
-#define FALL_IMPACT_G 2.5f
-#define FALL_IMPACT_WINDOW_MS 150
-#define FALL_STILL_TOL_G 0.3f
-#define FALL_STILL_MIN_MS 2000
-#define FALL_FLAG_HOLD_MS 60000
+#define FALL_JOLT_G 1.8f
+#define FALL_DIP_G 0.5f
+#define FALL_DIP_MIN_MS 40
+#define FALL_COOLDOWN_MS 3000
+#define FALL_FLAG_HOLD_MS 10000
 
 #define RESET_HOLD_MS 3000
 #define SMS_AFTER_OFFLINE_MS 30000
@@ -178,7 +175,10 @@ struct GpsFix
   bool fix = false;
   double lat = 0, lon = 0;
   float accuracy_m = 0;
+  float hdop = 0;
   int sats = 0;
+  bool nmea = false;
+  long baud = 0;
 };
 
 struct SensorPresence
@@ -541,75 +541,39 @@ class FallDetector
 public:
   bool update(float mag, uint32_t t)
   {
-    switch (st_)
+    if (fired_ && t - last_ < FALL_COOLDOWN_MS)
+      return false;
+    if (mag > FALL_JOLT_G)
+      return hit(t);
+    if (mag < FALL_DIP_G)
     {
-    case IDLE:
-      if (mag < FALL_FREEFALL_G)
+      if (!dipping_)
       {
-        st_ = FREEFALL;
-        t_mark_ = t;
+        dipping_ = true;
+        dip_start_ = t;
       }
-      break;
-    case FREEFALL:
-      if (mag >= FALL_FREEFALL_G)
+      else if (t - dip_start_ >= FALL_DIP_MIN_MS)
       {
-        uint32_t dur = t - t_mark_;
-        if (dur >= FALL_FREEFALL_MIN_MS && dur <= FALL_FREEFALL_MAX_MS)
-        {
-          st_ = WAIT_IMPACT;
-          t_mark_ = t;
-          if (mag > FALL_IMPACT_G)
-          {
-            st_ = STILL;
-            t_impact_ = t;
-            t_still_ = t;
-          }
-        }
-        else
-        {
-          st_ = IDLE;
-        }
+        return hit(t);
       }
-      break;
-    case WAIT_IMPACT:
-      if (mag > FALL_IMPACT_G)
-      {
-        st_ = STILL;
-        t_impact_ = t;
-        t_still_ = t;
-      }
-      else if (t - t_mark_ > FALL_IMPACT_WINDOW_MS)
-      {
-        st_ = IDLE;
-      }
-      break;
-    case STILL:
-      if (fabsf(mag - 1.0f) > FALL_STILL_TOL_G)
-      {
-        t_still_ = t;
-        if (t - t_impact_ > 5000)
-          st_ = IDLE;
-      }
-      else if (t - t_still_ >= FALL_STILL_MIN_MS)
-      {
-        st_ = IDLE;
-        return true;
-      }
-      break;
+    }
+    else
+    {
+      dipping_ = false;
     }
     return false;
   }
 
 private:
-  enum Phase
+  bool hit(uint32_t t)
   {
-    IDLE,
-    FREEFALL,
-    WAIT_IMPACT,
-    STILL
-  };
-  Phase st_ = IDLE;
-  uint32_t t_mark_ = 0, t_impact_ = 0, t_still_ = 0;
+    fired_ = true;
+    last_ = t;
+    dipping_ = false;
+    return true;
+  }
+  bool fired_ = false, dipping_ = false;
+  uint32_t last_ = 0, dip_start_ = 0;
 };
 
 class PpgProcessor
@@ -1168,8 +1132,8 @@ bool max_begin()
   bool ok = i2c_write(0x57, 0x08, 0x70);
   ok = ok && i2c_write(0x57, 0x09, 0x03);
   ok = ok && i2c_write(0x57, 0x0A, 0x6F);
-  ok = ok && i2c_write(0x57, 0x0C, 0x1F);
-  ok = ok && i2c_write(0x57, 0x0D, 0x1F);
+  ok = ok && i2c_write(0x57, 0x0C, 0x3F);
+  ok = ok && i2c_write(0x57, 0x0D, 0x3F);
   ok = ok && i2c_write(0x57, 0x04, 0x00);
   ok = ok && i2c_write(0x57, 0x05, 0x00);
   ok = ok && i2c_write(0x57, 0x06, 0x00);
@@ -1239,11 +1203,20 @@ void task_sensor_aux(void *)
   int ppg_fail = 0;
   uint32_t ppg_pause_until = 0;
   uint32_t imu_pause_until = 0;
+  uint32_t probe_at = 5000;
   for (;;)
   {
     vTaskDelayUntil(&last, pdMS_TO_TICKS(10));
     uint32_t t = millis();
     tick++;
+    if (t >= probe_at && (!s_has.ppg || !s_has.imu))
+    {
+      probe_at = t + 5000;
+      if (!s_has.ppg && (s_has.ppg = max_begin()))
+        LOGF("PPG: MAX30102 terdeteksi, LED merah dan IR menyala");
+      if (!s_has.imu && (s_has.imu = mpu_begin()))
+        LOGF("IMU: terdeteksi di 0x%02X", s_has.imu_addr);
+    }
     if (s_has.imu && t >= imu_pause_until)
     {
       float ax, ay, az;
@@ -1262,7 +1235,9 @@ void task_sensor_aux(void *)
         {
           fall_until = t + FALL_FLAG_HOLD_MS;
           fall_ts = now_ms();
-          LOGF("IMU: JATUH TERDETEKSI (free-fall, impak, diam)");
+          if (s_test_mode)
+            alert_beep(2500, 800);
+          LOGF("IMU: JATUH TERDETEKSI (|a| = %.2f g)", mag);
         }
       }
       else if (++imu_fail >= 10)
@@ -1473,6 +1448,9 @@ void task_gps(void *)
     GpsFix f;
     f.active = (g_state == ST_CRITICAL) || s_test_mode;
     f.fix = locked && s_gps_quality > 0 && s_gps_rmc_valid;
+    f.nmea = locked;
+    f.baud = GPS_BAUD[s_gps_baud_idx];
+    f.hdop = s_gps_hdop;
     f.lat = s_gps_lat;
     f.lon = s_gps_lon;
     f.sats = s_gps_sats;
@@ -1880,12 +1858,12 @@ size_t encode_vital_json(const Vitals &v, float hr_ecg, const GpsFix &g, bool bu
   }
   else if (g.fix)
   {
-    json_add(out, cap, &n, "\"gps\":{\"fix\":true,\"sats\":%d,\"lat\":%.6f,\"lon\":%.6f,\"accuracy_m\":%.1f},",
-             g.sats, g.lat, g.lon, g.accuracy_m);
+    json_add(out, cap, &n, "\"gps\":{\"fix\":true,\"sats\":%d,\"lat\":%.6f,\"lon\":%.6f,\"accuracy_m\":%.1f,\"hdop\":%.1f,\"nmea\":true,\"baud\":%ld},",
+             g.sats, g.lat, g.lon, g.accuracy_m, g.hdop, g.baud);
   }
   else
   {
-    json_add(out, cap, &n, "\"gps\":{\"fix\":false,\"sats\":%d},", g.sats);
+    json_add(out, cap, &n, "\"gps\":{\"fix\":false,\"sats\":%d,\"nmea\":%s,\"baud\":%ld},", g.sats, json_bool(g.nmea), g.baud);
   }
   json_add(out, cap, &n, "\"buffered\":%s,\"lead_off\":%s,\"charging\":%s,\"session_limit\":%s,",
            json_bool(buffered), json_bool(v.lead_off), json_bool(v.charging), json_bool(v.session_limit));

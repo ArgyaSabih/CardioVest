@@ -353,11 +353,15 @@ class CloudService:
             return
         who = str(e.get("by") or "aplikasi web")[:60]
         t = now_ms()
+        changed = m != d.mode
         d.mode = m
         d.mode_req_at = d.mode_sent = t
         log.warning("%s: mode %s diminta oleh %s", d.device_id, m, who)
         self._pub(d.device_id, "cmd", {"cmd": "set_mode", "mode": m, "by": who, "ts": t})
-        self._publish_state(d)
+        if changed:
+            self._reset_remote(d, f"pergantian mode ke {m.capitalize()} oleh {who}")
+        else:
+            self._publish_state(d)
 
     def _reconcile_latch(self, d: DeviceCtx, v: dict) -> None:
         """Samakan state cloud dengan latch CRITICAL perangkat (field local_state pada vital)."""
@@ -437,6 +441,10 @@ class CloudService:
         if not C.REMOTE_RESET:
             log.warning("%s: reset jarak jauh dari %s ditolak (REMOTE_RESET=0)", device_id, who)
             return
+        self._reset_remote(d, who)
+
+    def _reset_remote(self, d: DeviceCtx, who: str) -> None:
+        device_id = d.device_id
         d.restored = None
         was_critical = d.engine.state == C.STATE_CRITICAL
         dec = d.engine.remote_reset(who).dict()

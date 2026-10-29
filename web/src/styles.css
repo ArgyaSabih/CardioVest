@@ -472,3 +472,5 @@ details.tech p, details.tech li { color: var(--ink-2); overflow-wrap: anywhere; 
 .test-tag { flex: none; padding: 2px 8px; border: 1px solid var(--ok-line); border-radius: var(--r); background: var(--ok-bg); color: var(--ok); font-size: 0.85rem; font-weight: 700; }
 .test-tag.off { border-color: var(--crit-line); background: var(--crit-bg); color: var(--crit-dark); }
 @media (min-width: 720px) { .test-panel { grid-template-columns: 1fr 1fr; } }
+.test-map { grid-column: 1 / -1; }
+.test-alarm { margin: 0 0 12px; padding: 14px var(--pad); border-radius: var(--r); background: var(--crit); color: #fff; font-size: 1.2rem; font-weight: 700; }

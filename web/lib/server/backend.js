@@ -60,6 +60,7 @@ const slimVital = (v) => ({
   sqi: v.sqi,
   gsr: v.gsr,
   fall: !!v.fall_detected,
+  fall_ts: v.fall_ts ?? null,
   lead_off: !!v.lead_off,
   local_state: v.local_state,
   moving: v.accel?.sd != null ? v.accel.sd > 0.08 : null,

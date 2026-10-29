@@ -1,6 +1,7 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api } from '../api.js';
+import { LocationMap } from './map.jsx';
 
 const MODES = [['demo', 'Demo'], ['test', 'Test']];
 const CLASSES = ['Normal', 'Pra-Serangan', 'Serangan'];
@@ -78,8 +79,47 @@ const Row = ({ k, v }) => (
   </>
 );
 
+function beep() {
+  try {
+    const ctx = new AudioContext();
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = 'square';
+    o.frequency.value = 880;
+    g.gain.value = 0.15;
+    o.connect(g);
+    g.connect(ctx.destination);
+    o.start();
+    o.stop(ctx.currentTime + 0.6);
+    o.onended = () => ctx.close();
+  } catch {
+    return;
+  }
+}
+
+function useFallAlarm(v) {
+  const last = useRef(null);
+  const [at, setAt] = useState(null);
+  useEffect(() => {
+    if (!v?.fall || !v.fall_ts || v.fall_ts === last.current) return;
+    const first = last.current === null && Date.now() - v.fall_ts > 10_000;
+    last.current = v.fall_ts;
+    if (first) return;
+    setAt(v.fall_ts);
+    beep();
+    setTimeout(beep, 800);
+  }, [v?.fall, v?.fall_ts]);
+  useEffect(() => {
+    if (!at) return undefined;
+    const t = setTimeout(() => setAt(null), 6000);
+    return () => clearTimeout(t);
+  }, [at]);
+  return at;
+}
+
 export function TestPanel({ vital, fresh, inference, calibration, signal, state }) {
   const v = fresh ? vital : null;
+  const fallAt = useFallAlarm(v);
   const s = v?.sensors;
   const a = v?.accel;
   const g = v?.gps;
@@ -92,6 +132,9 @@ export function TestPanel({ vital, fresh, inference, calibration, signal, state 
     <section className="block" aria-label="Data uji semua sensor">
       <h2>Data uji</h2>
       {!v && <p className="muted small">Menunggu data dari alat…</p>}
+      {fallAt && (
+        <p className="test-alarm" role="alert">Jatuh terdeteksi pukul {new Date(fallAt).toLocaleTimeString('id-ID')}</p>
+      )}
       <div className="test-panel">
         <Card title="EKG (AD8232)" ok={s?.ecg}>
           <Row k="Denyut EKG" v={num(v?.hr_ecg, 1, ' bpm')} />
@@ -122,12 +165,24 @@ export function TestPanel({ vital, fresh, inference, calibration, signal, state 
         </Card>
 
         <Card title="GPS (Neo-6M)" ok={v ? !!g : null}>
+          <Row k="Data NMEA" v={g ? (g.nmea === false ? 'Tidak ada, cek kabel' : 'Diterima') : '–'} />
+          <Row k="Baud" v={g?.baud ?? '–'} />
           <Row k="Fix" v={g ? yes(g.fix) : '–'} />
           <Row k="Satelit" v={g?.sats ?? '–'} />
           <Row k="Lintang" v={g?.fix ? g.lat.toFixed(6) : '–'} />
           <Row k="Bujur" v={g?.fix ? g.lon.toFixed(6) : '–'} />
           <Row k="Akurasi" v={g?.fix ? num(g.accuracy_m, 1, ' m') : '–'} />
         </Card>
+
+        {g?.fix && (
+          <div className="test-card test-map">
+            <h3>
+              Lokasi terkini
+              <a className="small" href={`https://www.google.com/maps?q=${g.lat},${g.lon}`} target="_blank" rel="noopener noreferrer">Buka di Google Maps</a>
+            </h3>
+            <LocationMap lat={g.lat} lng={g.lon} acc={g.accuracy_m} height={240} />
+          </div>
+        )}
 
         <Card title="Model CNN">
           <Row k="Kelas" v={inf?.class ?? '–'} />
