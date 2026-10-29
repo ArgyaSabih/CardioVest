@@ -3,13 +3,13 @@
 Aplikasi yang dibuka di ponsel oleh **User Utama** (pemakai rompi) dan **Kontak Darurat** (Halaman 1–6
 di Bab 7–8 laporan): daftar akun, pairing alat, dashboard real-time, kontak darurat, riwayat, dan halaman
 darurat. Folder ini hanya berisi tampilan dan dipasang di **Vercel**. Semua data, MQTT, Socket.IO, dan
-Web Push ada di [`server/`](../server/README.md) yang berjalan di VM.
+Web Push ada di [`server/`](../server/README.md) yang berjalan di Hugging Face.
 
 ```
 browser ──► Vercel (folder ini)
               ├─ halaman Next.js 16 (App Router, PWA)
-              └─ proxy.js: /api/*  ──► server/ di VM (HTTPS)
-browser ──────── Socket.IO /data/realtime ──► server/ di VM (EKG 250 Hz langsung, tanpa lewat Vercel)
+              └─ proxy.js: /api/*  ──► server/ di Hugging Face (HTTPS)
+browser ──────── Socket.IO /data/realtime ──► server/ di Hugging Face (EKG 250 Hz langsung, tanpa lewat Vercel)
 ```
 
 ## Isi folder
@@ -39,8 +39,8 @@ browser ──────── Socket.IO /data/realtime ──► server/ di V
 
 | Nama | Isi |
 |---|---|
-| `NEXT_PUBLIC_BACKEND_URL` | alamat backend, mis. `https://140-238-1-2.sslip.io` (`cv info` di VM) |
-| `PROXY_SECRET` | sama dengan di VM, supaya pembatas percobaan login memakai IP asli pengguna |
+| `NEXT_PUBLIC_BACKEND_URL` | alamat backend, mis. `https://namaanda-cardiovest.hf.space` |
+| `PROXY_SECRET` | sama dengan secret di Hugging Face, supaya pembatas percobaan login memakai IP asli pengguna |
 
 `NEXT_PUBLIC_BACKEND_URL` dibaca saat build: setelah mengubahnya, lakukan Redeploy. Langkah lengkap
 memasang Vercel ada di [`deploy/README.md`](../deploy/README.md).
@@ -50,7 +50,7 @@ memasang Vercel ada di [`deploy/README.md`](../deploy/README.md).
 Cukup edit, lalu `git add -A`, `git commit`, `git push`. Vercel membangun ulang otomatis.
 
 Ingin melihat hasil di laptop sebelum push (opsional, butuh Node.js 22): buat `web/.env.local` berisi
-`NEXT_PUBLIC_BACKEND_URL=https://<ip>.sslip.io`, lalu
+`NEXT_PUBLIC_BACKEND_URL=https://namaanda-cardiovest.hf.space`, lalu
 
 ```powershell
 cd web
@@ -58,7 +58,7 @@ npm install
 npm run dev
 ```
 
-Buka http://localhost:3000. Halaman lokal ini memakai backend asli di VM, jadi tidak perlu Docker.
+Buka http://localhost:3000. Halaman lokal ini memakai backend asli di Hugging Face, jadi tidak perlu Docker.
 
 ## Sumber data EKG
 
@@ -67,6 +67,8 @@ diperbarui lewat Socket.IO. Untuk tombol switch:
 
 ```js
 await api('/source', { method: 'POST', body: { source: 'hardware' } });
+await api('/scenario', { method: 'POST', body: { name: 'serangan' } });
+const { scenario, scenarios } = await api('/scenario');
 ```
 
 ## Alur pemakaian

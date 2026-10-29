@@ -18,6 +18,8 @@ Ekstensi (tidak ada di tabel dokumen, ditambahkan untuk simulasi):
 | sim/{id}/source          | 1 R | web -> simulator  | sumber EKG: "dataset" atau "hardware"       |
 """
 
+import os
+
 QOS = {
     "ecg": 0,
     "vital": 1,
@@ -29,6 +31,8 @@ QOS = {
     "inference": 0,
     "remote": 1,
 }
+MAX_QOS = int(os.getenv("MQTT_MAX_QOS", "2"))
+QOS = {k: min(v, MAX_QOS) for k, v in QOS.items()}
 
 
 def t(device_id: str, kind: str) -> str:

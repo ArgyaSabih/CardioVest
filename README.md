@@ -7,11 +7,11 @@ Satu folder berisi seluruh sistem:
   perangkat (`simulator/`), dan alat uji (`tools/`, `tests/`).
 - **Aplikasi (UI/UX)**: tampilan Next.js (PWA) untuk User Utama dan Kontak Darurat (`web/`, dipasang di
   Vercel) dan server API + realtime (`server/`).
-- **Deploy** (`deploy/`): broker MQTT, layanan cloud, server, dan simulator berjalan 24 jam di VM Oracle
-  Cloud gratis; tampilan di Vercel.
+- **Deploy** (`deploy/`): demo gratis tanpa kartu kredit. Tampilan di Vercel, layanan cloud + server +
+  simulator di Hugging Face Space, broker MQTT di flespi.
 
 Tidak perlu Docker di laptop. Setelah penyiapan sekali-jalan di [`deploy/README.md`](deploy/README.md),
-cukup `git add -A`, `git commit`, `git push`: Vercel dan VM memperbarui diri otomatis.
+cukup `git add -A`, `git commit`, `git push`: Vercel dan Hugging Face memperbarui diri otomatis.
 
 Alurnya mengikuti rancangan BAB 1–11:
 
@@ -19,7 +19,7 @@ Alurnya mengikuti rancangan BAB 1–11:
  ┌──────────────────────────┐   MQTT (QoS per topik)   ┌──────────────┐        ┌────────────────────────────────┐
  │ Perangkat virtual (ESP32)│ ───────────────────────► │  Mosquitto   │ ─────► │ Layanan cloud                  │
  │ ECG 250 Hz (replay/sint.)│  device/{id}/ecg   (0)   │  1883 (TCP)  │        │  • sliding window 1750/875     │
- │ MAX30102 / GSR / MPU6050 │  device/{id}/vital (1)   │  8883 (TLS)  │        │  • CNN 1D ONNX (44.547 param.) │
+ │ MAX30102 / GSR / MPU6050 │  device/{id}/vital (1)   │  flespi.io   │        │  • CNN 1D ONNX (44.547 param.) │
  │ GPS Neo-6M, modem 4G     │  device/{id}/event (1)   │              │ ◄───── │  • decision engine FSM S1/S2/S3│
  │ fall detection 3 fase    │ ◄─ device/{id}/cmd (1)   │              │        │  • SQLite + mock notifikasi    │
  └──────────────────────────┘    device/{id}/lwt (1,R) └──────┬───────┘        └────────────────────────────────┘
@@ -44,7 +44,7 @@ Alurnya mengikuti rancangan BAB 1–11:
 
 ```
 CardioVest/
-├── deploy/                     # VM: docker-compose, Caddy (HTTPS), Mosquitto (akun + ACL + TLS), setup.sh, update.sh, cv.sh
+├── deploy/                     # README penyiapan + hf/ (Dockerfile dan run.sh untuk Hugging Face Space)
 ├── common/heartsim_common/     # modul bersama
 │   ├── config.py               #   konstanta dari dokumen (fs, window, ambang, N, M, tau_conf, ...)
 │   ├── topics.py               #   hierarki topik & QoS
@@ -95,7 +95,7 @@ CardioVest/
 
 ## 2. Deploy dan alur kerja harian
 
-Penyiapan sekali-jalan (VM Oracle Cloud, Vercel, ESP32, git) ada di [`deploy/README.md`](deploy/README.md).
+Penyiapan sekali-jalan (flespi, Hugging Face, Vercel, ESP32) ada di [`deploy/README.md`](deploy/README.md).
 Setelah itu:
 
 ```powershell
@@ -106,25 +106,23 @@ git push
 
 | Yang dilihat | Di mana |
 |---|---|
-| **Aplikasi CardioVest** | `https://<proyek>.vercel.app`. Daftar akun, lalu pasangkan alat `cv-001` dengan kode dari `cv info` di VM |
-| **Log** keputusan FSM, mock FCM, SMS fallback | `cv logs cloud simulator` di VM |
-| **Status layanan** | `cv info` di VM |
-| **MQTT Explorer** (opsional) | host `<ip>.sslip.io`, port `1883`, akun `web` dan kata sandinya dari `deploy/.env` di VM |
+| **Aplikasi CardioVest** | `https://<proyek>.vercel.app`. Daftar akun, lalu pasangkan alat `cv-001` dengan kode dari secret `DEVICES` di Hugging Face |
+| **Log** keputusan FSM, mock FCM, SMS fallback | tab **Logs** di Space Hugging Face |
+| **Status layanan** | `https://<proyek>.vercel.app/api/health` |
+| **MQTT Explorer** (opsional) | host `mqtt.flespi.io`, port `1883`, username = token flespi |
 
 ### Memilih skenario dan sumber data
 
-Di VM:
+Lewat API (dari aplikasi, atau Console browser seperti di `deploy/README.md`):
 
-```sh
-cv skenario serangan_jatuh
-cv reset                     # tombol hardware reset
-cv sumber hardware           # data dari ESP32, simulator berhenti
-cv sumber dataset            # data dari simulator (rekaman PTB-XL/MIT-BIH)
-```
+| Aksi | Endpoint |
+|---|---|
+| ganti skenario | `POST /api/scenario` `{"name":"serangan_jatuh"}` |
+| hentikan alarm | `POST /api/reset` `{"confirm":true}` |
+| data dari ESP32, simulator berhenti | `POST /api/source` `{"source":"hardware"}` |
+| data dari simulator (rekaman PTB-XL/MIT-BIH) | `POST /api/source` `{"source":"dataset"}` |
 
-Dari aplikasi: `POST /api/source` dengan `{"source":"hardware"}` atau `{"source":"dataset"}`.
-
-Skenario awal saat start diatur lewat `SCENARIO=` di `deploy/.env` (`cv set SCENARIO serangan`).
+Skenario awal saat start diatur lewat variabel `SCENARIO` di Space Hugging Face.
 
 ---
 
@@ -144,12 +142,12 @@ Skenario awal saat start diatur lewat `SCENARIO=` di `deploy/.env` (`cv set SCEN
 | `reset_offline` | CRITICAL, sinyal hilang, tombol reset ditekan **saat offline** | alat langsung NORMAL; saat tersambung, event reset sampai lebih dulu dan cloud ikut NORMAL tanpa mengunci alat lagi |
 | `elektroda_lepas` | elektroda lepas 25 s (flag LO+/LO-, sinyal 0) | tetap NORMAL; window ditandai "kualitas sinyal" dan tidak menggerakkan FSM |
 
-`cv reset`, **Reset status** / **Hentikan alarm** (beranda web), dan tombol fisik di alat mengembalikan sistem ke NORMAL dari state mana pun. BAB 4.5 hanya menyebut tombol fisik untuk keluar dari CRITICAL; jalur web adalah tambahan dan bisa dimatikan dengan `REMOTE_RESET=0`.
+`POST /api/reset`, **Reset status** / **Hentikan alarm** (beranda web), dan tombol fisik di alat mengembalikan sistem ke NORMAL dari state mana pun. BAB 4.5 hanya menyebut tombol fisik untuk keluar dari CRITICAL; jalur web adalah tambahan dan bisa dimatikan dengan `REMOTE_RESET=0`.
 
 ### Uji otomatis semua skenario
 
 ```powershell
-cv uji          # di VM, ~12-15 menit, mencetak PASS/FAIL dan penilaian klinis per skenario
+MQTT_HOST=mqtt.flespi.io MQTT_USER=<token> python tools/uji_skenario.py   # ~12-15 menit, PASS/FAIL per skenario
 ```
 
 Hasil pada lingkungan pengembangan (τ_conf 0,44, τ_gerak 0,76):
@@ -374,7 +372,7 @@ Menjalankan ulang (±3 menit, CPU; lingkungan Python yang sama dengan 6.5):
 python cloud\model\kalibrasi_tau.py --data ..\datasets\ecg_c251_250hz.npz
 # opsi: --spec-min 0.88 (target ideal), --fa-max 0.5 (WARNING palsu per jam), --fa-motion 0.05 (artefak)
 ```
-Nilai terpilih dicetak di akhir. Pasang dengan `cv set TAU_CONF <nilai>` dan `cv set TAU_CONF_MOTION <nilai>` di VM.
+Nilai terpilih dicetak di akhir. Pasang dengan variabel `TAU_CONF` dan `TAU_CONF_MOTION` di Space Hugging Face.
 
 ### 6.4 Riwayat eksperimen (pemilihan model berdasarkan macro-F1 **validasi**, bukan uji)
 | Percobaan | Perubahan | Val macro-F1 | Uji akurasi | Sensitivity Serangan (uji) |
@@ -393,7 +391,7 @@ pip install -r cloud\model\requirements-train.txt
 python cloud\model\datasets\prepare.py --ptbxl ..\datasets\ptbxl --mitdb ..\datasets\mitdb --out ..\datasets\ecg_c251_250hz.npz
 # 2) latih + evaluasi (~15 menit CPU); menulis model, metrik, grafik, dan bank replay simulator
 python cloud\model\train_real.py --data ..\datasets\ecg_c251_250hz.npz --ptbxl-dir ..\datasets\ptbxl
-# 3) ekspor ke ONNX (dipakai layanan cloud), lalu push; VM membangun ulang cloud dan simulator
+# 3) ekspor ke ONNX (dipakai layanan cloud), lalu push; Hugging Face mengambilnya otomatis
 python cloud\model\ekspor_model.py
 git add -A; git commit -m "model: latih ulang"; git push
 ```
@@ -420,13 +418,14 @@ tampil di log simulator dan di viewer.
 
 ## 7. Data dummy dan ekspor CSV
 
-Seluruh data tersimpan di SQLite `/srv/cardiovest/cloud/cardiovest.db` di VM. Untuk mengekspornya ke CSV:
+Di mode demo Hugging Face data hanya bertahan sampai Space menyala ulang. Untuk data laporan, jalankan
+layanan cloud di laptop (bagian 8) lalu ekspor:
 
-```sh
-cv ekspor
+```powershell
+python -m cloud.export --db data\cardiovest.db --out data\export
 ```
 
-Hasilnya muncul di `/srv/cardiovest/cloud/export/` (unduh dengan `scp`): `vitals.csv`, `inferences.csv`, `transitions.csv`, `events.csv`,
+Hasilnya muncul di `data\export\`: `vitals.csv`, `inferences.csv`, `transitions.csv`, `events.csv`,
 `notifications.csv`, `device_status.csv`, `ecg_samples.csv` (30 menit terakhir, count dan mV), serta `ringkasan.txt`
 (laju data per topik, rata-rata latensi, jumlah transisi). File ini dapat dipakai untuk grafik laporan BAB pengujian.
 
@@ -452,7 +451,7 @@ python tools\monitor.py
 python -m pytest tests -q
 ```
 
-Untuk tampilan saja, `cd web; npm install; npm run dev` memakai backend asli di VM (lihat `web/README.md`).
+Untuk tampilan saja, `cd web; npm install; npm run dev` memakai backend asli di Hugging Face (lihat `web/README.md`).
 
 ---
 
@@ -462,7 +461,7 @@ Aplikasi untuk User Utama dan Kontak Darurat (Halaman 1–6 di Bab 8.5.5): dafta
 lewat QR, kontak darurat dengan tautan undangan, notifikasi berlapis (WARNING hanya ke pemakai,
 CRITICAL ke pemakai dan semua kontak), halaman darurat dengan peta, riwayat, dan PDF untuk dokter.
 
-Tampilan (`web/`) dipasang di Vercel; API, Socket.IO, MQTT, dan Web Push ada di `server/` di VM.
+Tampilan (`web/`) dipasang di Vercel; API, Socket.IO, MQTT, dan Web Push ada di `server/` di Hugging Face.
 Rincian fitur ada di [`web/README.md`](web/README.md), endpoint dan CLI admin di
 [`server/README.md`](server/README.md).
 
@@ -475,9 +474,9 @@ Rincian fitur ada di [`web/README.md`](web/README.md), endpoint dan CLI admin di
 | Aplikasi atau ESP32 tidak tersambung ke server | Lihat tabel pemecahan masalah di `deploy/README.md`. |
 | State tidak pernah WARNING di awal | Cloud baru start: kalibrasi GSR 30 s berjalan, dan window pertama butuh 2 paket (7 s). |
 | `model tidak ditemukan` | `cloud/model/artifacts/cnn1d_ecg.onnx` hilang. Jalankan `python cloud\model\ekspor_model.py` lalu push. |
-| Tetap CRITICAL | Memang terkunci (latching). Tekan **Hentikan alarm** di beranda web atau `cv reset`. |
+| Tetap CRITICAL | Memang terkunci (latching). Tekan **Hentikan alarm** di beranda web atau `POST /api/reset`. |
 | Peta tidak muncul | GPS hanya aktif saat CRITICAL dan butuh 12–40 s untuk fix. Tile OpenStreetMap perlu internet. |
-| Alat asli tersambung tetapi state tidak pernah berubah | Lihat `cv logs cloud`: bila "kualitas sinyal" ditolak, elektroda lepas atau sinyal datar. Bila log cloud berisi "jam perangkat belum tersinkron", itu normal di menit pertama (cloud memakai waktu terima). |
+| Alat asli tersambung tetapi state tidak pernah berubah | Lihat tab Logs di Hugging Face: bila "kualitas sinyal" ditolak, elektroda lepas atau sinyal datar. Bila log cloud berisi "jam perangkat belum tersinkron", itu normal di menit pertama (cloud memakai waktu terima). |
 | Alarm palsu sering saat alat dipakai | Lihat `docs/analisis_alarm_palsu.md`, lalu jalankan `tools/kalibrasi_lapangan.py` dengan data alat sendiri. |
 | Notifikasi web tidak muncul | Wajib HTTPS (kecuali localhost) dan izin notifikasi. iPhone: tambahkan ke Layar Utama dulu (iOS 16.4+). |
 
@@ -490,10 +489,10 @@ SIM7600E-H. Topik, QoS, dan format payload-nya identik dengan simulator, sehingg
 langsung menggantikan simulator:
 
 ```sh
-cv sumber hardware      # di VM: simulator berhenti, perangkat asli memakai DEVICE_ID yang sama (cv-001)
+POST /api/source {"source":"hardware"}   # simulator berhenti, perangkat asli memakai DEVICE_ID yang sama (cv-001)
 ```
 
-Alamat broker dan akun MQTT untuk firmware ada di `deploy/README.md` bagian C.
+Alamat broker dan akun MQTT untuk firmware ada di `deploy/README.md` bagian D.
 
 Panduan pemasangan library, rangkaian, urutan uji per komponen (`firmware/uji_komponen/`), dan hasil verifikasi
 ada di `firmware/README.md`.
@@ -507,11 +506,11 @@ ada di `firmware/README.md`.
 2. Firmware: `DEVICE_ID`, `MQTT_HOST`, WiFi/APN diisi; Serial Monitor `s` menunjukkan `waktu_sinkron=1`
    setelah ±1 menit.
 3. Uji elektroda dulu tanpa cloud: Serial Plotter (`p`) harus menampilkan QRS jelas saat duduk diam.
-   Lepas satu elektroda: `cv logs cloud` harus menunjukkan window ditolak karena kualitas sinyal dan state tetap NORMAL.
+   Lepas satu elektroda: log cloud di Hugging Face harus menunjukkan window ditolak karena kualitas sinyal dan state tetap NORMAL.
 4. Tekan reset saat WiFi dimatikan, nyalakan lagi: alat harus tetap NORMAL (skenario `reset_offline`).
 5. Pakai alat 6–8 jam saat sehat, lalu jalankan `tools/kalibrasi_lapangan.py`. Angka alarm palsu dari
    alat sendiri lebih bisa dipercaya daripada perkiraan di `docs/analisis_alarm_palsu.md`.
 6. Kalibrasi baseline GSR untuk alat sungguhan: `CALIB_SECONDS=600` (10 menit, sesuai 5.5.3). Nilai 30 detik
    hanya untuk demo.
-7. Lewat internet: `MQTT_USE_TLS 1` di firmware (port 8883, sertifikat Let's Encrypt otomatis di VM).
-8. `RETENSI_HARI=30` sudah aktif di VM (F-BE-4) agar disk tidak penuh oleh ECG mentah.
+7. Lewat internet: `MQTT_USE_TLS 1` di firmware (port 8883 flespi).
+8. `RETENSI_HARI=30` sudah aktif di Hugging Face (F-BE-4) agar disk tidak penuh oleh ECG mentah.

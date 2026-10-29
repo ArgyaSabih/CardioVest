@@ -1,7 +1,7 @@
 """Monitor terminal real-time untuk pipeline simulasi.
 
     python tools/monitor.py --host localhost --device-id cv-001
-    MQTT_USER=web MQTT_PASS=<dari deploy/.env> python tools/monitor.py --host <ip>.sslip.io
+    MQTT_USER=<token flespi> python tools/monitor.py --host mqtt.flespi.io
 
 Menampilkan: state FSM, alasan keputusan, vital (HR/sumber/SQI/GSR/akselerasi/GPS/jatuh),
 hasil CNN terakhir, grafik ECG ringkas, laju data per topik, dan log alert/transisi.
@@ -29,7 +29,8 @@ from rich.table import Table
 from rich.text import Text
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "common"))
-from heartsim_common.codec import decode  # noqa: E402
+from heartsim_common import mqtt_auth
+from heartsim_common.codec import decode
 
 STATE_STYLE = {"NORMAL": "bold white on green4", "WARNING": "bold black on yellow3",
                "CRITICAL": "bold white on red3"}
@@ -203,11 +204,7 @@ def main() -> None:
     ap.add_argument("--device-id", default=os.getenv("DEVICE_ID", "cv-001"))
     a = ap.parse_args()
     m = Monitor(a.device_id)
-    c = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=f"monitor-{os.getpid()}")
-    if os.getenv("MQTT_USER"):                 # broker produksi (lihat deploy/mosquitto)
-        c.username_pw_set(os.getenv("MQTT_USER"), os.getenv("MQTT_PASS") or None)
-    if os.getenv("MQTT_TLS") == "1":
-        c.tls_set(ca_certs=os.getenv("MQTT_CA") or None)
+    c = mqtt_auth.make_client(f"monitor-{os.getpid()}")
     c.on_connect, c.on_message = m.on_connect, m.on_message
     c.connect_async(a.host, a.port, 30)
     c.loop_start()

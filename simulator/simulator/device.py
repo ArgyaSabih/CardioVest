@@ -100,10 +100,7 @@ class VirtualDevice:
 
     # ============================================================ MQTT
     def _make_client(self) -> mqtt.Client:
-        c = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=f"dev-{self.device_id}",
-                        clean_session=True)
-        # broker produksi: akun perangkat = DEVICE_ID (ACL membatasi ke device/<id>/#)
-        mqtt_auth.apply(c, user=C.env_str("MQTT_USER", "") or None)
+        c = mqtt_auth.make_client(f"dev-{self.device_id}", user=C.env_str("MQTT_USER", "") or None)
         c.will_set(T.t(self.device_id, "lwt"),
                    json.dumps({"status": "offline", "reason": "koneksi terputus tak terduga"}),
                    qos=1, retain=True)
@@ -114,8 +111,7 @@ class VirtualDevice:
         return c
 
     def _make_ctl_client(self) -> mqtt.Client:
-        c = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=f"sim-{self.device_id}", clean_session=True)
-        mqtt_auth.apply(c, user=C.env_str("MQTT_USER", "") or None)
+        c = mqtt_auth.make_client(f"sim-{self.device_id}", user=C.env_str("MQTT_USER", "") or None)
         c.on_connect = self._on_ctl_connect
         c.on_message = self._on_message
         c.reconnect_delay_set(1, 30)

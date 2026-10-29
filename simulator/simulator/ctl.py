@@ -46,8 +46,7 @@ def main() -> None:
            "reset": {"cmd": "reset"},
            "putus": {"cmd": "putus", "detik": getattr(a, "detik", 45)},
            "status": {"cmd": "status"}}[a.cmd]
-    c = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=f"ctl-{int(time.time())}")
-    mqtt_auth.apply(c)
+    c = mqtt_auth.make_client(f"ctl-{int(time.time())}")
     try:
         c.connect(a.host, a.port, 10)
     except OSError as e:

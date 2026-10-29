@@ -6,10 +6,6 @@
 *.jsx text eol=lf
 *.json text eol=lf
 *.yml text eol=lf
-Dockerfile text eol=lf
-deploy/mosquitto/acl text eol=lf
-deploy/mosquitto/*.conf text eol=lf
-Caddyfile text eol=lf
 
 *.npz binary
 *.keras binary

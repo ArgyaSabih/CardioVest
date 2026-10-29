@@ -272,3 +272,24 @@ test('sumber data: dataset/hardware diteruskan ke simulator lewat topik retained
     else delete mq.connected;
   }
 });
+
+test('skenario simulator: daftar dari status simulator, perintah diteruskan ke sim/<id>/control', async () => {
+  const tok = (await anon('/api/auth/login', { method: 'POST', body: { email: 'uji@contoh.id', password: 'sandibaru123' } })).body.token;
+  const sent = [];
+  const orig = mq.publish.bind(mq);
+  const was = Object.getOwnPropertyDescriptor(mq, 'connected');
+  mq.publish = (topic, payload) => { sent.push({ topic, payload: JSON.parse(payload) }); };
+  Object.defineProperty(mq, 'connected', { value: true, configurable: true });
+  try {
+    mq.emit('message', 'sim/cv-001/status', Buffer.from(JSON.stringify({ scenario: 'normal', scenario_title: 'Normal', scenarios: { normal: 'Normal', serangan: 'Serangan' }, source: 'dataset' })));
+    const g = await call('/api/scenario', {}, tok);
+    assert.deepEqual(Object.keys(g.body.scenarios), ['normal', 'serangan']);
+    assert.equal((await call('/api/scenario', { method: 'POST', body: { name: 'tidak_ada' } }, tok)).status, 400);
+    assert.equal((await call('/api/scenario', { method: 'POST', body: { name: 'serangan' } }, tok)).status, 202);
+    assert.deepEqual(sent.at(-1), { topic: 'sim/cv-001/control', payload: { cmd: 'skenario', name: 'serangan' } });
+  } finally {
+    mq.publish = orig;
+    if (was) Object.defineProperty(mq, 'connected', was);
+    else delete mq.connected;
+  }
+});

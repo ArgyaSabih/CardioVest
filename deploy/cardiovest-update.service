@@ -1,8 +1,0 @@
-[Unit]
-Description=CardioVest: tarik commit terbaru dan bangun ulang
-After=network-online.target docker.service
-Wants=network-online.target
-
-[Service]
-Type=oneshot
-ExecStart=/bin/sh /opt/cardiovest/deploy/update.sh

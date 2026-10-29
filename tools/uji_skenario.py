@@ -22,7 +22,12 @@ import sys
 import threading
 import time
 
+from pathlib import Path
+
 import paho.mqtt.client as mqtt
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "common"))
+from heartsim_common import mqtt_auth
 
 HOST = os.getenv("MQTT_HOST", "localhost")
 PORT = int(os.getenv("MQTT_PORT", "1883"))
@@ -111,11 +116,7 @@ def ctl(c, msg):
 def main():
     names = sys.argv[1:] or list(CASES)
     rec = Recorder()
-    c = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=f"uji-{os.getpid()}")
-    if os.getenv("MQTT_USER"):                 # broker produksi (lihat deploy/mosquitto)
-        c.username_pw_set(os.getenv("MQTT_USER"), os.getenv("MQTT_PASS") or None)
-    if os.getenv("MQTT_TLS") == "1":
-        c.tls_set(ca_certs=os.getenv("MQTT_CA") or None)
+    c = mqtt_auth.make_client(f"uji-{os.getpid()}")
     c.on_message = rec.on_message
     c.connect(HOST, PORT, 30)
     c.subscribe([(f"device/{DEV}/state", 1), (f"device/{DEV}/alert", 2), (f"device/{DEV}/lwt", 1),

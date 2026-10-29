@@ -1,8 +1,0 @@
-{
-	key_type rsa2048
-}
-
-{$DOMAIN} {
-	encode gzip
-	reverse_proxy server:8080
-}

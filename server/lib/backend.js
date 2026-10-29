@@ -26,7 +26,7 @@ export function seedDevices() {
 
 const liveMap = new Map();
 export const live = (id) => {
-  if (!liveMap.has(id)) liveMap.set(id, { state: null, online: null, onlineSince: null, vital: null, inference: null, trail: [], buffering: 0, source: null });
+  if (!liveMap.has(id)) liveMap.set(id, { state: null, online: null, onlineSince: null, vital: null, inference: null, trail: [], buffering: 0, source: null, sim: null });
   return liveMap.get(id);
 };
 
@@ -283,10 +283,13 @@ export function startBackend(server) {
     const [root, dev, kind] = topic.split('/');
     if (root === 'sim') {
       try {
-        const source = JSON.parse(buf.toString()).source ?? null;
-        if (devices.get(dev) && source !== live(dev).source) {
-          live(dev).source = source;
-          toFamily(dev).emit('source', { source });
+        const st = JSON.parse(buf.toString());
+        if (!devices.get(dev)) return;
+        const L = live(dev);
+        L.sim = { scenario: st.scenario ?? null, title: st.scenario_title ?? null, scenarios: st.scenarios ?? {} };
+        if ((st.source ?? null) !== L.source) {
+          L.source = st.source ?? null;
+          toFamily(dev).emit('source', { source: L.source });
         }
       } catch {
         return;
@@ -325,6 +328,13 @@ export function startBackend(server) {
     return { ok: true, status: 202 };
   }
 
+  function simCommand(dev, user, cmd) {
+    if (!mq.connected) return { ok: false, status: 503, error: 'Server belum tersambung ke broker. Coba lagi sebentar lagi.' };
+    mq.publish(`sim/${dev}/control`, JSON.stringify(cmd), { qos: 1 });
+    console.log(`[simulator] ${dev}: ${JSON.stringify(cmd)} oleh ${user.name}`);
+    return { ok: true, status: 202 };
+  }
+
   function setMode(dev, user, mode) {
     if (mode !== 'demo' && mode !== 'test') return { ok: false, status: 400, error: 'Mode harus demo atau test.' };
     if (!mq.connected) return { ok: false, status: 503, error: 'Server belum tersambung ke broker. Coba lagi sebentar lagi.' };
@@ -336,7 +346,7 @@ export function startBackend(server) {
   const ctx = {
     cfg, cloud, users, tokens, devices, contacts, subs, acks, notifLog, linkOf, publicTokenFor, checkSecret,
     MAX_CONTACTS, dispatch, vapidPublicKey, mailConfigured, verifyMail, resetMail,
-    live, connection, statusOf, sign, userFromAuth, limited, clearLimit, io, mq, notify, remoteReset, setMode, setSource,
+    live, connection, statusOf, sign, userFromAuth, limited, clearLimit, io, mq, notify, remoteReset, setMode, setSource, simCommand,
   };
   globalThis.__cardiovest = ctx;
   return ctx;

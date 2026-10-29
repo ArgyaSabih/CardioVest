@@ -1,12 +1,12 @@
 # Server CardioVest (API + realtime)
 
-Bagian aplikasi yang harus hidup terus, berjalan di VM bersama broker dan layanan cloud
-([`deploy/`](../deploy/README.md)). Satu proses Node.js 22 tanpa framework:
+Bagian aplikasi yang harus hidup terus, berjalan di Hugging Face Space bersama layanan cloud dan
+simulator ([`deploy/`](../deploy/README.md)). Satu proses Node.js 22 tanpa framework:
 
 - **REST** `/api/*`: akun, pairing, kontak, riwayat, tautan darurat, Web Push.
 - **Socket.IO** `/data/realtime`: status, vital, inferensi, dan EKG 250 Hz ke browser.
-- **MQTT** (akun `web`): membaca `device/+/*` dari layanan cloud, menulis `device/+/remote` (reset alarm)
-  dan `sim/+/source` (pilih sumber data).
+- **MQTT**: membaca `device/+/*` dari layanan cloud, menulis `device/+/remote` (reset alarm)
+  `sim/+/source` (pilih sumber data), dan `sim/+/control` (skenario simulator).
 - **Web Push** berlapis: WARNING hanya ke User Utama, CRITICAL ke User Utama + semua kontak, retry
   backoff 1–32 s.
 - Database: `gateway.db` (akun, alat, kontak, langganan push, log notifikasi) dan membaca
@@ -27,8 +27,7 @@ Server tidak pernah mengubah state alat secara langsung. Keputusan tetap di laya
 │   ├── db.js          # baca cardiovest.db (cloud)
 │   ├── push.js, mail.js, codec.js, config.js
 │   └── alat.js        # CLI admin alat + label QR
-├── test/              # uji node --test (fixture dibuat dari kode Python proyek)
-└── Dockerfile
+└── test/              # uji node --test (fixture dibuat dari kode Python proyek)
 ```
 
 Menambah endpoint: buat `routes/<nama>/route.js` yang mengekspor `GET`/`POST`/`PUT`/`DELETE`:
@@ -48,7 +47,7 @@ memuat folder `routes/` otomatis saat server menyala.
 |---|---|
 | Akun | `POST /auth/signup`, `/auth/login`, `/auth/verify`, `/auth/verify/kirim-ulang`, `/auth/forgot`, `/auth/reset` · `GET`/`PUT /users/me` |
 | Alat | `POST`/`DELETE /devices/pair` · `GET /status` · `GET /trend` · `POST /reset` (`{"confirm":true}`) · `POST /mode` |
-| Sumber data | `GET /source` · `POST /source` (`{"source":"dataset"}` atau `{"source":"hardware"}`) |
+| Demo | `GET`/`POST /source` (`{"source":"dataset"}` atau `{"source":"hardware"}`) · `GET`/`POST /scenario` (`{"name":"serangan"}`) |
 | Kontak | `GET`/`POST /contacts` · `PUT`/`DELETE /contacts/:id` · `POST /contacts/:id/undangan-baru` |
 | Undangan kontak (tanpa akun) | `GET /join/:code` · `POST /join/:code/push` · `POST /join/:code/uji` |
 | Riwayat | `GET /history?type=&from=&to=` · `GET /history/:id` · `GET /history/:id/ecg` |
@@ -61,7 +60,7 @@ Event Socket.IO: `status`, `state`, `vital`, `ecg`, `inference`, `location`, `fa
 
 ## Variabel lingkungan
 
-Di VM semuanya diatur lewat `deploy/.env` (`cv set NAMA nilai`).
+Diatur di **Settings → Variables and secrets** Space Hugging Face.
 
 | Nama | Isi |
 |---|---|
@@ -69,23 +68,24 @@ Di VM semuanya diatur lewat `deploy/.env` (`cv set NAMA nilai`).
 | `PUBLIC_URL` | alamat Vercel, untuk tautan email, undangan, dan notifikasi |
 | `ALLOWED_ORIGINS` | asal yang boleh membuka Socket.IO, `*` sebagai wildcard: `https://*.vercel.app,http://localhost:3000` |
 | `PROXY_SECRET` | sama dengan di Vercel |
-| `SMTP_URL`, `MAIL_FROM` | email verifikasi dan lupa sandi. Kosong = isi email dicetak ke log (`cv logs server`). Gmail: `smtps://akun%40gmail.com:sandiaplikasi@smtp.gmail.com:465` |
+| `SMTP_URL`, `MAIL_FROM` | email verifikasi dan lupa sandi. Kosong = isi email dicetak ke log. Gmail: `smtps://akun%40gmail.com:sandiaplikasi@smtp.gmail.com:465` |
 | `CONTACTS_JSON` | opsional, kontak awal untuk akun pertama yang pairing |
 | `REMOTE_RESET` | `0` = tombol "Hentikan alarm" di aplikasi dimatikan |
 
 ## Mengelola alat (peran Admin)
 
-Lewat CLI di VM, bukan halaman web, supaya tidak ada halaman admin yang bisa diserang:
+Alat yang boleh dipasangkan diatur lewat secret `DEVICES`, mis. `cv-001:123456,cv-002:654321`. Tidak ada
+halaman admin di web, supaya tidak ada yang bisa diserang dari internet.
 
-```sh
-cv alat daftar
-cv alat tambah cv-002        # alat baru, kode acak
-cv alat kode-baru cv-001     # ganti kode, yang lama tidak berlaku
-cv alat lepas cv-001         # lepas dari akun pemiliknya
+Label QR `CARDIOVEST:<id>:<kode>` untuk ditempel di rompi dibuat di laptop:
+
+```powershell
+cd server
+npm install
+npm run alat -- tambah cv-001 123456
 ```
 
-Label QR `CARDIOVEST:<id>:<kode>` tersimpan di `/srv/cardiovest/server/label-<id>.svg`. Unduh ke laptop:
-`scp -i <kunci> ubuntu@<ip>:/srv/cardiovest/server/label-cv-002.svg .`
+Labelnya tersimpan di `server/data/label-cv-001.svg`.
 
 ## Uji
 

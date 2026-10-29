@@ -1,6 +1,6 @@
-# Deploy CardioVest: Oracle Cloud + Vercel
+# Deploy demo CardioVest: Vercel + Hugging Face + flespi
 
-Setelah langkah sekali-jalan di bawah, alur kerja harian cukup:
+Semuanya gratis dan tanpa kartu kredit. Setelah penyiapan sekali-jalan di bawah, alur kerja harian cukup:
 
 ```powershell
 git add -A
@@ -8,181 +8,140 @@ git commit -m "pesan perubahan"
 git push
 ```
 
-Tidak ada Docker di laptop. Setiap `git push` ke branch `faza`:
-
-| Bagian | Di mana | Kapan diperbarui |
+| Bagian | Di mana | Setelah `git push` |
 |---|---|---|
-| Tampilan web (`web/`) | Vercel | otomatis, ±1 menit setelah push |
-| Broker MQTT, layanan cloud CNN + FSM, server API + realtime, simulator dataset | VM Oracle Cloud (gratis, menyala 24 jam) | otomatis, VM mengecek GitHub tiap menit lalu membangun ulang bagian yang berubah |
+| Tampilan web (`web/`) | **Vercel** | dibangun ulang otomatis, ±1 menit |
+| Layanan cloud CNN + FSM, server API + realtime, simulator dataset | **Hugging Face Space** (Docker, 2 vCPU, 16 GB) | Space mengecek GitHub tiap menit, mengambil commit baru, lalu menyalakan ulang layanan |
+| Broker MQTT | **flespi** (broker publik gratis, akun pribadi) | tidak berubah |
 
 ```
-ESP32 / simulator ──MQTT 1883/8883──► Mosquitto ──► cloud (ONNX CNN + FSM) ──► SQLite
-                                         │                                       │
-                                         └──► server (API + Socket.IO + Web Push)◄┘
-                                                      ▲ https://<ip>.sslip.io (Caddy, HTTPS otomatis)
-                                                      │
-   browser teman ──► https://<proyek>.vercel.app ─────┘  /api diteruskan, EKG realtime lewat WebSocket
+ESP32 ──MQTT 1883/8883──► flespi ◄──WSS 443── Hugging Face Space (cloud + server + simulator)
+                                                        ▲  https://<user>-cardiovest.hf.space
+                                                        │  /api diteruskan, EKG realtime lewat WebSocket
+       browser teman ──► https://<proyek>.vercel.app ───┘
 ```
+
+Ini mode **demo**: akun, pairing, dan riwayat terhapus setiap kali Space menyala ulang (misalnya setelah
+dibangun ulang atau tertidur). Commit biasa tidak menghapus data, karena layanan hanya dinyalakan ulang
+di dalam container yang sama. Space gratis tertidur bila 48 jam tidak dibuka; membuka alamatnya
+membangunkannya lagi dalam 1–2 menit.
 
 ---
 
-## A. Sekali saja: siapkan VM Oracle Cloud
+## A. Broker MQTT di flespi (sekali)
 
-### 1. Buat VM
+1. Daftar di <https://flespi.io> (email atau Google, paket **Free**).
+2. Menu **Tokens** → salin token yang ada (*Master token*), atau buat token baru. Token ini dipakai
+   sebagai *username* MQTT; kata sandinya dikosongkan.
 
-1. Daftar di <https://www.oracle.com/cloud/free/> (butuh kartu kredit untuk verifikasi, tidak ditagih
-   selama memakai sumber daya *Always Free*). Pilih *home region* terdekat, misalnya Singapore.
-2. Menu **Compute → Instances → Create instance**:
-   - **Image**: Canonical Ubuntu 22.04 atau 24.04.
-   - **Shape**: `VM.Standard.A1.Flex` (Ampere, 2 OCPU, 12 GB). Bila muncul *out of capacity*, pakai
-     `VM.Standard.E2.1.Micro` (1 GB RAM). Keduanya *Always Free* dan cukup.
-   - **SSH keys**: pilih *Generate a key pair for me*, lalu **unduh private key**.
-3. Setelah status *Running*, catat **Public IP address**.
+Semua topik di akun flespi Anda terpisah dari pengguna flespi lain. Batas paket Free (50 koneksi,
+20.000 pesan per menit) jauh di atas kebutuhan satu rompi.
 
-### 2. Buka port di jaringan Oracle
+## B. Backend di Hugging Face (sekali)
 
-**Instance → Subnet → Security List (Default Security List) → Add Ingress Rules**, buat empat aturan:
+1. Daftar di <https://huggingface.co/join>.
+2. <https://huggingface.co/new-space>:
+   - **Space name**: `cardiovest`
+   - **SDK**: Docker → **Blank**
+   - **Hardware**: CPU basic (free)
+   - **Visibility**: **Public** (Vercel dan browser perlu bisa mengaksesnya; kode dan isi token tetap
+     tersembunyi)
+3. Di Space yang baru: **Files → Add file → Upload files**, unggah `deploy/hf/Dockerfile` dan
+   `deploy/hf/README.md` dari repo ini (timpa README bawaan), lalu **Commit**.
+4. **Settings → Variables and secrets**, tambahkan:
 
-| Source CIDR | IP Protocol | Destination Port |
-|---|---|---|
-| `0.0.0.0/0` | TCP | `80` |
-| `0.0.0.0/0` | TCP | `443` |
-| `0.0.0.0/0` | TCP | `1883` |
-| `0.0.0.0/0` | TCP | `8883` |
+   | Jenis | Nama | Isi |
+   |---|---|---|
+   | Secret | `FLESPI_TOKEN` | token dari langkah A |
+   | Secret | `PROXY_SECRET` | string acak panjang buatan Anda, mis. 40 huruf/angka |
+   | Secret | `DEVICES` | `cv-001:123456` (ID alat : kode pairing 6 digit pilihan Anda) |
+   | Variable | `PUBLIC_URL` | alamat Vercel (isi setelah langkah C, mis. `https://cardiovest.vercel.app`) |
 
-Firewall di dalam VM dibuka otomatis oleh skrip setup.
+5. Tab **Logs** menampilkan proses build (5–10 menit pertama kali), lalu log layanan. Tanda berhasil:
 
-### 3. Masuk ke VM dan jalankan setup
-
-Dari PowerShell di laptop (ganti path kunci dan IP):
-
-```powershell
-ssh -i "$HOME\Downloads\ssh-key.key" ubuntu@IP_PUBLIK
-```
-
-Bila muncul *UNPROTECTED PRIVATE KEY FILE*, jalankan sekali:
-`icacls "$HOME\Downloads\ssh-key.key" /inheritance:r /grant:r "$($env:USERNAME):R"`.
-
-Di dalam VM:
-
-```sh
-sudo git clone -b faza https://github.com/ArgyaSabih/CardioVest.git /opt/cardiovest
-sudo sh /opt/cardiovest/deploy/setup.sh
-```
-
-Skrip ini memasang swap, Docker, membuka firewall, membuat `deploy/.env` berisi kata sandi acak,
-membuat akun MQTT, membangun semua layanan, lalu memasang pengecek GitHub tiap menit. Build pertama
-butuh 5–10 menit. Di akhir, catat yang dicetak:
-
-```
-Kode pairing alat: cv-001:123456
-Backend      : https://140-238-1-2.sslip.io
-Akun MQTT    : cv-001 / xxxxxxxxxxxxxxxxxxxx
-Vercel       : NEXT_PUBLIC_BACKEND_URL=https://140-238-1-2.sslip.io
-               PROXY_SECRET=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-```
-
-Semua nilai itu bisa dilihat lagi kapan saja dengan `cv info`.
-Alamat `*.sslip.io` adalah domain gratis yang otomatis menunjuk ke IP VM, sehingga HTTPS langsung jalan
-tanpa membeli domain.
-
-## B. Sekali saja: hubungkan Vercel
-
-1. <https://vercel.com/new> → masuk dengan GitHub → **Import** repositori `ArgyaSabih/CardioVest`.
-   Bila tidak muncul di daftar, tempel URL repositorinya (repositori publik bisa diimpor siapa saja).
-2. **Root Directory**: `web`. Framework terdeteksi Next.js.
-3. **Environment Variables**:
-
-   | Nama | Nilai |
-   |---|---|
-   | `NEXT_PUBLIC_BACKEND_URL` | `https://<ip>.sslip.io` dari `cv info` |
-   | `PROXY_SECRET` | dari `cv info` |
-
-4. **Deploy**. Setelah selesai buka **Settings → Git → Production Branch**, isi `faza`, simpan.
-   Mulai sekarang setiap push ke `faza` langsung memperbarui alamat utama
-   `https://<proyek>.vercel.app`.
-5. Beri tahu server alamat Vercel-nya (dipakai di tautan email, undangan kontak, dan notifikasi). Di VM:
-
-   ```sh
-   cv set PUBLIC_URL https://<proyek>.vercel.app
+   ```
+   [server] CardioVest di port 7860; alat terdaftar: cv-001
+   [mqtt] tersambung ke wss://mqtt.flespi.io
+   cloud      INFO     cv-001 seq=1 Normal ...
    ```
 
-6. Cek: buka `https://<proyek>.vercel.app/api/health`. Jawaban yang benar:
-   `{"ok":true,"mqtt":true,"cloud_db":true}`.
+   Alamat backend: `https://<username-hf>-cardiovest.hf.space` (juga terlihat di menu **⋮ → Embed this
+   Space → Direct URL**). Membukanya menampilkan `{"ok":true,"service":"cardiovest-server"}`.
 
-`NEXT_PUBLIC_BACKEND_URL` dibaca saat build. Bila nilainya diganti, lakukan **Redeploy** di Vercel.
+Variabel opsional lain: `SIMULATOR=0` (simulator tidak dijalankan sama sekali), `SIM_SOURCE=hardware`,
+`SCENARIO=serangan`, `TAU_CONF`, `TAU_WARN`, `CALIB_SECONDS`, `SMTP_URL`, dan semua parameter di
+README utama. Setiap perubahan variabel membuat Space menyala ulang.
 
-## C. Sekali saja: arahkan ESP32 ke server
+## C. Tampilan di Vercel (sekali)
+
+1. <https://vercel.com/new> → masuk dengan GitHub → **Import** `ArgyaSabih/CardioVest`
+   (repositori publik; bila tidak muncul, tempel URL-nya).
+2. **Root Directory**: `web`.
+3. **Environment Variables**:
+
+   | Nama | Isi |
+   |---|---|
+   | `NEXT_PUBLIC_BACKEND_URL` | `https://<username-hf>-cardiovest.hf.space` |
+   | `PROXY_SECRET` | sama persis dengan di Hugging Face |
+
+4. **Deploy**. Lalu **Settings → Git → Production Branch** = `faza`, simpan.
+5. Isi `PUBLIC_URL` di Hugging Face dengan alamat Vercel ini (langkah B.4).
+6. Cek `https://<proyek>.vercel.app/api/health` → `{"ok":true,"mqtt":true,"cloud_db":true}`.
+
+`NEXT_PUBLIC_BACKEND_URL` dibaca saat build. Bila diganti, lakukan **Redeploy** di Vercel.
+
+## D. ESP32 ke flespi
 
 Di `firmware/cardiovest_c251/cardiovest_c251.ino`:
 
 ```c
-#define MQTT_HOST "140-238-1-2.sslip.io"
+#define MQTT_HOST "mqtt.flespi.io"
 #define MQTT_USE_TLS 0
-#define MQTT_USER "cv-001"
-#define MQTT_PASS "<Akun MQTT dari cv info>"
+#define MQTT_TLS_INSECURE 0
+#define MQTT_USER "<FLESPI_TOKEN>"
+#define MQTT_PASS ""
 ```
 
-`MQTT_USE_TLS 1` (port 8883) juga sudah siap: sertifikat Let's Encrypt dipasang otomatis ke broker
-beberapa menit setelah setup, dan rantainya berakar di ISRG Root X1.
+Untuk koneksi terenkripsi, pakai `MQTT_USE_TLS 1` dan `MQTT_TLS_INSECURE 1` (port 8883, sertifikat
+tidak diverifikasi).
 
-Simulator dan ESP32 memakai ID yang sama (`cv-001`), jadi hanya satu yang boleh mengirim data. Pilih
-sumbernya dengan `cv sumber hardware` (ESP32) atau `cv sumber dataset` (simulator), atau lewat
-`POST /api/source` dari aplikasi. Pilihan ini tersimpan di broker dan tetap berlaku walau server
-dibangun ulang.
+Simulator dan ESP32 memakai ID yang sama (`cv-001`), jadi hanya satu yang boleh mengirim data. Pilihan
+sumber disimpan di broker dan tetap berlaku walau Space menyala ulang:
 
-## D. Sekali saja: siapkan git di laptop
-
-Di PowerShell, dari folder proyek (`C:\Users\azfaz\Documents\Website\capstone-c03`):
-
-```powershell
-git config --global user.name "Nama Anda"
-git config --global user.email "email-akun-github@contoh.com"
-git init -b faza
-git remote add origin https://github.com/ArgyaSabih/CardioVest.git
-git fetch origin inge
-git reset origin/inge
-git status
-git add -A
-git commit -m "refactor: deploy tanpa docker lokal (Vercel + Oracle Cloud)"
-git push -u origin faza
+```js
+await api('/source', { method: 'POST', body: { source: 'hardware' } });
+await api('/source', { method: 'POST', body: { source: 'dataset' } });
 ```
-
-`git reset origin/inge` menjadikan branch `inge` sebagai titik awal tanpa mengubah file di folder,
-sehingga `git status` hanya menampilkan perubahan dari restrukturisasi ini.
 
 ---
 
-## Perintah di VM (`cv`)
+## Mengendalikan demo
 
-| Perintah | Fungsi |
-|---|---|
-| `cv info` | alamat backend, akun MQTT, nilai untuk Vercel, status layanan |
-| `cv logs` / `cv logs cloud` | log langsung semua layanan / satu layanan (`cloud`, `server`, `simulator`, `mosquitto`, `caddy`) |
-| `cv update` | tarik commit terbaru dan bangun ulang sekarang, tanpa menunggu 1 menit |
-| `cv restart server` | nyalakan ulang satu layanan |
-| `cv set NAMA nilai` | ubah `deploy/.env` (mis. `TAU_CONF`, `SMTP_URL`, `CALIB_SECONDS`) lalu terapkan |
-| `cv sumber hardware` / `cv sumber dataset` | pilih sumber EKG |
-| `cv skenario serangan` | ganti skenario simulator (daftar di README utama bagian 3) |
-| `cv reset` | tekan tombol reset simulator |
-| `cv uji` / `cv uji serangan` | uji otomatis skenario |
-| `cv ekspor` | ekspor database ke CSV di `/srv/cardiovest/cloud/export` |
-| `cv alat daftar` / `cv alat tambah cv-002` / `cv alat kode-baru cv-001` / `cv alat lepas cv-001` | kelola alat dan kode pairing |
+Selama tombolnya belum ada di aplikasi, perintah bisa diketik di **Console** browser (F12) saat sudah
+masuk ke aplikasi di Vercel:
 
-Riwayat build otomatis: `journalctl -u cardiovest-update -f`.
+```js
+const kirim = (p, body) => fetch('/api' + p, { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + localStorage.cv_token }, body: JSON.stringify(body) }).then((r) => r.json());
 
-Data (akun, riwayat, database cloud, sertifikat) tersimpan di `/srv/cardiovest` dan tidak tersentuh
-saat kode diperbarui. `RETENSI_HARI=30` menghapus EKG mentah yang lebih tua dari 30 hari supaya disk
-tidak penuh; kejadian dan EKG di sekitarnya tetap disimpan.
+kirim('/source', { source: 'hardware' });
+kirim('/source', { source: 'dataset' });
+kirim('/scenario', { name: 'serangan' });
+kirim('/scenario', { name: 'normal' });
+kirim('/reset', { confirm: true });
+```
+
+Daftar skenario: `GET /api/scenario`, atau README utama bagian 3.
 
 ## Pemecahan masalah
 
 | Gejala | Solusi |
 |---|---|
-| `https://<ip>.sslip.io` tidak bisa dibuka | Port 80/443 belum dibuka di Security List Oracle (langkah A.2). Setelah dibuka: `cv restart caddy`. |
+| Log HF berisi `[mqtt] Not authorized` / `Connection refused` | `FLESPI_TOKEN` salah atau kosong. Perbaiki di Settings; Space menyala ulang sendiri. |
 | Vercel `/api/health` menjawab 503 `NEXT_PUBLIC_BACKEND_URL belum diisi` | Isi variabel di Vercel lalu Redeploy. |
-| Login di Vercel gagal terus "Terlalu banyak percobaan" | `PROXY_SECRET` di Vercel tidak sama dengan `cv info`. Samakan lalu Redeploy. |
-| Grafik EKG tidak bergerak, status "Tidak terpantau" | `cv logs simulator`; pastikan sumber `dataset`, atau ESP32 menyala bila sumber `hardware`. |
-| ESP32 tidak tersambung | Port 1883 belum dibuka (A.2), atau `MQTT_USER`/`MQTT_PASS` tidak sama dengan `cv info`. Lihat `cv logs mosquitto`. |
-| Push terakhir belum tampil di VM | `journalctl -u cardiovest-update -n 50` untuk melihat error build, atau `cv update`. |
-| VM kehabisan memori saat build (shape 1 GB) | Swap 2 GB sudah dibuat setup; jalankan `cv update` sekali lagi. |
+| Vercel `/api/health` menampilkan halaman HTML | Space sedang tertidur atau dibangun. Buka alamat `hf.space`, tunggu 1–2 menit. |
+| Login gagal "Terlalu banyak percobaan" | `PROXY_SECRET` di Vercel dan HF tidak sama. |
+| Setelah demo kemarin harus daftar ulang | Normal untuk mode demo: Space menyala ulang dan data terhapus. |
+| Grafik EKG diam, status "Tidak terpantau" | Sumber `hardware` tetapi ESP32 mati, atau sebaliknya. Ganti sumber. |
+| ESP32 tidak tersambung | Cek `MQTT_USER` = token flespi, `MQTT_PASS` kosong. Di flespi **MQTT Board** terlihat koneksi aktif. |
+| Push terakhir belum terlihat | Tunggu 1–2 menit; tab Logs HF menulis `[run] commit baru di faza`. Bila `requirements.txt` berubah, layanan butuh waktu lebih lama menyala. |
+| `Dockerfile` di HF perlu diubah | Jarang. Unggah ulang `deploy/hf/Dockerfile`, atau **Settings → Factory rebuild**. |

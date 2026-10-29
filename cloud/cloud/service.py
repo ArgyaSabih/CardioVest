@@ -80,13 +80,7 @@ class CloudService:
         self.notifier = MockNotifier(self.repo, C.USER_ID)
         self.devices: dict[str, DeviceCtx] = {}
         self.jobs: queue.Queue = queue.Queue(maxsize=1000)
-        # Sesi persisten: bila layanan cloud mati sebentar, broker menyimpan pesan QoS 1/2 (vital,
-        # event tombol reset) dan mengirimkannya saat cloud tersambung lagi. Dengan clean_session=True,
-        # event reset yang ditekan selama cloud mati hilang dan alat bisa terkunci CRITICAL lagi.
-        self.client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2,
-                                  client_id=C.env_str("CLOUD_CLIENT_ID", "cloud-inference"),
-                                  clean_session=False)
-        mqtt_auth.apply(self.client)
+        self.client = mqtt_auth.make_client(C.env_str("CLOUD_CLIENT_ID", "cloud-inference"), clean_session=False)
         self.client.on_connect = self._on_connect
         self.client.on_message = self._on_message
         self.client.reconnect_delay_set(1, 30)
