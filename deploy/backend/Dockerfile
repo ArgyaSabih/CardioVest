@@ -19,5 +19,5 @@ RUN python3 -m venv venv \
  && cd app/server && npm ci --omit=dev --no-audit --no-fund \
  && sha1sum package-lock.json | cut -d' ' -f1 > /home/node/.npm-lock
 
-EXPOSE 7860
+EXPOSE 10000
 CMD ["bash", "-c", "cd /home/node/app && git fetch -q origin \"$BRANCH\" && git reset -q --hard FETCH_HEAD; exec bash deploy/backend/run.sh"]

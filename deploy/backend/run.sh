@@ -12,10 +12,10 @@ if [ -n "${FLESPI_TOKEN:-}" ]; then
   export MQTT_URL=wss://mqtt.flespi.io MQTT_USER="$FLESPI_TOKEN" MQTT_PASS=
 fi
 export PYTHONPATH="$APP/common:$APP/cloud:$APP/simulator"
-export PORT="${PORT:-7860}"
+export PORT="${PORT:-10000}"
 export SIMULATOR="${SIMULATOR:-0}"
 export DEVICES="${DEVICES:-cv-001:}"
-export ALLOWED_ORIGINS="${ALLOWED_ORIGINS:-https://*.vercel.app,https://*.hf.space,http://localhost:3000}"
+export ALLOWED_ORIGINS="${ALLOWED_ORIGINS:-https://*.vercel.app,http://localhost:3000}"
 export RETENSI_HARI="${RETENSI_HARI:-30}"
 
 deps() {

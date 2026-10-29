@@ -3,599 +3,173 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Debug Viewer CardioVest</title>
+<title>Debug Alat CardioVest</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/debug/vendor/leaflet.css">
-<style>
-  :root {
-    --bg: #0e1412;
-    --panel: #131b18;
-    --line: #22302b;
-    --ink: #e4ece8;
-    --ink-2: #9db0a8;
-    --ink-3: #6b7f77;
-    --trace: #5ee8a0;
-    --normal: #2fae6d;
-    --warning: #e2b340;
-    --critical: #e5484d;
-    --focus: #8fd3ff;
-    --mono: "Geist Mono", ui-monospace, monospace;
-    --sans: "Geist", ui-sans-serif, sans-serif;
-  }
-  :root[data-theme="light"] {
-    --bg: #f3f5f2; --panel: #fbfcfa; --line: #d9e0dc; --ink: #15201b; --ink-2: #4a5a53;
-    --ink-3: #6f7f78; --trace: #0f8a4d; --focus: #1d6fb8;
-  }
-  * { box-sizing: border-box; }
-  html, body { overflow-x: hidden; margin: 0; background: var(--bg); color: var(--ink); font-family: var(--sans);
-    font-size: 15px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
-  button, select { font: inherit; }
-  :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-  .wrap { max-width: 1400px; margin: 0 auto; padding: 16px; }
-  header.top { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; justify-content: space-between;
-    padding-bottom: 14px; border-bottom: 1px solid var(--line); }
-  .brand { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px; min-width: 0; }
-  .brand h1 { font-size: 17px; font-weight: 600; margin: 0; letter-spacing: -0.01em; }
-  .brand .sub { font-family: var(--mono); font-size: 12px; color: var(--ink-3); }
-  .conn { font-family: var(--mono); font-size: 12px; display: inline-flex; align-items: center; gap: 6px; color: var(--ink-2); }
-  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ink-3); }
-  .dot.on { background: var(--normal); } .dot.off { background: var(--critical); }
-  .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; min-width: 0; max-width: 100%; }
-  .controls select { min-width: 0; max-width: 100%; flex: 1 1 260px; }
-  .controls label { font-size: 12px; color: var(--ink-3); }
-  select, .btn { min-height: 40px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel);
-    color: var(--ink); padding: 0 12px; }
-  .btn { cursor: pointer; transition: transform .12s cubic-bezier(.2,.8,.2,1), background .15s; }
-  .btn:active { transform: scale(.97); }
-  .btn.primary { background: var(--ink); color: var(--bg); border-color: var(--ink); font-weight: 600; }
-  .btn[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); font-weight: 600; }
-  .seg { display: inline-flex; gap: 4px; }
-  .btn.icon { width: 40px; padding: 0; display: inline-grid; place-items: center; }
-  .btn.icon svg { width: 18px; height: 18px; }
-  .hint { margin: 16px 0 0; padding: 12px 16px; border: 1px dashed var(--line); border-radius: 8px; color: var(--ink-2); }
-  .hint[hidden] { display: none; }
-  .alarm { margin-top: 16px; padding: 14px 20px; border-radius: 8px; background: var(--critical); color: #fff;
-    font-weight: 700; font-size: 20px; letter-spacing: .02em; animation: pulse 0.6s ease-in-out infinite; }
-  .alarm[hidden] { display: none; }
-  #gpsInfo a { color: inherit; }
-  .btn.danger { border-color: color-mix(in srgb, var(--critical) 60%, var(--line)); color: var(--critical); }
-
-  .banner { margin-top: 16px; display: grid; grid-template-columns: minmax(180px, 260px) 1fr auto; gap: 20px;
-    align-items: center; padding: 18px 20px; border-radius: 8px; background: var(--panel);
-    border: 1px solid var(--line); border-left: 6px solid var(--ink-3); transition: border-color .3s; }
-  .banner.NORMAL { border-left-color: var(--normal); }
-  .banner.WARNING { border-left-color: var(--warning); }
-  .banner.CRITICAL { border-left-color: var(--critical); animation: pulse 1.2s ease-in-out infinite; }
-  @keyframes pulse { 50% { box-shadow: inset 0 0 0 999px color-mix(in srgb, var(--critical) 10%, transparent); } }
-  @media (prefers-reduced-motion: reduce) { .banner.CRITICAL { animation: none; } }
-  .state { font-size: 34px; font-weight: 700; letter-spacing: -0.02em; line-height: 1; }
-  .state.NORMAL { color: var(--normal); } .state.WARNING { color: var(--warning); } .state.CRITICAL { color: var(--critical); }
-  .state-sub { font-family: var(--mono); font-size: 12px; color: var(--ink-3); margin-top: 6px; }
-  .reason { color: var(--ink-2); max-width: 70ch; }
-  .reason b { color: var(--ink); font-weight: 500; }
-  .scen { font-family: var(--mono); font-size: 12px; color: var(--ink-3); text-align: right; max-width: 42ch; }
-
-  .grid { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(300px, 1fr); gap: 16px; margin-top: 16px; }
-  .sec { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
-  .sec h2 { font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-3);
-    margin: 0; padding: 12px 16px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; }
-  .sec h2 span { font-family: var(--mono); text-transform: none; letter-spacing: 0; }
-  canvas#ecg { display: block; width: 100%; height: 240px; }
-  .rows > div { display: grid; grid-template-columns: 130px 1fr; gap: 12px; padding: 10px 16px;
-    border-bottom: 1px solid var(--line); align-items: baseline; }
-  .rows > div:last-child { border-bottom: 0; }
-  .k { color: var(--ink-3); font-size: 13px; }
-  .v { font-family: var(--mono); font-size: 14px; }
-  .v.big { font-size: 30px; font-weight: 600; letter-spacing: -0.02em; font-family: var(--sans); }
-  .v small { font-size: 12px; color: var(--ink-3); font-weight: 400; font-family: var(--mono); }
-  .flag { display: inline-block; font-size: 11px; padding: 1px 6px; border-radius: 4px; margin-left: 6px;
-    border: 1px solid var(--line); color: var(--ink-2); font-family: var(--mono); }
-  .flag.on { border-color: var(--critical); color: var(--critical); }
-  .prob { display: grid; grid-template-columns: 110px 1fr 52px; gap: 10px; align-items: center; padding: 8px 16px; }
-  .bar { height: 10px; border-radius: 3px; background: var(--line); overflow: hidden; }
-  .bar i { display: block; height: 100%; width: 0; background: var(--ink-2); transform-origin: left;
-    transition: width .35s cubic-bezier(.2,.8,.2,1); }
-  .prob.top .bar i { background: var(--trace); }
-  .prob .pv { font-family: var(--mono); font-size: 13px; text-align: right; }
-  .two { display: grid; grid-template-columns: 1fr 1fr; }
-  .two > div:first-child { border-right: 1px solid var(--line); }
-  #map { height: 220px; border-radius: 0 0 8px 8px; }
-  .map-empty { height: 220px; display: grid; place-items: center; color: var(--ink-3); font-size: 13px; padding: 16px; text-align: center; }
-  .log { list-style: none; margin: 0; padding: 0; max-height: 300px; overflow: auto; }
-  .log li { display: grid; grid-template-columns: 64px 76px 1fr; gap: 8px; padding: 7px 16px;
-    border-bottom: 1px solid var(--line); font-size: 13px; }
-  .log time { font-family: var(--mono); color: var(--ink-3); font-size: 12px; }
-  .log .tag { font-family: var(--mono); font-size: 11px; color: var(--ink-2); }
-  .log .t-ALERT { color: var(--critical); } .log .t-TRANSISI { color: var(--warning); } .log .t-LWT { color: var(--focus); } .log .t-SINYAL { color: var(--warning); } .log .t-MODE { color: var(--focus); } .log .t-JATUH { color: var(--critical); }
-  .log .empty { display: block; color: var(--ink-3); padding: 16px; }
-  .note { font-size: 12px; color: var(--ink-3); margin-top: 16px; max-width: 90ch; }
-  .col { display: grid; gap: 16px; align-content: start; }
-  @media (max-width: 900px) {
-    header.top > * { width: 100%; }
-    .rows > div { grid-template-columns: 110px 1fr; }
-    .grid { grid-template-columns: 1fr; }
-    .banner { grid-template-columns: 1fr; }
-    .scen { text-align: left; }
-    .two { grid-template-columns: 1fr; } .two > div:first-child { border-right: 0; border-bottom: 1px solid var(--line); }
-  }
-</style>
+<link rel="stylesheet" href="/debug/style.css">
+<script>try { const t = localStorage.getItem("cv-debug-theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}</script>
 </head>
 <body>
-<div class="wrap">
-  <header class="top">
-    <div class="brand">
-      <h1>Debug Viewer — Early Warning Serangan Jantung</h1>
-      <span class="sub" id="devLabel">cv-001</span>
-      <span class="conn"><span class="dot" id="brokerDot"></span><span id="brokerTxt">server: menghubungkan</span></span>
-      <span class="conn"><span class="dot" id="devDot"></span><span id="devTxt">perangkat: ?</span></span>
-    </div>
-    <div class="controls">
-      <label for="scenario" id="scenLabel" hidden>Skenario</label>
-      <select id="scenario" hidden><option>memuat...</option></select>
-      <span class="seg" role="group" aria-label="Mode alat">
-        <button class="btn" id="mDemo" aria-pressed="false" title="GPS siaga, hanya aktif saat CRITICAL">Demo</button>
-        <button class="btn" id="mTest" aria-pressed="false" title="Semua sensor aktif termasuk GPS">Test</button>
-      </span>
-      <span class="seg" role="group" aria-label="Sumber EKG">
-        <button class="btn" id="sHw" aria-pressed="false" title="Sinyal EKG dari ESP32">Hardware</button>
-        <button class="btn" id="sDs" aria-pressed="false" title="Sinyal EKG dari rekaman dataset; vital tetap dari ESP32">Dataset</button>
-      </span>
-      <select id="rekaman" hidden aria-label="Rekaman dataset">
-        <option value="normal">Normal</option>
-        <option value="st_depression">Depresi ST (pra-serangan)</option>
-        <option value="af">Fibrilasi atrium (pra-serangan)</option>
-        <option value="pvc">PVC (pra-serangan)</option>
-        <option value="cd">Gangguan konduksi (pra-serangan)</option>
-        <option value="svt">SVT (pra-serangan)</option>
-        <option value="stemi">STEMI (serangan)</option>
-        <option value="vt">Takikardia ventrikel (serangan)</option>
-        <option value="vf">Fibrilasi ventrikel (serangan)</option>
-      </select>
-      <button class="btn primary" id="run">Jalankan</button>
-      <button class="btn icon" id="theme" aria-label="Ganti ke tema terang" title="Ganti tema"></button>
-    </div>
-  </header>
-  <p class="hint" id="runHint">Tekan <b>Jalankan</b> untuk mulai menerima dan menampilkan data dari alat.</p>
-  <div class="alarm" id="fallAlarm" role="alert" hidden>JATUH TERDETEKSI</div>
-
-  <section class="banner" id="banner" aria-live="polite">
+<header class="topbar">
+  <div class="brand">
+    <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true"><path d="M2 17h7l3-7 4 14 3-9 2 2h9"/></svg>
     <div>
-      <div class="state" id="state">—</div>
-      <div class="state-sub" id="since">menunggu state dari cloud</div>
-    </div>
-    <div class="reason" id="reason">Belum ada keputusan. Pastikan layanan cloud dan simulator berjalan.</div>
-    <div class="scen" id="scen">—</div>
-  </section>
-
-  <div class="grid">
-    <div class="col">
-      <section class="sec">
-        <h2>ECG Lead I (sinyal bersih dari perangkat) <span id="ecgInfo">250 Hz</span></h2>
-        <canvas id="ecg" aria-label="Grafik ECG real-time"></canvas>
-      </section>
-      <section class="sec">
-        <h2>CNN 1D — window 7 s, hop 3,5 s <span id="infInfo">—</span></h2>
-        <div class="two">
-          <div>
-            <div class="prob" id="p0"><span class="k">Normal</span><div class="bar"><i></i></div><span class="pv">—</span></div>
-            <div class="prob" id="p1"><span class="k">Pra-Serangan</span><div class="bar"><i></i></div><span class="pv">—</span></div>
-            <div class="prob" id="p2"><span class="k">Serangan</span><div class="bar"><i></i></div><span class="pv">—</span></div>
-          </div>
-          <div class="rows">
-            <div><span class="k">Keputusan</span><span class="v" id="dAcc">—</span></div>
-            <div><span class="k">Validator</span><span class="v" id="dVal">—</span></div>
-            <div><span class="k">Persistence</span><span class="v" id="dPer">—</span></div>
-            <div><span class="k">Kualitas sinyal</span><span class="v" id="dSig">—</span></div>
-          </div>
-        </div>
-      </section>
-      <section class="sec">
-        <h2>Log transisi, alert, dan simulator <span id="rate">—</span></h2>
-        <ul class="log" id="log"><li><span class="empty">Belum ada kejadian.</span></li></ul>
-      </section>
-    </div>
-
-    <div class="col">
-      <section class="sec">
-        <h2>Vital <span id="vitalTs">—</span></h2>
-        <div class="rows">
-          <div><span class="k">Detak jantung</span><span class="v big" id="hr">—</span></div>
-          <div><span class="k">Sumber HR</span><span class="v" id="hrSrc">—</span></div>
-          <div><span class="k">GSR</span><span class="v big" id="gsr">—</span></div>
-          <div><span class="k">Kalibrasi GSR</span><span class="v" id="cal">—</span></div>
-          <div><span class="k">Akselerasi</span><span class="v" id="acc">—</span></div>
-          <div><span class="k">State lokal</span><span class="v" id="loc">—</span></div>
-          <div><span class="k">Mode</span><span class="v" id="mode">—</span></div>
-          <div><span class="k">Sensor</span><span class="v" id="sens">—</span></div>
-        </div>
-      </section>
-      <section class="sec">
-        <h2>Lokasi GPS <span id="gpsInfo">standby</span></h2>
-        <div id="mapWrap"><div class="map-empty" id="mapEmpty">GPS Neo-6M hanya dinyalakan pada state CRITICAL.</div></div>
-      </section>
+      <p class="brand-name">CardioVest</p>
+      <h1>Debug alat <span id="deviceId">cv-001</span></h1>
     </div>
   </div>
-  <p class="note">Alat debug tim, bukan aplikasi PWA. Data yang tampil adalah data mentah dari alat (atau rekaman dataset bila
-    sumber EKG = Dataset) dan keputusan layanan cloud, tidak bernilai diagnostik.</p>
-</div>
+  <div class="topbar-side">
+    <span class="pill" id="serverPill" data-tone="wait">Menghubungkan ke server</span>
+    <span class="pill" id="devicePill" data-tone="wait">Alat belum mengirim kabar</span>
+    <button class="icon-btn" id="themeBtn" type="button" aria-label="Ganti tema"></button>
+  </div>
+</header>
+
+<main class="page">
+  <section class="controls" aria-label="Pengaturan tampilan">
+    <div class="field">
+      <span class="field-label" id="modeLabel">Mode alat</span>
+      <div class="segmented" role="radiogroup" aria-labelledby="modeLabel">
+        <button type="button" role="radio" data-group="mode" data-value="demo" title="GPS siaga, hanya aktif saat Darurat">Demo</button>
+        <button type="button" role="radio" data-group="mode" data-value="test" title="Semua sensor aktif, termasuk GPS">Test</button>
+      </div>
+    </div>
+    <div class="field">
+      <span class="field-label" id="sourceLabel">Sumber EKG</span>
+      <div class="segmented" role="radiogroup" aria-labelledby="sourceLabel">
+        <button type="button" role="radio" data-group="source" data-value="hardware" title="Sinyal EKG dari ESP32">Hardware</button>
+        <button type="button" role="radio" data-group="source" data-value="dataset" title="Sinyal EKG dari rekaman dataset; vital tetap dari ESP32">Dataset</button>
+      </div>
+    </div>
+    <div class="field" id="rekamanField" hidden>
+      <label class="field-label" for="rekaman">Jenis rekaman</label>
+      <select id="rekaman">
+        <optgroup label="Normal">
+          <option value="normal">Irama normal</option>
+        </optgroup>
+        <optgroup label="Pra-serangan">
+          <option value="st_depression">Depresi ST</option>
+          <option value="af">Fibrilasi atrium (AF)</option>
+          <option value="pvc">Kontraksi ventrikel prematur (PVC)</option>
+          <option value="cd">Gangguan konduksi</option>
+          <option value="svt">Takikardia supraventrikel (SVT)</option>
+        </optgroup>
+        <optgroup label="Serangan">
+          <option value="stemi">STEMI</option>
+          <option value="vt">Takikardia ventrikel (VT)</option>
+          <option value="vf">Fibrilasi ventrikel (VF)</option>
+        </optgroup>
+      </select>
+    </div>
+    <div class="field" id="scenarioField" hidden>
+      <label class="field-label" for="scenario">Skenario simulator</label>
+      <select id="scenario"></select>
+    </div>
+    <button class="run-btn" id="runBtn" type="button">Jalankan</button>
+    <p class="notice" id="notice" aria-live="polite"></p>
+  </section>
+
+  <div class="fall-alert" id="fallAlert" role="alert" hidden></div>
+
+  <section class="status" id="status" data-tone="none" aria-live="polite">
+    <div class="status-main">
+      <p class="status-word" id="stateWord">Belum ada status</p>
+      <p class="status-code" id="stateCode"></p>
+    </div>
+    <p class="status-reason" id="stateReason">Status muncul setelah layanan cloud menerima data dari alat.</p>
+    <p class="status-since" id="stateSince"></p>
+  </section>
+
+  <section class="monitor" aria-label="Sinyal EKG dan vital">
+    <figure class="strip">
+      <figcaption class="strip-head">
+        <h2>EKG lead I</h2>
+        <span class="strip-source" id="ecgSource">Menunggu data</span>
+      </figcaption>
+      <canvas id="ecg" aria-label="Grafik EKG realtime"></canvas>
+      <p class="strip-foot"><span id="ecgScale">25 mm/s, 10 mm/mV</span><span id="ecgPacket"></span></p>
+    </figure>
+    <div class="readouts">
+      <div class="readout readout-hr">
+        <p class="readout-label">Detak jantung</p>
+        <p class="readout-value"><span id="hr"></span><small>bpm</small></p>
+        <p class="readout-note" id="hrNote"></p>
+      </div>
+      <div class="readout">
+        <p class="readout-label">Konduktansi kulit (GSR)</p>
+        <p class="readout-value"><span id="gsr"></span><small>µS</small></p>
+        <p class="readout-note" id="gsrNote"></p>
+      </div>
+      <div class="readout">
+        <p class="readout-label">Kualitas sinyal PPG</p>
+        <p class="readout-value"><span id="sqi"></span></p>
+        <p class="readout-note">SQI 0 sampai 1, makin tinggi makin bersih</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="columns">
+    <section class="panel">
+      <header class="panel-head">
+        <h2>Analisis CNN</h2>
+        <p id="infMeta">Tiap window 7 detik, bergeser 3,5 detik</p>
+      </header>
+      <div class="probs">
+        <div class="prob" data-i="0"><span>Normal</span><span class="bar"><i></i></span><span class="prob-v">–</span></div>
+        <div class="prob" data-i="1"><span>Pra-serangan</span><span class="bar"><i></i></span><span class="prob-v">–</span></div>
+        <div class="prob" data-i="2"><span>Serangan</span><span class="bar"><i></i></span><span class="prob-v">–</span></div>
+      </div>
+      <dl class="facts">
+        <div><dt>Keputusan</dt><dd id="decision">–</dd></div>
+        <div><dt>Validator</dt><dd id="validators">–</dd></div>
+        <div><dt>Persistence</dt><dd id="persistence">–</dd></div>
+        <div><dt>Kualitas window</dt><dd id="quality">–</dd></div>
+      </dl>
+    </section>
+
+    <section class="panel">
+      <header class="panel-head">
+        <h2>Gerak dan perangkat</h2>
+        <p id="vitalTime">Belum ada data vital</p>
+      </header>
+      <dl class="facts">
+        <div><dt>Akselerasi</dt><dd id="accel">–</dd></div>
+        <div><dt>Jatuh</dt><dd id="fall">–</dd></div>
+        <div><dt>Status di alat</dt><dd id="localState">–</dd></div>
+        <div><dt>Mode alat</dt><dd id="deviceMode">–</dd></div>
+        <div><dt>Sensor</dt><dd id="sensors">–</dd></div>
+        <div><dt>Kalibrasi GSR</dt><dd id="calibration">–</dd></div>
+      </dl>
+    </section>
+  </div>
+
+  <div class="columns">
+    <section class="panel">
+      <header class="panel-head">
+        <h2>Lokasi GPS</h2>
+        <p id="gpsMeta">Siaga</p>
+      </header>
+      <div class="map" id="map"><p class="map-empty" id="mapEmpty"></p></div>
+    </section>
+
+    <section class="panel">
+      <header class="panel-head">
+        <h2>Riwayat kejadian</h2>
+        <p id="rate"></p>
+      </header>
+      <ol class="log" id="log"><li class="log-empty">Belum ada kejadian.</li></ol>
+    </section>
+  </div>
+
+  <p class="footnote">Halaman ini untuk tim pengembang, bukan aplikasi keluarga. Angka dan grafik adalah data mentah alat
+    (atau rekaman dataset bila sumber EKG Dataset) dan keputusan layanan cloud, tidak untuk diagnosis.</p>
+</main>
 
 <script src="/debug/config.js"></script>
 <script src="/debug/vendor/socket.io.min.js"></script>
 <script src="/debug/vendor/leaflet.js"></script>
-<script>
-(() => {
-  const qs = new URLSearchParams(location.search);
-  const DEV = qs.get("device") || "cv-001";
-  const BACKEND = (qs.get("backend") || window.CV_BACKEND || "https://cardiovest.onrender.com").replace(/\/$/, "");
-  const REKAMAN = Object.fromEntries([...document.querySelectorAll("#rekaman option")].map((o) => [o.value, o.textContent]));
-  const FS = 250;
-  const $ = (id) => document.getElementById(id);
-  $("devLabel").textContent = DEV;
-
-  try { const t = localStorage.getItem("c251-theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
-  const ICON_SUN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>';
-  const ICON_MOON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
-  function renderTheme() {
-    const light = document.documentElement.dataset.theme === "light";
-    $("theme").innerHTML = light ? ICON_MOON : ICON_SUN;
-    $("theme").setAttribute("aria-label", light ? "Ganti ke tema gelap" : "Ganti ke tema terang");
-  }
-  renderTheme();
-  $("theme").onclick = () => {
-    const n = document.documentElement.dataset.theme === "light" ? "dark" : "light";
-    document.documentElement.dataset.theme = n;
-    try { localStorage.setItem("c251-theme", n); } catch (e) {}
-    renderTheme();
-  };
-
-  function decodeEcg(buf) {
-    if ((buf[0] === 0x43 && buf[1] === 0x56) || (buf[0] === 0x48 && buf[1] === 0x57)) {
-      const dv = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
-      const flags = dv.getUint8(3), n = dv.getUint16(18);
-      const out = new Int16Array(n); let pos = 20;
-      if (n) { out[0] = dv.getInt16(pos); pos += 2; }
-      for (let i = 1; i < n; i++) {
-        const b = dv.getUint8(pos);
-        let d;
-        if (b === 0x80) { d = dv.getInt16(pos + 1); pos += 3; } else { d = dv.getInt8(pos); pos += 1; }
-        out[i] = out[i - 1] + d;
-      }
-      return { samples: out, buffered: !!(flags & 1), fmt: "biner" };
-    }
-    const o = JSON.parse(new TextDecoder().decode(buf));
-    return { samples: Int16Array.from(o.samples), buffered: !!o.buffered, fmt: "json" };
-  }
-
-  const cv = $("ecg"), cx = cv.getContext("2d");
-  const WIN = FS * 7;
-  const trace = new Float32Array(WIN).fill(NaN);
-  let head = 0, queue = [], lastT = performance.now(), lo = -300, hi = 700;
-  function css(v) { return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
-  function resize() {
-    const r = cv.getBoundingClientRect(), d = devicePixelRatio || 1;
-    cv.width = r.width * d; cv.height = r.height * d; cx.setTransform(d, 0, 0, d, 0, 0);
-  }
-  addEventListener("resize", resize); resize();
-  function draw(now) {
-    const dt = Math.min(0.25, (now - lastT) / 1000); lastT = now;
-    let take = Math.round(dt * FS * (queue.length > FS * 5 ? 1.5 : 1));
-    while (take-- > 0 && queue.length) { trace[head] = queue.shift(); head = (head + 1) % WIN; }
-    const w = cv.clientWidth, h = cv.clientHeight;
-    cx.clearRect(0, 0, w, h);
-    cx.strokeStyle = css("--line"); cx.lineWidth = 1;
-    for (let s = 0; s <= 7; s++) { const x = s / 7 * w; cx.beginPath(); cx.moveTo(x, 0); cx.lineTo(x, h); cx.stroke(); }
-    const pad = 14, sy = (v) => h - pad - (v - lo) / (hi - lo) * (h - 2 * pad);
-    cx.strokeStyle = css("--trace"); cx.lineWidth = 1.6; cx.beginPath();
-    let pen = false;
-    for (let i = 0; i < WIN; i++) {
-      const v = trace[i];
-      if (Number.isNaN(v) || (i >= head && i < head + 12)) { pen = false; continue; }
-      const x = i / WIN * w, y = sy(v);
-      pen ? cx.lineTo(x, y) : cx.moveTo(x, y); pen = true;
-    }
-    cx.stroke();
-    cx.fillStyle = css("--ink-3"); cx.font = "11px Geist Mono, monospace";
-    cx.fillText("1 s/div", 8, 14);
-    requestAnimationFrame(draw);
-  }
-  requestAnimationFrame(draw);
-  function pushEcg(s) {
-    for (const v of s) queue.push(v);
-    const a = Array.from(s).sort((x, y) => x - y);
-    const nlo = a[Math.floor(a.length * 0.01)], nhi = a[Math.floor(a.length * 0.995)];
-    lo = 0.8 * lo + 0.2 * (nlo - 50); hi = 0.8 * hi + 0.2 * (nhi + 50);
-  }
-
-  const logEl = $("log"); let logEmpty = true;
-  function addLog(tag, text) {
-    if (logEmpty) { logEl.innerHTML = ""; logEmpty = false; }
-    const li = document.createElement("li");
-    const t = new Date().toLocaleTimeString("id-ID", { hour12: false });
-    li.innerHTML = `<time>${t}</time><span class="tag t-${tag}">${tag}</span><span></span>`;
-    li.lastChild.textContent = text;
-    logEl.prepend(li);
-    while (logEl.children.length > 60) logEl.lastChild.remove();
-  }
-
-  let map = null, marker = null, circle = null;
-  function showGps(g) {
-    if (!g || !g.fix) {
-      $("gpsInfo").textContent = !g ? "standby"
-        : g.nmea === false ? `tidak ada data NMEA · baud ${g.baud ?? "?"}` : `mencari satelit · ${g.sats ?? 0} sat`;
-      const e = $("mapEmpty");
-      if (e && g) e.textContent = g.nmea === false
-        ? "Modul GPS tidak mengirim data. Periksa kabel: TX GPS ke GPIO19, RX GPS ke GPIO18, VCC ke 3V3/5V, GND ke GND."
-        : `Modul GPS terhubung, mencari satelit (${g.sats ?? 0} terlihat). Letakkan di luar ruangan atau dekat jendela; LED di modul berkedip tiap detik setelah fix.`;
-      return;
-    }
-    const gm = `https://www.google.com/maps?q=${g.lat},${g.lon}`;
-    $("gpsInfo").innerHTML = `<a href="${gm}" target="_blank" rel="noopener">${g.lat.toFixed(6)}, ${g.lon.toFixed(6)}</a> ±${g.accuracy_m} m · ${g.sats} sat`;
-    if (!window.L) return;
-    if (!map) {
-      $("mapWrap").innerHTML = '<div id="map"></div>';
-      map = L.map("map", { zoomControl: true, attributionControl: true }).setView([g.lat, g.lon], 18);
-      const sub = { subdomains: ["mt0", "mt1", "mt2", "mt3"], maxZoom: 20, attribution: "&copy; Google" };
-      const road = L.tileLayer("https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}", sub).addTo(map);
-      const sat = L.tileLayer("https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}", sub);
-      const osm = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "&copy; OpenStreetMap" });
-      L.control.layers({ "Google Maps": road, "Google Satelit": sat, "OpenStreetMap": osm }).addTo(map);
-      marker = L.circleMarker([g.lat, g.lon], { radius: 7, weight: 2, color: css("--critical"),
-        fillColor: css("--critical"), fillOpacity: 0.9 }).addTo(map);
-      circle = L.circle([g.lat, g.lon], { radius: g.accuracy_m, color: css("--critical") }).addTo(map);
-    } else {
-      marker.setLatLng([g.lat, g.lon]); circle.setLatLng([g.lat, g.lon]).setRadius(g.accuracy_m);
-      map.panTo([g.lat, g.lon]);
-    }
-  }
-
-  let running = false, lastFallTs = null, audio = null, alarmTimer = null;
-  function beep() {
-    try {
-      audio = audio || new AudioContext();
-      const o = audio.createOscillator(), gn = audio.createGain();
-      o.type = "square"; o.frequency.value = 880; gn.gain.value = 0.15;
-      o.connect(gn); gn.connect(audio.destination);
-      o.start(); o.stop(audio.currentTime + 0.6);
-    } catch (e) {}
-  }
-  function fallAlarm(d) {
-    const a = d.accel || {};
-    addLog("JATUH", `terdeteksi · |a| ${a.mag ?? "—"} g · state ${d.local_state}`);
-    $("fallAlarm").hidden = false;
-    beep(); setTimeout(beep, 800);
-    clearTimeout(alarmTimer);
-    alarmTimer = setTimeout(() => { $("fallAlarm").hidden = true; }, 6000);
-  }
-  function clearView() {
-    trace.fill(NaN); queue = []; head = 0;
-    $("ecgInfo").textContent = "menunggu data EKG";
-    for (const id of ["hr", "hrSrc", "gsr", "acc", "loc", "sens", "vitalTs", "dAcc", "dVal", "dPer", "dSig", "infInfo"]) $(id).textContent = "—";
-    for (let i = 0; i < 3; i++) {
-      const row = $("p" + i);
-      row.querySelector("i").style.width = "0"; row.querySelector(".pv").textContent = "—"; row.classList.remove("top");
-    }
-  }
-  function stopRun() {
-    running = false;
-    clearView();
-    $("run").textContent = "Jalankan";
-    $("runHint").innerHTML = "Tekan <b>Jalankan</b> untuk mulai menerima dan menampilkan data dari alat.";
-    $("runHint").hidden = false;
-  }
-  function startRun() {
-    running = true;
-    $("run").textContent = "Reconnect";
-    $("runHint").hidden = true;
-    try { audio = audio || new AudioContext(); audio.resume(); } catch (e) {}
-    if (!$("scenario").hidden && $("scenario").value) ctl({ cmd: "scenario", name: $("scenario").value });
-  }
-
-  let mode = null, devMode = null, src = null, rek = null;
-  const pending = { mode: null, source: null, rekaman: null };
-  const srcLabel = () => (src === "dataset" ? `Dataset: ${REKAMAN[rek] || rek}` : "Hardware");
-  function renderSource() {
-    const s = pending.source || src || "hardware";
-    $("sHw").setAttribute("aria-pressed", String(s === "hardware"));
-    $("sDs").setAttribute("aria-pressed", String(s === "dataset"));
-    $("rekaman").hidden = s !== "dataset";
-    const r = pending.rekaman || rek || "normal";
-    if ($("rekaman").value !== r) $("rekaman").value = r;
-  }
-  function renderMode() {
-    const m = pending.mode || mode || devMode || "demo";
-    $("mDemo").setAttribute("aria-pressed", String(m === "demo"));
-    $("mTest").setAttribute("aria-pressed", String(m === "test"));
-    $("mode").textContent = devMode && mode && devMode !== mode
-      ? `${devMode}, menunggu alat pindah ke ${mode}`
-      : (devMode || mode || "—");
-    const e = $("mapEmpty");
-    if (e) e.textContent = m === "test"
-      ? "Mode Test: GPS aktif terus, menunggu data lokasi dari perangkat."
-      : "Mode Demo: GPS Neo-6M hanya dinyalakan pada state CRITICAL.";
-  }
-  renderMode();
-  let stateObj = null, prevState = null;
-  let lastSigOk = null, clockWarned = false;
-  function renderState() {
-    if (!stateObj) return;
-    const s = stateObj.state;
-    $("banner").className = "banner " + s;
-    $("state").className = "state " + s;
-    $("state").textContent = s;
-    const secs = Math.max(0, Math.round((Date.now() - stateObj.since) / 1000));
-    $("since").textContent = `sejak ${new Date(stateObj.since).toLocaleTimeString("id-ID", { hour12: false })} (${secs} s)`;
-    $("reason").innerHTML = "<b>Alasan:</b> ";
-    $("reason").append(stateObj.reason || "-");
-    const c = stateObj.calibration || {};
-    $("cal").textContent = c.calibrated
-      ? `ambang ${c.threshold} µS (μ ${c.mu}, σ ${c.sigma}, k ${c.k})`
-      : `berlangsung ${c.progress_s ?? 0}/${c.target_s ?? "?"} s, ambang sementara ${c.threshold} µS`;
-  }
-  setInterval(renderState, 1000);
-
-  const bytes = [];
-  setInterval(() => {
-    const now = Date.now(); while (bytes.length && now - bytes[0][0] > 30000) bytes.shift();
-    const agg = {}; for (const [, k, n] of bytes) agg[k] = (agg[k] || 0) + n;
-    $("rate").textContent = Object.entries(agg).map(([k, n]) => `${k} ${(n / 30).toFixed(0)} B/s`).join("  ·  ") || "—";
-  }, 2000);
-
-  let sock = null;
-  function connect() {
-    sock = io(BACKEND + "/debug", { path: "/data/realtime", transports: ["websocket", "polling"] });
-    sock.on("connect", () => {
-      $("brokerDot").className = "dot on"; $("brokerTxt").textContent = "server: terhubung";
-      sock.emit("watch", DEV);
-    });
-    sock.on("disconnect", () => { $("brokerDot").className = "dot off"; $("brokerTxt").textContent = "server: terputus, mencoba lagi"; });
-    sock.on("connect_error", () => { $("brokerDot").className = "dot off"; $("brokerTxt").textContent = "server: membangunkan backend, tunggu ±1 menit"; });
-    sock.on("galat", (m) => addLog("SERVER", m));
-    sock.on("m", (topic, data) => onMessage(topic, new Uint8Array(data)));
-  }
-  const send = (c) => sock?.emit("cmd", c);
-
-  let simStatus = {};
-  function onMessage(topic, buf) {
-    const kind = topic.split("/").pop();
-    bytes.push([Date.now(), kind, buf.length]);
-    if (!running && (kind === "ecg" || kind === "vital" || kind === "inference")) return;
-    let d;
-    try {
-      if (kind === "ecg") {
-        const p = decodeEcg(buf);
-        if (!p.buffered) pushEcg(p.samples);
-        $("ecgInfo").textContent = `${srcLabel()} · 250 Hz · payload ${p.fmt} ${buf.length} B/paket`;
-        return;
-      }
-      d = JSON.parse(new TextDecoder().decode(buf));
-    } catch (e) { return; }
-
-    if (kind === "state") {
-      if (prevState && prevState !== d.state) addLog("TRANSISI", `${prevState} → ${d.state}: ${d.reason}`);
-      prevState = d.state; stateObj = d; renderState();
-      if (d.mode && d.mode !== mode) {
-        if (mode) { addLog("MODE", `${mode} → ${d.mode}, status direset`); stopRun(); }
-        mode = d.mode; renderMode();
-      }
-    } else if (kind === "vital") {
-      if (d.buffered) return;
-      $("vitalTs").textContent = new Date(d.ts).toLocaleTimeString("id-ID", { hour12: false });
-      $("hr").innerHTML = d.hr == null ? "—" : `${Math.round(d.hr)} <small>bpm</small>`;
-      $("hrSrc").textContent = `${d.hr_source} · SQI ${d.sqi} · PPG ${d.hr_ppg ?? "—"} · ECG ${d.hr_ecg ?? "—"}`;
-      $("gsr").innerHTML = d.gsr == null ? "—" : `${(+d.gsr).toFixed(2)} <small>µS</small>`;
-      const a = d.accel || {};
-      const ax = (x) => x == null ? "—" : (+x).toFixed(2);
-      $("acc").innerHTML = `x ${ax(a.x)} · y ${ax(a.y)} · z ${ax(a.z)} g<br>|a| ${a.mag ?? "—"} g · sd ${a.sd ?? "—"} g <span class="flag ${d.fall_detected ? "on" : ""}">${d.fall_detected ? "JATUH" : "tidak jatuh"}</span>`;
-      $("loc").innerHTML = d.local_state + (d.lead_off ? ' <span class="flag on">ELEKTRODA LEPAS</span>' : "");
-      showGps(d.gps);
-      const s = d.sensors || {};
-      $("sens").textContent = ["ecg", "ppg", "gsr", "imu"].map((k) => `${k.toUpperCase()} ${s[k] ? "on" : "off"}`).join(" · ")
-        + (d.gps ? " · GPS on" : " · GPS siaga") + (d.i2c ? ` · I2C: ${d.i2c}` : "");
-      if (d.mode) { devMode = d.mode; renderMode(); }
-      if (d.fall_detected && d.fall_ts && d.fall_ts !== lastFallTs) { lastFallTs = d.fall_ts; fallAlarm(d); }
-    } else if (kind === "inference") {
-      if (d.late) return;
-      d.probs.forEach((p, i) => {
-        const row = $("p" + i);
-        row.querySelector("i").style.width = (p * 100).toFixed(1) + "%";
-        row.querySelector(".pv").textContent = p.toFixed(2);
-        row.classList.toggle("top", i === d.class_idx);
-      });
-      $("infInfo").textContent = `seq ${d.seq} · ${d.infer_ms} ms · latensi proses ${d.process_latency_ms} ms`;
-      $("dAcc").textContent = `${d.class} (p ${d.p_conf}) ${d.accepted ? "diterima" : "tidak diputuskan"}`;
-      const v = d.validators || {}, dec = d.decision || {};
-      $("dVal").textContent = `1_GSR=${+!!v.ind_gsr} 1_HR=${+!!v.ind_hr} · ${v.degraded ? "terdegradasi" : "independen"}`;
-      $("dPer").textContent = `non-Normal ${dec.consec_non_normal}/${dec.n_required} · Normal ${dec.consec_normal}`;
-      const q = d.quality || {}, f = (x) => x == null ? "—" : (+x).toFixed(2);
-      const sigOk = d.signal_ok !== false;
-      $("dSig").innerHTML = sigOk
-        ? `baik · ${f(q.ptp_mv)} mV p-p <small>kSQI ${f(q.ksqi)} · pSQI ${f(q.psqi)} · basSQI ${f(q.bassqi)}</small>`
-        : `<span class="flag on">DIABAIKAN</span> `;
-      if (!sigOk) $("dSig").append(q.reason || "");
-      if (sigOk !== lastSigOk && lastSigOk !== null)
-        addLog("SINYAL", sigOk ? "kualitas ECG pulih, window kembali dinilai" : (q.reason || "kualitas ECG buruk"));
-      lastSigOk = sigOk;
-      if (d.clock_unsynced && !clockWarned) {
-        clockWarned = true;
-        addLog("JAM", "jam perangkat belum tersinkron; cloud memakai waktu terima paket");
-      }
-    } else if (kind === "alert") {
-      let t = `${d.event_type}`;
-      if (d.confidence != null) t += ` · conf ${d.confidence}`;
-      if (d.fall_detected) t += " · jatuh";
-      if (d.gps) t += ` · ${d.gps.lat}, ${d.gps.lng}`;
-      addLog("ALERT", t + (d.message ? " — " + d.message : ""));
-    } else if (kind === "lwt") {
-      const on = d.status === "online";
-      $("devDot").className = "dot " + (on ? "on" : "off");
-      $("devTxt").textContent = "perangkat: " + d.status;
-      if (!on) $("ecgInfo").textContent = "perangkat offline · data ditahan di ring-buffer lokal";
-      addLog("LWT", d.status + (d.reason ? ` (${d.reason})` : ""));
-    } else if (kind === "status") {
-      if (d.scenario !== simStatus.scenario || d.phase !== simStatus.phase)
-        addLog("SIM", `${d.scenario} · fase ${d.phase + 1}: ${d.phase_label}`);
-      const sel = $("scenario");
-      if (d.scenarios && sel.options.length !== Object.keys(d.scenarios).length) {
-        sel.innerHTML = "";
-        for (const [k, v] of Object.entries(d.scenarios)) {
-          const o = document.createElement("option"); o.value = k; o.textContent = `${k} — ${v}`; sel.append(o);
-        }
-      }
-      if (d.scenario !== simStatus.scenario) sel.value = d.scenario;
-      simStatus = d;
-      $("scenario").hidden = false; $("scenLabel").hidden = false;
-      $("scen").textContent = `${d.scenario} · fase ${d.phase + 1}: ${d.phase_label} — ekspektasi: ${d.expected}` +
-        (d.ecg_source ? ` — ECG: ${d.ecg_source === "replay" ? "rekaman " + d.ecg_record : "sintetis"}` : "");
-    } else if (kind === "source") {
-      const ns = d.source === "dataset" ? "dataset" : "hardware";
-      const nr = ns === "dataset" ? (d.rekaman || "normal") : null;
-      if (ns !== (src || "hardware") || nr !== rek) addLog("SUMBER", ns === "dataset" ? `EKG dari dataset: ${REKAMAN[nr] || nr}` : "EKG dari hardware (ESP32)");
-      src = ns; rek = nr; renderSource();
-      $("ecgInfo").textContent = `${srcLabel()} · menunggu data EKG`;
-    }
-  }
-
-  connect();
-
-  function ctl(m) { send({ type: "sim", cmd: m }); }
-  $("scenario").onchange = () => { if (running) ctl({ cmd: "scenario", name: $("scenario").value }); };
-  function choose(key, value) {
-    pending[key] = value;
-    stopRun();
-    $("runHint").innerHTML = "Pilihan berubah. Klik <b>Jalankan</b> untuk menerapkan.";
-    renderMode(); renderSource();
-  }
-  function applyPending() {
-    if (pending.mode && pending.mode !== (mode || devMode)) {
-      send({ type: "mode", mode: pending.mode });
-      mode = pending.mode;
-    }
-    const cur = src || "hardware";
-    const ns = pending.source || cur;
-    const nr = ns === "dataset" ? (pending.rekaman || rek || "normal") : null;
-    if (ns !== cur || (ns === "dataset" && nr !== rek)) send({ type: "source", source: ns, rekaman: nr });
-    pending.mode = pending.source = pending.rekaman = null;
-    renderMode(); renderSource();
-  }
-  $("run").onclick = () => {
-    if (!running) {
-      applyPending();
-      clearView();
-      return startRun();
-    }
-    clearView();
-    $("brokerDot").className = "dot"; $("brokerTxt").textContent = "server: menghubungkan ulang";
-    sock.disconnect(); sock.connect();
-  };
-  $("mDemo").onclick = () => choose("mode", "demo");
-  $("mTest").onclick = () => choose("mode", "test");
-  $("sHw").onclick = () => choose("source", "hardware");
-  $("sDs").onclick = () => choose("source", "dataset");
-  $("rekaman").onchange = () => choose("rekaman", $("rekaman").value);
-  renderSource();
-})();
-</script>
+<script type="module" src="/debug/js/main.js"></script>
 </body>
 </html>

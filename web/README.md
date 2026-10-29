@@ -3,13 +3,13 @@
 Aplikasi yang dibuka di ponsel oleh **User Utama** (pemakai rompi) dan **Kontak Darurat** (Halaman 1–6
 di Bab 7–8 laporan): daftar akun, pairing alat, dashboard real-time, kontak darurat, riwayat, dan halaman
 darurat. Folder ini hanya berisi tampilan dan dipasang di **Vercel**. Semua data, MQTT, Socket.IO, dan
-Web Push ada di [`server/`](../server/README.md) yang berjalan di Hugging Face.
+Web Push ada di [`server/`](../server/README.md) yang berjalan di Render.
 
 ```
 browser ──► Vercel (folder ini)
               ├─ halaman Next.js 16 (App Router, PWA)
-              └─ proxy.js: /api/*  ──► server/ di Hugging Face (HTTPS)
-browser ──────── Socket.IO /data/realtime ──► server/ di Hugging Face (EKG 250 Hz langsung, tanpa lewat Vercel)
+              └─ proxy.js: /api/*  ──► server/ di Render (HTTPS)
+browser ──────── Socket.IO /data/realtime ──► server/ di Render (EKG 250 Hz langsung, tanpa lewat Vercel)
 ```
 
 ## Isi folder
@@ -30,7 +30,7 @@ browser ──────── Socket.IO /data/realtime ──► server/ di H
 │   ├── push.js, session.js
 │   ├── styles.css           #   seluruh gaya, lihat DESIGN.md
 │   └── sw.js                #   service worker (Workbox), dibundel ke public/sw.js saat build
-├── public/debug/            # debug viewer tim (/debug): HTML + Socket.IO + Leaflet, data dari backend
+├── public/debug/            # debug viewer tim (/debug), lihat public/debug/README.md
 ├── proxy.js                 # meneruskan /api ke backend + IP asli pengguna
 ├── scripts/prebuild.mjs     # bundel service worker + public/debug/config.js (alamat backend)
 └── next.config.mjs, vercel.json, jsconfig.json
@@ -41,7 +41,7 @@ browser ──────── Socket.IO /data/realtime ──► server/ di H
 | Nama | Isi |
 |---|---|
 | `NEXT_PUBLIC_BACKEND_URL` | opsional, alamat backend. Kosong = nilai di `src/backend.js` (`https://cardiovest.onrender.com`) |
-| `PROXY_SECRET` | sama dengan secret di Hugging Face, supaya pembatas percobaan login memakai IP asli pengguna |
+| `PROXY_SECRET` | sama dengan di Render, supaya pembatas percobaan login memakai IP asli pengguna |
 
 `NEXT_PUBLIC_BACKEND_URL` dibaca saat build: setelah mengubahnya, lakukan Redeploy. Langkah lengkap
 memasang Vercel ada di [`deploy/README.md`](../deploy/README.md).
@@ -50,8 +50,7 @@ memasang Vercel ada di [`deploy/README.md`](../deploy/README.md).
 
 Cukup edit, lalu `git add -A`, `git commit`, `git push`. Vercel membangun ulang otomatis.
 
-Ingin melihat hasil di laptop sebelum push (opsional, butuh Node.js 22): buat `web/.env.local` berisi
-`NEXT_PUBLIC_BACKEND_URL=https://namaanda-cardiovest.hf.space`, lalu
+Ingin melihat hasil di laptop sebelum push (opsional, butuh Node.js 22):
 
 ```powershell
 cd web
@@ -59,7 +58,7 @@ npm install
 npm run dev
 ```
 
-Buka http://localhost:3000. Halaman lokal ini memakai backend asli di Hugging Face, jadi tidak perlu Docker.
+Buka http://localhost:3000. Halaman lokal ini memakai backend asli di Render, jadi tidak perlu Docker.
 
 ## Sumber data EKG
 

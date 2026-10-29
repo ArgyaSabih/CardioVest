@@ -7,11 +7,11 @@ Satu folder berisi seluruh sistem:
   perangkat (`simulator/`), dan alat uji (`tools/`, `tests/`).
 - **Aplikasi (UI/UX)**: tampilan Next.js (PWA) untuk User Utama dan Kontak Darurat (`web/`, dipasang di
   Vercel) dan server API + realtime (`server/`).
-- **Deploy** (`deploy/`): demo gratis tanpa kartu kredit. Tampilan di Vercel, layanan cloud + server +
-  simulator di Hugging Face Space (atau Render), broker MQTT di flespi.
+- **Deploy** (`deploy/`): demo gratis tanpa kartu kredit. Tampilan dan debug viewer di Vercel, layanan
+  cloud + server + pemutar dataset EKG di Render, broker MQTT di flespi.
 
 Tidak perlu Docker di laptop. Setelah penyiapan sekali-jalan di [`deploy/README.md`](deploy/README.md),
-cukup `git add -A`, `git commit`, `git push`: Vercel dan Hugging Face memperbarui diri otomatis.
+cukup `git add -A`, `git commit`, `git push`: Vercel dan Render memperbarui diri otomatis.
 
 Alurnya mengikuti rancangan BAB 1–11:
 
@@ -44,7 +44,7 @@ Alurnya mengikuti rancangan BAB 1–11:
 
 ```
 CardioVest/
-├── deploy/                     # README penyiapan + backend/ (Dockerfile dan run.sh untuk Hugging Face / Render)
+├── deploy/                     # README penyiapan + backend/ (Dockerfile dan run.sh untuk Render)
 ├── common/heartsim_common/     # modul bersama
 │   ├── config.py               #   konstanta dari dokumen (fs, window, ambang, N, M, tau_conf, ...)
 │   ├── topics.py               #   hierarki topik & QoS
@@ -94,7 +94,7 @@ CardioVest/
 
 ## 2. Deploy dan alur kerja harian
 
-Penyiapan sekali-jalan (flespi, Hugging Face, Vercel, ESP32) ada di [`deploy/README.md`](deploy/README.md).
+Penyiapan sekali-jalan (flespi, Render, Vercel, ESP32) ada di [`deploy/README.md`](deploy/README.md).
 Setelah itu:
 
 ```powershell
@@ -105,8 +105,8 @@ git push
 
 | Yang dilihat | Di mana |
 |---|---|
-| **Aplikasi CardioVest** | `https://<proyek>.vercel.app`. Daftar akun, lalu pasangkan alat `cv-001` dengan kode dari secret `DEVICES` di Hugging Face |
-| **Log** keputusan FSM, mock FCM, SMS fallback | tab **Logs** di Space Hugging Face |
+| **Aplikasi CardioVest** | `https://<proyek>.vercel.app`. Daftar akun, lalu pasangkan alat `cv-001` dengan kode dari variabel `DEVICES` di Render |
+| **Log** keputusan FSM, mock FCM, SMS fallback | tab **Logs** layanan Render |
 | **Status layanan** | `https://<proyek>.vercel.app/api/health` |
 | **Debug viewer** (EKG mentah, CNN, FSM, vital, switch Hardware/Dataset) | `https://<proyek>.vercel.app/debug` |
 | **MQTT Explorer** (opsional) | host `mqtt.flespi.io`, port `1883`, username = token flespi |
@@ -119,10 +119,11 @@ Lewat API (dari aplikasi, atau Console browser seperti di `deploy/README.md`):
 |---|---|
 | ganti skenario | `POST /api/scenario` `{"name":"serangan_jatuh"}` |
 | hentikan alarm | `POST /api/reset` `{"confirm":true}` |
-| data dari ESP32, simulator berhenti | `POST /api/source` `{"source":"hardware"}` |
-| data dari simulator (rekaman PTB-XL/MIT-BIH) | `POST /api/source` `{"source":"dataset"}` |
+| EKG dari ESP32 | `POST /api/source` `{"source":"hardware"}` |
+| EKG dari rekaman PTB-XL/MIT-BIH (vital tetap dari ESP32) | `POST /api/source` `{"source":"dataset","rekaman":"stemi"}` |
 
-Skenario awal saat start diatur lewat variabel `SCENARIO` di Space Hugging Face.
+Skenario hanya berlaku bila simulator alat penuh dinyalakan (`SIMULATOR=1` di Render). Sumber EKG paling
+mudah diganti dari debug viewer `/debug`.
 
 ---
 
@@ -372,7 +373,7 @@ Menjalankan ulang (±3 menit, CPU; lingkungan Python yang sama dengan 6.5):
 python cloud\model\kalibrasi_tau.py --data ..\datasets\ecg_c251_250hz.npz
 # opsi: --spec-min 0.88 (target ideal), --fa-max 0.5 (WARNING palsu per jam), --fa-motion 0.05 (artefak)
 ```
-Nilai terpilih dicetak di akhir. Pasang dengan variabel `TAU_CONF` dan `TAU_CONF_MOTION` di Space Hugging Face.
+Nilai terpilih dicetak di akhir. Pasang dengan variabel `TAU_CONF` dan `TAU_CONF_MOTION` di Render.
 
 ### 6.4 Riwayat eksperimen (pemilihan model berdasarkan macro-F1 **validasi**, bukan uji)
 | Percobaan | Perubahan | Val macro-F1 | Uji akurasi | Sensitivity Serangan (uji) |
@@ -391,7 +392,7 @@ pip install -r cloud\model\requirements-train.txt
 python cloud\model\datasets\prepare.py --ptbxl ..\datasets\ptbxl --mitdb ..\datasets\mitdb --out ..\datasets\ecg_c251_250hz.npz
 # 2) latih + evaluasi (~15 menit CPU); menulis model, metrik, grafik, dan bank replay simulator
 python cloud\model\train_real.py --data ..\datasets\ecg_c251_250hz.npz --ptbxl-dir ..\datasets\ptbxl
-# 3) ekspor ke ONNX (dipakai layanan cloud), lalu push; Hugging Face mengambilnya otomatis
+# 3) ekspor ke ONNX (dipakai layanan cloud), lalu push; Render mengambilnya otomatis
 python cloud\model\ekspor_model.py
 git add -A; git commit -m "model: latih ulang"; git push
 ```
@@ -418,7 +419,7 @@ tampil di log simulator dan di viewer.
 
 ## 7. Data dummy dan ekspor CSV
 
-Di mode demo Hugging Face data hanya bertahan sampai Space menyala ulang. Untuk data laporan, jalankan
+Di Render Free data hanya bertahan sampai layanan menyala ulang. Untuk data laporan, jalankan
 layanan cloud di laptop (bagian 8) lalu ekspor:
 
 ```powershell
@@ -451,7 +452,7 @@ python tools\monitor.py
 python -m pytest tests -q
 ```
 
-Untuk tampilan saja, `cd web; npm install; npm run dev` memakai backend asli di Hugging Face (lihat `web/README.md`).
+Untuk tampilan saja, `cd web; npm install; npm run dev` memakai backend asli di Render (lihat `web/README.md`).
 
 ---
 
@@ -461,7 +462,7 @@ Aplikasi untuk User Utama dan Kontak Darurat (Halaman 1–6 di Bab 8.5.5): dafta
 lewat QR, kontak darurat dengan tautan undangan, notifikasi berlapis (WARNING hanya ke pemakai,
 CRITICAL ke pemakai dan semua kontak), halaman darurat dengan peta, riwayat, dan PDF untuk dokter.
 
-Tampilan (`web/`) dipasang di Vercel; API, Socket.IO, MQTT, dan Web Push ada di `server/` di Hugging Face.
+Tampilan (`web/`) dipasang di Vercel; API, Socket.IO, MQTT, dan Web Push ada di `server/` di Render.
 Rincian fitur ada di [`web/README.md`](web/README.md), endpoint dan CLI admin di
 [`server/README.md`](server/README.md).
 
@@ -476,7 +477,7 @@ Rincian fitur ada di [`web/README.md`](web/README.md), endpoint dan CLI admin di
 | `model tidak ditemukan` | `cloud/model/artifacts/cnn1d_ecg.onnx` hilang. Jalankan `python cloud\model\ekspor_model.py` lalu push. |
 | Tetap CRITICAL | Memang terkunci (latching). Tekan **Hentikan alarm** di beranda web atau `POST /api/reset`. |
 | Peta tidak muncul | GPS hanya aktif saat CRITICAL dan butuh 12–40 s untuk fix. Tile OpenStreetMap perlu internet. |
-| Alat asli tersambung tetapi state tidak pernah berubah | Lihat tab Logs di Hugging Face: bila "kualitas sinyal" ditolak, elektroda lepas atau sinyal datar. Bila log cloud berisi "jam perangkat belum tersinkron", itu normal di menit pertama (cloud memakai waktu terima). |
+| Alat asli tersambung tetapi state tidak pernah berubah | Lihat tab Logs di Render: bila "kualitas sinyal" ditolak, elektroda lepas atau sinyal datar. Bila log cloud berisi "jam perangkat belum tersinkron", itu normal di menit pertama (cloud memakai waktu terima). |
 | Alarm palsu sering saat alat dipakai | Lihat `docs/analisis_alarm_palsu.md`, lalu jalankan `tools/kalibrasi_lapangan.py` dengan data alat sendiri. |
 | Notifikasi web tidak muncul | Wajib HTTPS (kecuali localhost) dan izin notifikasi. iPhone: tambahkan ke Layar Utama dulu (iOS 16.4+). |
 
@@ -506,11 +507,11 @@ ada di `firmware/README.md`.
 2. Firmware: `DEVICE_ID`, `MQTT_HOST`, WiFi/APN diisi; Serial Monitor `s` menunjukkan `waktu_sinkron=1`
    setelah ±1 menit.
 3. Uji elektroda dulu tanpa cloud: Serial Plotter (`p`) harus menampilkan QRS jelas saat duduk diam.
-   Lepas satu elektroda: log cloud di Hugging Face harus menunjukkan window ditolak karena kualitas sinyal dan state tetap NORMAL.
+   Lepas satu elektroda: log cloud di Render harus menunjukkan window ditolak karena kualitas sinyal dan state tetap NORMAL.
 4. Tekan reset saat WiFi dimatikan, nyalakan lagi: alat harus tetap NORMAL (skenario `reset_offline`).
 5. Pakai alat 6–8 jam saat sehat, lalu jalankan `tools/kalibrasi_lapangan.py`. Angka alarm palsu dari
    alat sendiri lebih bisa dipercaya daripada perkiraan di `docs/analisis_alarm_palsu.md`.
 6. Kalibrasi baseline GSR untuk alat sungguhan: `CALIB_SECONDS=600` (10 menit, sesuai 5.5.3). Nilai 30 detik
    hanya untuk demo.
 7. Lewat internet: `MQTT_USE_TLS 1` di firmware (port 8883 flespi).
-8. `RETENSI_HARI=30` sudah aktif di Hugging Face (F-BE-4) agar disk tidak penuh oleh ECG mentah.
+8. `RETENSI_HARI=30` sudah aktif di Render (F-BE-4) agar disk tidak penuh oleh ECG mentah.

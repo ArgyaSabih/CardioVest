@@ -89,17 +89,17 @@ bermasalah dapat diisolasi.
 | `05_gps_neo6m` | NMEA, fix, satelit, HDOP | di luar ruangan, cold start ≤ 60 s |
 | `06_sim7600_4g` | AT, sinyal, registrasi, data, SMS | perintah `i g t s a` |
 | `07_buzzer_led_tombol` | pola alarm, tombol 3 s, VBUS | perintah `0 1 2 3` |
-| `08_wifi_mqtt` | jalur WiFi → broker → cloud tanpa sensor | vital tiruan muncul di log cloud (tab Logs Hugging Face) |
+| `08_wifi_mqtt` | jalur WiFi → broker → cloud tanpa sensor | vital tiruan muncul di log cloud (tab Logs Render) |
 
 ### Langkah 2: firmware utama
-1. Backend sudah berjalan di Hugging Face (lihat `deploy/README.md`).
+1. Backend sudah berjalan di Render (lihat `deploy/README.md`).
 2. **Pilih sumber hardware** agar simulator berhenti dan tidak bentrok dengan perangkat asli yang memakai
    ID yang sama: `POST /api/source {"source":"hardware"}`, atau tombol switch di aplikasi.
 3. Buka `firmware/cardiovest_esp32/cardiovest_esp32.ino`, lalu ubah `config.h`:
    * `CONN_MODE CONN_WIFI`, `WIFI_SSID`, `WIFI_PASS`
    * `MQTT_HOST` sudah `mqtt.flespi.io`; token flespi diisi di `rahasia.h` (salinan `rahasia.contoh.h`,
      tidak ikut git)
-   * `DEVICE_ID` harus sama dengan ID di secret `DEVICES` Hugging Face (default `cv-001`)
+   * `DEVICE_ID` harus sama dengan ID di variabel `DEVICES` Render (default `cv-001`)
    * modul yang belum terpasang boleh dibiarkan aktif (dilewati otomatis bila tidak terdeteksi) atau
      dimatikan dengan `ENABLE_... 0`
 4. Upload, buka Serial Monitor 115200, lalu ketik `s` untuk status.
