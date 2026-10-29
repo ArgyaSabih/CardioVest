@@ -28,10 +28,10 @@
 #define MQTT_TLS_INSECURE 1
 #define MQTT_PORT (MQTT_USE_TLS ? 8883 : 1883)
 #ifndef MQTT_USER
-#define MQTT_USER ""
+#define MQTT_USER "cardiovest"
 #endif
 #ifndef MQTT_PASS
-#define MQTT_PASS ""
+#define MQTT_PASS "cardiovest"
 #endif
 
 #define MODEM_TERPASANG 0
