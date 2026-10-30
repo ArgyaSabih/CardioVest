@@ -63,8 +63,8 @@
 #define ECG_COUNTS_PER_MV 500
 #define NOTCH_HZ 50.0f
 #define ECG_FIR_TAPS 501
-#define KALMAN_Q 0.01f
-#define KALMAN_R0 0.08f
+#define KALMAN_Q 0.05f
+#define KALMAN_R0 0.01f
 #define KALMAN_R_MOTION 40.0f
 #define SQI_WINDOW_S 5
 
@@ -496,14 +496,7 @@ public:
       }
       v[j + 1] = t;
     }
-    float hr_calc = 60.0f / v[rr_count_ / 2];
-
-    // VALIDASI INSTAN: Tetap luluskan indikasi VT / Bradikardia (30–220 BPM), abaikan hanya jika noise tak wajar (>220 BPM)
-    if (hr_calc < 30.0f || hr_calc > 220.0f)
-    {
-      return NAN;
-    }
-    return hr_calc;
+    return 60.0f / v[rr_count_ / 2];
   }
   uint32_t samplesSinceBeat() const { return n_ - last_peak_n_; }
 
@@ -676,11 +669,11 @@ void state_begin()
   s_reset_pending = s_nvs.getBool("reset_pend", false);
   if (s_reset_pending)
     LOGF("STATE: event reset sebelumnya belum terkirim, dikirim saat online");
-  
-  // SELALU PAKSA KE ST_NORMAL SAAT POWER ON / REBOOT
-  s_nvs.putBool("crit_latch", false);
-  g_state = ST_NORMAL;
-  LOGF("STATE: Perangkat dihidupkan ulang -> Status di-reset ke NORMAL");
+  if (s_nvs.getBool("crit_latch", false))
+  {
+    g_state = ST_CRITICAL;
+    LOGF("STATE: latch CRITICAL dipulihkan, tahan tombol reset %d s untuk membersihkan", RESET_HOLD_MS / 1000);
+  }
   s_test_mode = s_nvs.getBool("test_mode", false);
   LOGF("MODE: %s", s_test_mode ? "test" : "demo");
 }
@@ -839,7 +832,6 @@ void task_alert_local(void *)
     {
       la = true;
       lb = true;
-      tone = 0; // Silenkan buzzer saat diisi daya
     }
     else if (s == ST_CRITICAL)
     {
@@ -967,11 +959,7 @@ void task_ecg_filter(void *)
   DcBlocker dc(ECG_FS, 0.05f);
   Biquad nt;
   nt.notch(ECG_FS, NOTCH_HZ, 30.0f);
-  
-  // BANDPASS FIR: 0.5 Hz - 30 Hz untuk meredam muscle artifact
-  s_fir.design(ECG_FS, 0.5f, 30.0f, ECG_FIR_TAPS);
-  
-  // ADAPTIVE KALMAN FILTER
+  s_fir.design(ECG_FS, 0.5f, 40.0f, ECG_FIR_TAPS);
   AdaptiveKalman kf(KALMAN_Q, KALMAN_R0, KALMAN_R_MOTION);
   uint64_t group_delay_ms = (uint64_t)s_fir.delaySamples() * 1000ULL / ECG_FS;
   uint16_t idx = 0;
@@ -2376,23 +2364,6 @@ void handle_vital()
   v.charging = g_charging;
   float hr_ecg = (v.ecg_ok && !v.lead_off) ? s_hr_ecg : NAN;
   GpsFix g = gps_get();
-
-  // EVALUASI DARURAT INSTAN: Bebas False Alarm via Cross Validation SQI + IMU
-  bool signal_valid = !v.lead_off && (v.sqi >= TAU_SQI) && (v.amag_sd < 0.6f);
-  if (signal_valid && !isnan(hr_ecg))
-  {
-    // Jika sinyal bersih & HR terdeteksi di luar batas ekstrem -> Pemicuan Darurat Seketika (0 Detik Delay)
-    if (hr_ecg < 40.0f || hr_ecg > 160.0f)
-    {
-      if (g_state != ST_CRITICAL)
-      {
-        set_state(ST_CRITICAL);
-        s_nvs.putBool("crit_latch", true);
-        LOGF("ANOMALI INSTAN: Deteksi Serangan Jantung (HR=%.1f BPM). State -> CRITICAL", hr_ecg);
-      }
-    }
-  }
-
   static char live[1024], buf[1024];
   size_t n1 = encode_vital_json(v, hr_ecg, g, false, live, sizeof(live));
   if (g_net_online && publish_kind(BUF_VITAL, (uint8_t *)live, n1))
