@@ -1,8 +1,12 @@
 const FS = 250;
-const SECONDS = 7;
 const MM_PER_S = 25;
+const PX_PER_MM = 5;
+const MIN_SECONDS = 3;
+const MAX_SECONDS = 10;
 const COUNTS_PER_MV = 500;
-const GAINS = [20, 10, 5, 2.5];
+const GAINS = [10, 5, 2.5];
+const MAX_BACKLOG = FS * 8;
+const KEEP_BACKLOG = FS * 4;
 
 export function decodeEcg(buf) {
   if ((buf[0] === 0x43 && buf[1] === 0x56) || (buf[0] === 0x48 && buf[1] === 0x57)) {
@@ -37,8 +41,9 @@ const cssVar = (name) => getComputedStyle(document.documentElement).getPropertyV
 
 export function createEcgStrip(canvas, { onScale } = {}) {
   const ctx = canvas.getContext("2d");
-  const size = FS * SECONDS;
-  const trace = new Float32Array(size).fill(NaN);
+  let seconds = 0;
+  let size = 0;
+  let trace = new Float32Array(0);
   let head = 0;
   let queue = [];
   let last = performance.now();
@@ -56,13 +61,20 @@ export function createEcgStrip(canvas, { onScale } = {}) {
     canvas.width = Math.round(r.width * d);
     canvas.height = Math.round(r.height * d);
     ctx.setTransform(d, 0, 0, d, 0, 0);
+    const next = Math.min(MAX_SECONDS, Math.max(MIN_SECONDS, Math.round(r.width / (MM_PER_S * PX_PER_MM)) || MIN_SECONDS));
+    if (next !== seconds) {
+      seconds = next;
+      size = FS * seconds;
+      trace = new Float32Array(size).fill(NaN);
+      head = 0;
+    }
   };
   new ResizeObserver(resize).observe(canvas);
   readColors();
   resize();
 
   function drawGrid(w, h, pxPerMm) {
-    const cols = SECONDS * MM_PER_S;
+    const cols = seconds * MM_PER_S;
     const rows = Math.ceil(h / pxPerMm / 2);
     const mid = h / 2;
     const line = (x0, y0, x1, y1) => {
@@ -91,14 +103,15 @@ export function createEcgStrip(canvas, { onScale } = {}) {
   function frame(now) {
     const dt = Math.min(0.25, (now - last) / 1000);
     last = now;
-    let take = Math.round(dt * FS * (queue.length > FS * 5 ? 1.5 : 1));
+    if (queue.length > MAX_BACKLOG) queue.splice(0, queue.length - KEEP_BACKLOG);
+    let take = Math.round(dt * FS);
     while (take-- > 0 && queue.length) {
       trace[head] = queue.shift();
       head = (head + 1) % size;
     }
     const w = canvas.clientWidth;
     const h = canvas.clientHeight;
-    const pxPerMm = w / (SECONDS * MM_PER_S);
+    const pxPerMm = w / (seconds * MM_PER_S);
     ctx.clearRect(0, 0, w, h);
     drawGrid(w, h, pxPerMm);
     const base = Number.isNaN(baseline) ? 0 : baseline;
@@ -141,7 +154,7 @@ export function createEcgStrip(canvas, { onScale } = {}) {
     const hi = sorted[Math.floor(sorted.length * 0.995)];
     const median = sorted[Math.floor(sorted.length / 2)];
     baseline = Number.isNaN(baseline) ? median : 0.8 * baseline + 0.2 * median;
-    const pxPerMm = canvas.clientWidth / (SECONDS * MM_PER_S) || 4;
+    const pxPerMm = canvas.clientWidth / (seconds * MM_PER_S) || PX_PER_MM;
     const room = (canvas.clientHeight / pxPerMm) * 0.8;
     const span = 2 * Math.max(hi - baseline, baseline - lo, 0.05);
     const best = GAINS.find((g) => span * g <= room) ?? GAINS.at(-1);
