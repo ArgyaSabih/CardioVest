@@ -11,18 +11,24 @@
 #define DEVICE_ID "cv-001"
 
 #define CONN_WIFI 1
-#define CONN_4G 2
+#define CONN_GSM 2
 #define CONN_MODE CONN_WIFI
 
-#include "rahasia.h"
+#define WIFI_SSID "Wokwi 2.4G"
+#define WIFI_PASS "wokwiwokwok24"
+
+#define MQTT_HOST "icdc5921.ala.asia-southeast1.emqxsl.com"
+#define MQTT_USER "cardiovest"
+#define MQTT_PASS "cardiovest"
+
+#define SMS_NOMOR {"+6282222216470", "+62895364693939"}
 
 #define MQTT_USE_TLS 1
 #define MQTT_TLS_INSECURE 1
 #define MQTT_PORT (MQTT_USE_TLS ? 8883 : 1883)
 
-#define MODEM_TERPASANG 0
-#define MODEM_SIM7600 0
-#define MODEM_BAUD 115200
+#define MODEM_TERPASANG 1
+#define MODEM_BAUD 9600
 #define GSM_APN "internet"
 #define GSM_USER ""
 #define GSM_PASS ""
@@ -37,7 +43,7 @@
 #define PIN_GPS_TX 18
 #define PIN_MODEM_RX 16
 #define PIN_MODEM_TX 17
-#define PIN_MODEM_PWRKEY -1
+#define PIN_MODEM_RST -1
 #define PIN_ECG_OUT 34
 #define PIN_ECG_LO_MINUS 33
 #define PIN_ECG_LO_PLUS 32
@@ -68,10 +74,16 @@
 #define KALMAN_R_MOTION 40.0f
 #define SQI_WINDOW_S 5
 
-#define FALL_JOLT_G 1.8f
-#define FALL_DIP_G 0.5f
-#define FALL_DIP_MIN_MS 40
-#define FALL_COOLDOWN_MS 3000
+#define FALL_FREEFALL_G 0.6f
+#define FALL_FREEFALL_MIN_MS 80
+#define FALL_FREEFALL_WINDOW_MS 1000
+#define FALL_IMPACT_G 2.5f
+#define FALL_IMPACT_HARD_G 3.5f
+#define FALL_SETTLE_MS 1000
+#define FALL_STILL_MS 1500
+#define FALL_STILL_SD_G 0.20f
+#define FALL_ANGLE_DEG 50.0f
+#define FALL_COOLDOWN_MS 10000
 #define FALL_FLAG_HOLD_MS 10000
 
 #define RESET_HOLD_MS 3000
@@ -82,14 +94,10 @@
 #define VBUS_THRESHOLD_MV 1500
 #define SESSION_LIMIT_HOURS 8
 
-#define USE_MODEM ((CONN_MODE == CONN_4G) || MODEM_TERPASANG)
+#define USE_MODEM ((CONN_MODE == CONN_GSM) || MODEM_TERPASANG)
 
 #if USE_MODEM
-#if MODEM_SIM7600
 #define TINY_GSM_MODEM_SIM800
-#else
-#define TINY_GSM_MODEM_SIM7600
-#endif
 #define TINY_GSM_RX_BUFFER 1024
 #include <TinyGsmClient.h>
 #endif
@@ -166,12 +174,14 @@ struct Vitals
 
 struct GpsFix
 {
-  bool active = false;
   bool fix = false;
+  bool has_last = false;
   double lat = 0, lon = 0;
+  uint32_t age_s = 0;
   float accuracy_m = 0;
   float hdop = 0;
   int sats = 0;
+  int view = 0;
   bool nmea = false;
   long baud = 0;
 };
@@ -527,41 +537,113 @@ private:
 class FallDetector
 {
 public:
-  bool update(float mag, uint32_t t)
+  enum Result : uint8_t
   {
-    if (fired_ && t - last_ < FALL_COOLDOWN_MS)
-      return false;
-    if (mag > FALL_JOLT_G)
-      return hit(t);
-    if (mag < FALL_DIP_G)
+    FD_NONE = 0,
+    FD_FALL = 1,
+    FD_REJECT = 2
+  };
+  Result update(float ax, float ay, float az, uint32_t t)
+  {
+    float mag = sqrtf(ax * ax + ay * ay + az * az);
+    if (!ref_ok_)
     {
-      if (!dipping_)
-      {
-        dipping_ = true;
-        dip_start_ = t;
-      }
-      else if (t - dip_start_ >= FALL_DIP_MIN_MS)
-      {
-        return hit(t);
-      }
+      rx_ = ax;
+      ry_ = ay;
+      rz_ = az;
+      ref_ok_ = true;
     }
-    else
+    if (ph_ == PH_IDLE)
     {
-      dipping_ = false;
+      if (fabsf(mag - 1.0f) < 0.1f)
+      {
+        rx_ += 0.01f * (ax - rx_);
+        ry_ += 0.01f * (ay - ry_);
+        rz_ += 0.01f * (az - rz_);
+      }
+      if (mag < FALL_FREEFALL_G)
+      {
+        if (!in_ff_)
+        {
+          in_ff_ = true;
+          ff_start_ = t;
+        }
+        else if (t - ff_start_ >= FALL_FREEFALL_MIN_MS)
+        {
+          ff_ok_ = true;
+          ff_at_ = t;
+        }
+      }
+      else
+      {
+        in_ff_ = false;
+      }
+      if (ff_ok_ && t - ff_at_ > FALL_FREEFALL_WINDOW_MS)
+        ff_ok_ = false;
+      if (mag > FALL_IMPACT_G && (int32_t)(t - quiet_until_) >= 0 && (ff_ok_ || mag > FALL_IMPACT_HARD_G))
+      {
+        ph_ = PH_SETTLE;
+        t_ = t;
+        peak_ = mag;
+        ff_ok_ = false;
+        in_ff_ = false;
+      }
+      return FD_NONE;
     }
-    return false;
+    if (ph_ == PH_SETTLE)
+    {
+      if (mag > peak_)
+        peak_ = mag;
+      if (t - t_ >= FALL_SETTLE_MS)
+      {
+        ph_ = PH_STILL;
+        t_ = t;
+        sx_ = sy_ = sz_ = sm_ = smm_ = 0;
+        n_ = 0;
+      }
+      return FD_NONE;
+    }
+    sx_ += ax;
+    sy_ += ay;
+    sz_ += az;
+    sm_ += mag;
+    smm_ += mag * mag;
+    n_++;
+    if (t - t_ < FALL_STILL_MS)
+      return FD_NONE;
+    ph_ = PH_IDLE;
+    float mean = sm_ / n_;
+    sd_ = sqrtf(fmaxf(smm_ / n_ - mean * mean, 0.0f));
+    float mx = sx_ / n_, my = sy_ / n_, mz = sz_ / n_;
+    float nm = sqrtf(mx * mx + my * my + mz * mz) * sqrtf(rx_ * rx_ + ry_ * ry_ + rz_ * rz_);
+    float c = nm > 1e-3f ? (mx * rx_ + my * ry_ + mz * rz_) / nm : 1.0f;
+    c = fminf(fmaxf(c, -1.0f), 1.0f);
+    angle_ = acosf(c) * 180.0f / PI_F;
+    if (sd_ < FALL_STILL_SD_G && fabsf(mean - 1.0f) < 0.3f && angle_ >= FALL_ANGLE_DEG)
+    {
+      quiet_until_ = t + FALL_COOLDOWN_MS;
+      return FD_FALL;
+    }
+    return FD_REJECT;
   }
+  float peak() const { return peak_; }
+  float angle() const { return angle_; }
+  float stillSd() const { return sd_; }
 
 private:
-  bool hit(uint32_t t)
+  enum Phase : uint8_t
   {
-    fired_ = true;
-    last_ = t;
-    dipping_ = false;
-    return true;
-  }
-  bool fired_ = false, dipping_ = false;
-  uint32_t last_ = 0, dip_start_ = 0;
+    PH_IDLE = 0,
+    PH_SETTLE = 1,
+    PH_STILL = 2
+  };
+  Phase ph_ = PH_IDLE;
+  bool ref_ok_ = false, in_ff_ = false, ff_ok_ = false;
+  float rx_ = 0, ry_ = 0, rz_ = 1;
+  uint32_t ff_start_ = 0, ff_at_ = 0, t_ = 0, quiet_until_ = 0;
+  float peak_ = 0, angle_ = 0, sd_ = 0;
+  float sx_ = 0, sy_ = 0, sz_ = 0, sm_ = 0, smm_ = 0;
+  uint32_t n_ = 0;
 };
 
 class PpgProcessor
@@ -684,7 +766,7 @@ void mode_apply(bool test)
     return;
   s_test_mode = test;
   s_nvs.putBool("test_mode", test);
-  LOGF("MODE: %s", test ? "test (semua sensor aktif)" : "demo (GPS siaga)");
+  LOGF("MODE: %s", test ? "test (bunyi uji jatuh aktif)" : "demo");
 }
 
 void state_apply_cloud(DevState s)
@@ -1310,13 +1392,18 @@ void task_sensor_aux(void *)
         sm += mag;
         smm += mag * mag;
         sn++;
-        if (fall.update(mag, t))
+        FallDetector::Result fr = fall.update(ax, ay, az, t);
+        if (fr == FallDetector::FD_FALL)
         {
           fall_until = t + FALL_FLAG_HOLD_MS;
           fall_ts = now_ms();
           if (s_test_mode)
             alert_beep(2500, 800);
-          LOGF("IMU: JATUH TERDETEKSI (|a| = %.2f g)", mag);
+          LOGF("IMU: JATUH TERDETEKSI (benturan %.2f g, posisi berubah %.0f derajat, diam sd %.2f g)", fall.peak(), fall.angle(), fall.stillSd());
+        }
+        else if (fr == FallDetector::FD_REJECT)
+        {
+          LOGF("IMU: benturan %.2f g bukan jatuh (posisi berubah %.0f derajat, sd %.2f g)", fall.peak(), fall.angle(), fall.stillSd());
         }
       }
       else if (++imu_fail >= 10)
@@ -1457,10 +1544,11 @@ static int s_gps_baud_idx = 0;
 static char s_gps_line[128];
 static int s_gps_len = 0;
 static double s_gps_lat = 0, s_gps_lon = 0;
-static int s_gps_quality = 0, s_gps_sats = 0;
+static int s_gps_quality = 0, s_gps_sats = 0, s_gps_view = 0;
 static float s_gps_hdop = 0;
-static bool s_gps_rmc_valid = false;
+static bool s_gps_has_pos = false;
 static uint32_t s_gps_last_valid = 0;
+static uint32_t s_gps_fix_ms = 0;
 
 bool nmea_checksum_ok(const char *s)
 {
@@ -1501,6 +1589,18 @@ double nmea_degrees(const char *v, const char *dir)
   return h;
 }
 
+void gps_set_pos(double lat, double lon)
+{
+  if (lat == 0 && lon == 0)
+    return;
+  if (fabs(lat) > 90 || fabs(lon) > 180)
+    return;
+  s_gps_lat = lat;
+  s_gps_lon = lon;
+  s_gps_fix_ms = millis();
+  s_gps_has_pos = true;
+}
+
 void nmea_process(char *s)
 {
   if (!nmea_checksum_ok(s))
@@ -1516,21 +1616,25 @@ void nmea_process(char *s)
     s_gps_quality = atoi(f[6]);
     s_gps_sats = atoi(f[7]);
     s_gps_hdop = atof(f[8]);
-    if (s_gps_quality > 0)
-    {
-      s_gps_lat = nmea_degrees(f[2], f[3]);
-      s_gps_lon = nmea_degrees(f[4], f[5]);
-    }
+    if (s_gps_quality > 0 && f[2][0] && f[4][0])
+      gps_set_pos(nmea_degrees(f[2], f[3]), nmea_degrees(f[4], f[5]));
   }
   else if (!strcmp(type, "RMC") && n >= 10)
   {
-    s_gps_rmc_valid = (f[2][0] == 'A');
+    if (f[2][0] == 'A' && f[3][0] && f[5][0])
+      gps_set_pos(nmea_degrees(f[3], f[4]), nmea_degrees(f[5], f[6]));
+  }
+  else if (!strcmp(type, "GSV") && n >= 4)
+  {
+    s_gps_view = atoi(f[3]);
   }
 }
 
 void task_gps(void *)
 {
   uint32_t last_baud_change = millis();
+  uint32_t last_warn = millis();
+  bool was_nmea = false, was_fix = false;
   for (;;)
   {
     int budget = 512;
@@ -1561,15 +1665,47 @@ void task_gps(void *)
       SerialGPS.updateBaudRate(GPS_BAUD[s_gps_baud_idx]);
       s_gps_len = 0;
     }
+    bool fix = locked && s_gps_has_pos && now - s_gps_fix_ms < 5000;
+    if (locked != was_nmea)
+    {
+      was_nmea = locked;
+      if (locked)
+        LOGF("GPS: data NMEA terbaca di %ld baud", GPS_BAUD[s_gps_baud_idx]);
+      else
+        LOGF("GPS: data NMEA terputus");
+    }
+    if (fix != was_fix)
+    {
+      was_fix = fix;
+      if (fix)
+        LOGF("GPS: fix didapat, %d satelit, %.6f,%.6f", s_gps_sats, s_gps_lat, s_gps_lon);
+      else
+        LOGF("GPS: fix hilang, lokasi terakhir tetap dikirim");
+    }
+    if (now - last_warn > 30000)
+    {
+      if (!locked)
+      {
+        last_warn = now;
+        LOGF("GPS: belum ada data NMEA, cek TX GPS ke GPIO%d, RX GPS ke GPIO%d, VCC dan GND GPS", PIN_GPS_RX, PIN_GPS_TX);
+      }
+      else if (!fix)
+      {
+        last_warn = now;
+        LOGF("GPS: NMEA masuk tapi belum fix (%d satelit terlihat), bawa antena ke ruang terbuka menghadap langit", s_gps_view);
+      }
+    }
     GpsFix f;
-    f.active = (g_state == ST_CRITICAL) || s_test_mode;
-    f.fix = locked && s_gps_quality > 0 && s_gps_rmc_valid;
+    f.fix = fix;
+    f.has_last = s_gps_has_pos;
     f.nmea = locked;
     f.baud = GPS_BAUD[s_gps_baud_idx];
     f.hdop = s_gps_hdop;
     f.lat = s_gps_lat;
     f.lon = s_gps_lon;
+    f.age_s = s_gps_has_pos ? (now - s_gps_fix_ms) / 1000 : 0;
     f.sats = s_gps_sats;
+    f.view = s_gps_view;
     f.accuracy_m = s_gps_hdop * 2.5f;
     portENTER_CRITICAL(&s_gps_mux);
     s_gps_fix = f;
@@ -1968,18 +2104,19 @@ size_t encode_vital_json(const Vitals &v, float hr_ecg, const GpsFix &g, bool bu
   else
     json_add(out, cap, &n, "\"fall_detected\":false,\"fall_ts\":null,");
   json_add(out, cap, &n, "\"local_state\":\"%s\",\"mode\":\"%s\",", stateName(g_state), s_test_mode ? "test" : "demo");
-  if (!g.active)
+  if (g.fix)
   {
-    json_add(out, cap, &n, "\"gps\":null,");
+    json_add(out, cap, &n, "\"gps\":{\"fix\":true,\"sats\":%d,\"sats_view\":%d,\"lat\":%.6f,\"lon\":%.6f,\"accuracy_m\":%.1f,\"hdop\":%.1f,\"nmea\":true,\"baud\":%ld},",
+             g.sats, g.view, g.lat, g.lon, g.accuracy_m, g.hdop, g.baud);
   }
-  else if (g.fix)
+  else if (g.has_last)
   {
-    json_add(out, cap, &n, "\"gps\":{\"fix\":true,\"sats\":%d,\"lat\":%.6f,\"lon\":%.6f,\"accuracy_m\":%.1f,\"hdop\":%.1f,\"nmea\":true,\"baud\":%ld},",
-             g.sats, g.lat, g.lon, g.accuracy_m, g.hdop, g.baud);
+    json_add(out, cap, &n, "\"gps\":{\"fix\":false,\"sats\":%d,\"sats_view\":%d,\"nmea\":%s,\"baud\":%ld,\"last_lat\":%.6f,\"last_lon\":%.6f,\"last_age_s\":%lu},",
+             g.sats, g.view, json_bool(g.nmea), g.baud, g.lat, g.lon, (unsigned long)g.age_s);
   }
   else
   {
-    json_add(out, cap, &n, "\"gps\":{\"fix\":false,\"sats\":%d,\"nmea\":%s,\"baud\":%ld},", g.sats, json_bool(g.nmea), g.baud);
+    json_add(out, cap, &n, "\"gps\":{\"fix\":false,\"sats\":%d,\"sats_view\":%d,\"nmea\":%s,\"baud\":%ld},", g.sats, g.view, json_bool(g.nmea), g.baud);
   }
   json_add(out, cap, &n, "\"buffered\":%s,\"lead_off\":%s,\"charging\":%s,\"session_limit\":%s,",
            json_bool(buffered), json_bool(v.lead_off), json_bool(v.charging), json_bool(v.session_limit));
@@ -2057,7 +2194,9 @@ MQTTClient mqtt(8192);
 
 static char T_ECG[48], T_VITAL[48], T_EVENT[48], T_LWT[48], T_CMD[48];
 static bool s_modem_ok = false;
+static bool s_modem_reg = false;
 static int s_modem_csq = -1;
+static long s_modem_baud = 0;
 static uint32_t s_offline_since = 0;
 static bool s_sms_sent = false;
 static uint32_t s_next_mqtt_try = 0, s_backoff = 1000;
@@ -2075,7 +2214,7 @@ void tls_setup()
 #else
   net.setCACert(MQTT_CA_CERT);
 #endif
-#if CONN_MODE == CONN_4G
+#if CONN_MODE == CONN_GSM
   net.setHandshakeTimeout(30);
 #endif
 #endif
@@ -2084,30 +2223,81 @@ void tls_setup()
 #if USE_MODEM
 bool modem_begin()
 {
-  SerialAT.setRxBufferSize(1024);
-  SerialAT.begin(MODEM_BAUD, SERIAL_8N1, PIN_MODEM_RX, PIN_MODEM_TX);
-  if (PIN_MODEM_PWRKEY >= 0)
+  static bool serial_started = false;
+  if (!serial_started)
   {
-    pinMode(PIN_MODEM_PWRKEY, OUTPUT);
-    digitalWrite(PIN_MODEM_PWRKEY, LOW);
-    delay(600);
-    digitalWrite(PIN_MODEM_PWRKEY, HIGH);
-    delay(3000);
+    serial_started = true;
+    SerialAT.setRxBufferSize(1024);
+    SerialAT.begin(MODEM_BAUD, SERIAL_8N1, PIN_MODEM_RX, PIN_MODEM_TX);
+    if (PIN_MODEM_RST >= 0)
+    {
+      pinMode(PIN_MODEM_RST, OUTPUT);
+      digitalWrite(PIN_MODEM_RST, LOW);
+      delay(200);
+      digitalWrite(PIN_MODEM_RST, HIGH);
+      delay(3000);
+    }
   }
-  LOGF("MODEM: inisialisasi %s di RX%d TX%d, %d baud", MODEM_SIM7600 ? "SIM7600" : "SIM800L", PIN_MODEM_RX, PIN_MODEM_TX, MODEM_BAUD);
-  if (!modem.init() && !modem.restart())
+  LOGF("MODEM: mencari SIM800L di RX%d TX%d", PIN_MODEM_RX, PIN_MODEM_TX);
+  static const long rates[] = {MODEM_BAUD, 115200, 57600, 38400, 19200};
+  s_modem_baud = 0;
+  for (long r : rates)
   {
-    LOGF("MODEM: tidak merespons AT, periksa kabel TX RX dan catu daya 2 A");
+    SerialAT.updateBaudRate(r);
+    delay(50);
+    if (modem.testAT(1000))
+    {
+      s_modem_baud = r;
+      break;
+    }
+  }
+  if (!s_modem_baud)
+  {
+    SerialAT.updateBaudRate(MODEM_BAUD);
+    LOGF("MODEM: SIM800L tidak merespons AT, cek TX-RX silang, catu 4 V 2 A, dan GND bersama");
+    return false;
+  }
+  LOGF("MODEM: SIM800L merespons di %ld baud", s_modem_baud);
+  if (!modem.init(strlen(GSM_SIM_PIN) ? GSM_SIM_PIN : nullptr))
+  {
+    LOGF("MODEM: kartu SIM belum siap (status %d), cek posisi kartu SIM", (int)modem.getSimStatus());
     return false;
   }
   LOGF("MODEM: %s", modem.getModemInfo().c_str());
-  if (strlen(GSM_SIM_PIN) && modem.getSimStatus() != 3)
-    modem.simUnlock(GSM_SIM_PIN);
   s_modem_csq = modem.getSignalQuality();
-  LOGF("MODEM: sinyal CSQ %d", s_modem_csq);
+  s_modem_reg = modem.isNetworkConnected();
+  LOGF("MODEM: sinyal CSQ %d, %s", s_modem_csq, s_modem_reg ? "terdaftar ke jaringan GSM" : "belum terdaftar ke jaringan GSM");
   return true;
 }
 #endif
+
+void modem_maintain()
+{
+#if USE_MODEM
+  static uint32_t next_try = 30000, next_csq = 0;
+  uint32_t t = millis();
+  if (!s_modem_ok)
+  {
+    if ((int32_t)(t - next_try) >= 0)
+    {
+      next_try = t + 30000;
+      s_modem_ok = modem_begin();
+    }
+    return;
+  }
+  if ((int32_t)(t - next_csq) >= 0)
+  {
+    next_csq = t + 60000;
+    s_modem_csq = modem.getSignalQuality();
+    bool reg = modem.isNetworkConnected();
+    if (reg != s_modem_reg)
+    {
+      s_modem_reg = reg;
+      LOGF("MODEM: %s (CSQ %d)", reg ? "terdaftar ke jaringan GSM" : "lepas dari jaringan GSM", s_modem_csq);
+    }
+  }
+#endif
+}
 
 #if CONN_MODE == CONN_WIFI
 void wifi_scan_report()
@@ -2135,7 +2325,6 @@ bool network_ensure()
 {
 #if CONN_MODE == CONN_WIFI
   static uint32_t last_try = 0;
-  static uint32_t last_scan = 0;
   static bool started = false;
   wl_status_t st = WiFi.status();
   if (st == WL_CONNECTED)
@@ -2159,9 +2348,7 @@ bool network_ensure()
     esp_wifi_set_country_code("ID", true);
     WiFi.setSleep(false);
     WiFi.setAutoReconnect(true);
-    
     wifi_scan_report();
-    last_scan = millis();
     LOGF("WIFI: menyambung ke %s", WIFI_SSID);
     WiFi.begin(WIFI_SSID, WIFI_PASS);
   }
@@ -2179,17 +2366,17 @@ bool network_ensure()
     return false;
   if (!modem.isNetworkConnected())
   {
-    LOGF("4G: menunggu registrasi jaringan");
+    LOGF("GSM: menunggu registrasi jaringan");
     if (!modem.waitForNetwork(5000))
       return false;
   }
   if (!modem.isGprsConnected())
   {
-    LOGF("4G: membuka koneksi data APN %s", GSM_APN);
+    LOGF("GSM: membuka koneksi GPRS APN %s", GSM_APN);
     if (!modem.gprsConnect(GSM_APN, GSM_USER, GSM_PASS))
       return false;
     s_modem_csq = modem.getSignalQuality();
-    LOGF("4G: IP %s, sinyal CSQ %d", modem.getLocalIP().c_str(), s_modem_csq);
+    LOGF("GSM: IP %s, sinyal CSQ %d", modem.getLocalIP().c_str(), s_modem_csq);
   }
   return true;
 #endif
@@ -2390,6 +2577,7 @@ void handle_event(EventType e)
 void sms_fallback()
 {
 #if SMS_FALLBACK && USE_MODEM
+  static uint32_t next_try = 0;
   if (g_state != ST_CRITICAL)
   {
     s_sms_sent = false;
@@ -2399,26 +2587,47 @@ void sms_fallback()
     return;
   if (millis() - s_offline_since < SMS_AFTER_OFFLINE_MS)
     return;
+  if ((int32_t)(millis() - next_try) < 0)
+    return;
+  next_try = millis() + 20000;
+  if (!modem.isNetworkConnected())
+  {
+    s_modem_csq = modem.getSignalQuality();
+    LOGF("SMS: SIM800L belum terdaftar ke jaringan GSM (CSQ %d), dicoba lagi 20 s", s_modem_csq);
+    return;
+  }
   GpsFix g = gps_get();
+  char waktu[24] = "";
+  if (time_valid())
+  {
+    time_t now = time(nullptr) + 7 * 3600;
+    struct tm tm;
+    gmtime_r(&now, &tm);
+    snprintf(waktu, sizeof(waktu), " pukul %02d:%02d WIB", tm.tm_hour, tm.tm_min);
+  }
   char text[200];
-  time_t now = time(nullptr) + 7 * 3600;
-  struct tm tm;
-  gmtime_r(&now, &tm);
   if (g.fix)
-    snprintf(text, sizeof(text), "DARURAT: indikasi serangan jantung pada pengguna alat %s pukul %02d:%02d WIB. Lokasi: maps.google.com/?q=%.6f,%.6f",
-             DEVICE_ID, tm.tm_hour, tm.tm_min, g.lat, g.lon);
+    snprintf(text, sizeof(text), "DARURAT: indikasi serangan jantung pada pengguna alat %s%s. Lokasi: maps.google.com/?q=%.6f,%.6f",
+             DEVICE_ID, waktu, g.lat, g.lon);
+  else if (g.has_last)
+    snprintf(text, sizeof(text), "DARURAT: indikasi serangan jantung pada pengguna alat %s%s. Lokasi terakhir (%lu mnt lalu): maps.google.com/?q=%.6f,%.6f",
+             DEVICE_ID, waktu, (unsigned long)(g.age_s / 60), g.lat, g.lon);
   else
-    snprintf(text, sizeof(text), "DARURAT: indikasi serangan jantung pada pengguna alat %s pukul %02d:%02d WIB. Lokasi GPS belum tersedia.",
-             DEVICE_ID, tm.tm_hour, tm.tm_min);
+    snprintf(text, sizeof(text), "DARURAT: indikasi serangan jantung pada pengguna alat %s%s. Lokasi GPS belum tersedia.",
+             DEVICE_ID, waktu);
   const char *numbers[] = SMS_NOMOR;
+  int sent = 0;
   for (const char *num : numbers)
   {
     if (strstr(num, "ISI"))
       continue;
     bool ok = modem.sendSMS(num, text);
+    if (ok)
+      sent++;
     LOGF("SMS DARURAT ke %s: %s", num, ok ? "terkirim" : "GAGAL");
   }
-  s_sms_sent = true;
+  if (sent)
+    s_sms_sent = true;
 #endif
 }
 
@@ -2428,6 +2637,7 @@ void task_mqtt_publish(void *)
   uint32_t next_reset_retry = 0, next_flush = 0;
   for (;;)
   {
+    modem_maintain();
     bool net_up = network_ensure();
     if (net_up)
     {
@@ -2488,8 +2698,8 @@ void comm_begin()
   mqtt.onMessage(on_mqtt_message);
   s_offline_since = millis();
   xTaskCreatePinnedToCore(task_mqtt_publish, "mqtt_pub", 8192, nullptr, 2, nullptr, 0);
-  LOGF("KOMUNIKASI: %s, broker %s:%d%s, ECG %s", CONN_MODE == CONN_WIFI ? "WiFi" : "4G", MQTT_HOST, MQTT_PORT,
-       MQTT_USE_TLS ? " TLS" : "", ECG_PAYLOAD_BINARY ? "biner" : "JSON");
+  LOGF("KOMUNIKASI: %s, broker %s:%d%s, ECG %s, SIM800L %s", CONN_MODE == CONN_WIFI ? "WiFi" : "GSM", MQTT_HOST, MQTT_PORT,
+       MQTT_USE_TLS ? " TLS" : "", ECG_PAYLOAD_BINARY ? "biner" : "JSON", USE_MODEM ? (s_modem_ok ? "siap" : "belum siap") : "tidak dipakai");
 }
 
 void print_status()
@@ -2500,12 +2710,13 @@ void print_status()
   Serial.printf("state=%s mode=%s online=%d waktu_sinkron=%d buffer=%u B terkirim ecg=%lu vital=%lu byte=%lu\n",
                 stateName(g_state), s_test_mode ? "test" : "demo", g_net_online, time_valid(), (unsigned)obuf_size(), (unsigned long)s_tx_ecg,
                 (unsigned long)s_tx_vital, (unsigned long)s_tx_bytes);
-  Serial.printf("modem=%d CSQ=%d | ECG lead_off=%d HR_ecg=%.1f adc_gagal=%lu | PPG %s HR=%.1f SQI=%.2f | GSR %.2f uS (ADC %.0f)\n",
-                s_modem_ok, s_modem_csq, g_lead_off, s_hr_ecg, (unsigned long)s_adc_fail, s_has.ppg ? "on" : "off", v.hr_ppg, v.sqi, v.gsr_us, s_gsr_adc_last);
+  Serial.printf("SIM800L ok=%d terdaftar=%d CSQ=%d baud=%ld | ECG lead_off=%d HR_ecg=%.1f adc_gagal=%lu | PPG %s HR=%.1f SQI=%.2f | GSR %.2f uS (ADC %.0f)\n",
+                s_modem_ok, s_modem_reg, s_modem_csq, s_modem_baud, g_lead_off, s_hr_ecg, (unsigned long)s_adc_fail, s_has.ppg ? "on" : "off", v.hr_ppg, v.sqi, v.gsr_us, s_gsr_adc_last);
   Serial.printf("I2C: %s\n", s_i2c_scan);
-  Serial.printf("IMU %s |a|=%.3f g sd=%.3f g jatuh=%d | mengisi=%d | GPS fix=%d %.6f,%.6f sat=%d baud=%ld | heap=%u B\n\n",
-                s_has.imu ? "on" : "off", v.amag, v.amag_sd, v.fall_detected, g_charging, g.fix, g.lat, g.lon, g.sats,
-                GPS_BAUD[s_gps_baud_idx], (unsigned)ESP.getFreeHeap());
+  Serial.printf("IMU %s |a|=%.3f g sd=%.3f g jatuh=%d | mengisi=%d | heap=%u B\n",
+                s_has.imu ? "on" : "off", v.amag, v.amag_sd, v.fall_detected, g_charging, (unsigned)ESP.getFreeHeap());
+  Serial.printf("GPS nmea=%d baud=%ld fix=%d sat=%d/%d hdop=%.1f lokasi=%.6f,%.6f umur=%lu s\n\n",
+                g.nmea, g.baud, g.fix, g.sats, g.view, g.hdop, g.lat, g.lon, (unsigned long)g.age_s);
 }
 
 void setup()
