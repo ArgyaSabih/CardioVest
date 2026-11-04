@@ -1075,6 +1075,10 @@ void task_ecg_filter(void *)
       s_hr_ecg = NAN;
     if (s_plot)
       Serial.println(y * 1000.0f, 1);
+    // if (s_plot)
+    //   Serial.printf("mentah:%.1f,filter:%.1f\n",
+    //                 r.lead_off ? 0.0f : r.mv / ECG_GAIN * 1000.0f,
+    //                 y * 1000.0f);
     float c = y * ECG_COUNTS_PER_MV;
     s_pkt_build.s[idx++] = (int16_t)constrain(lroundf(c), -32768, 32767);
     if (idx >= ECG_HOP)
