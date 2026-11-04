@@ -48,8 +48,8 @@ export function ModeSwitch({ mode, deviceMode, disabled }) {
       <p className="muted small" role="status">
         {busy ? `Mengubah ke mode ${label(busy)}…`
           : waiting ? `Menunggu alat pindah ke mode ${label(mode)}…`
-            : mode === 'test' ? 'Semua sensor berjalan bersamaan, termasuk GPS. Status tetap diputuskan dengan aturan yang sama seperti mode Demo.'
-              : 'GPS siaga dan baru aktif saat status Darurat.'}
+            : mode === 'test' ? 'Semua sensor menyala dan lokasi selalu dikirim. Bila sumber EKG dataset, status langsung mengikuti label rekaman.'
+              : 'PPG dan GSR menyala mulai status Waspada, lokasi dikirim saat status Darurat.'}
       </p>
       {err && <p className="state-note" role="alert">{err}</p>}
     </section>
@@ -143,13 +143,17 @@ export function TestPanel({ vital, fresh, inference, calibration, signal, state 
         </Card>
 
         <Card title="PPG (MAX30102)" ok={s?.ppg}>
+          <Row k="Daya" v={v ? (v.ppg_on === false ? 'Mati (hemat energi)' : 'Menyala') : '–'} />
           <Row k="Denyut PPG" v={num(v?.hr_ppg, 1, ' bpm')} />
+          <Row k="SpO2" v={num(v?.spo2, 1, '%')} />
+          <Row k="SpO2 di bawah 90%" v={yes(val?.ind_spo2)} />
           <Row k="SQI" v={num(v?.sqi, 2)} />
           <Row k="Sumber denyut dipakai" v={v?.hr_source ?? '–'} />
           <Row k="Denyut dipakai" v={num(v?.hr, 1, ' bpm')} />
         </Card>
 
         <Card title="GSR" ok={s?.gsr}>
+          <Row k="Daya" v={v ? (v.gsr_on === false ? 'Mati (hemat energi)' : 'Menyala') : '–'} />
           <Row k="Konduktansi" v={num(v?.gsr, 2, ' µS')} />
           <Row k="Ambang" v={num(calibration?.threshold, 2, ' µS')} />
           <Row k="Kalibrasi" v={calibration ? (calibration.calibrated ? 'Selesai' : `${Math.round(calibration.progress_s)}/${calibration.target_s} s`) : '–'} />
@@ -164,11 +168,8 @@ export function TestPanel({ vital, fresh, inference, calibration, signal, state 
           <Row k="Jatuh" v={yes(v?.fall)} />
         </Card>
 
-        <Card title="GPS (Neo-6M)" ok={v ? !!g : null}>
-          <Row k="Data NMEA" v={g ? (g.nmea === false ? 'Tidak ada, cek kabel' : 'Diterima') : '–'} />
-          <Row k="Baud" v={g?.baud ?? '–'} />
-          <Row k="Fix" v={g ? yes(g.fix) : '–'} />
-          <Row k="Satelit" v={g?.sats ?? '–'} />
+        <Card title="Lokasi" ok={v ? !!g?.fix : null}>
+          <Row k="Dikirim" v={g ? yes(g.fix) : '–'} />
           <Row k="Lintang" v={g?.fix ? g.lat.toFixed(6) : '–'} />
           <Row k="Bujur" v={g?.fix ? g.lon.toFixed(6) : '–'} />
           <Row k="Akurasi" v={g?.fix ? num(g.accuracy_m, 1, ' m') : '–'} />

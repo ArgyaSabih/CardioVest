@@ -1,20 +1,3 @@
-"""Pelatihan CNN 1D tiga kelas pada dataset ECG SINTETIS.
-
-Arsitektur mengikuti Tabel 'Arsitektur CNN 1D' (BAB 10.4):
-    Input(1750,1) -> [Conv1D(32,5)+BN+MaxPool] -> [Conv1D(64,5)+BN+MaxPool]
-    -> [Conv1D(128,3)+BN] -> GAP -> Dropout(0.3) -> Dense(64) -> Dropout(0.2) -> Dense(3, softmax)
-    Total parameter ~44.547
-
-Strategi (BAB 10.4): Adam 1e-3, ReduceLROnPlateau(0.5, patience 5), EarlyStopping(patience 10),
-class weight invers frekuensi, normalisasi Z-score per window.
-
-Model ini HANYA untuk menguji pipeline dengan ECG sintetis dan disimpan sebagai
-cnn1d_ecg_sintetis.keras. Model utama (cnn1d_ecg.keras) dilatih dengan PTB-XL + MIT-BIH melalui
-train_real.py.
-
-Contoh:
-    python cloud/model/train.py --per-class 4000 --epochs 25
-"""
 from __future__ import annotations
 
 import argparse
@@ -29,11 +12,11 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "common"))
 
-from heartsim_common.config import CLASSES, WINDOW_SAMPLES  # noqa: E402
-from heartsim_common.ecg_synth import make_window  # noqa: E402
+from heartsim_common.config import CLASSES, WINDOW_SAMPLES
+from heartsim_common.ecg_synth import make_window
 
 os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "2")
-import tensorflow as tf  # noqa: E402
+import tensorflow as tf
 
 ART = Path(__file__).resolve().parent / "artifacts"
 
@@ -44,7 +27,6 @@ def zscore(x: np.ndarray) -> np.ndarray:
 
 def build_dataset(per_class: int, seed: int, imbalance: bool = True):
     rng = np.random.default_rng(seed)
-    # Meniru ketidakseimbangan kelas dataset nyata (Normal dominan) -> class weight berperan
     counts = [per_class * 2, per_class, per_class] if imbalance else [per_class] * 3
     X, y = [], []
     for c, n in enumerate(counts):
@@ -95,7 +77,6 @@ def main() -> None:
     print(f"dataset {n} window dibuat dalam {time.time() - t0:.1f} s "
           f"(train {len(ytr)}, val {len(yva)}, test {len(yte)})")
 
-    # w_c = N_total / (n_classes * N_c)
     cnt = np.bincount(ytr, minlength=3)
     cw = {c: float(len(ytr) / (3 * cnt[c])) for c in range(3)}
     print("class weight:", cw)
@@ -138,7 +119,6 @@ def main() -> None:
         "per_class_train": a.per_class,
     }
     ART.mkdir(parents=True, exist_ok=True)
-    # disimpan dengan nama *_sintetis agar tidak menimpa model data nyata (train_real.py)
     model.save(ART / "cnn1d_ecg_sintetis.keras")
     (ART / "metrics_sintetis.json").write_text(json.dumps(metrics, indent=2, ensure_ascii=False))
     print(json.dumps(metrics, indent=2, ensure_ascii=False))

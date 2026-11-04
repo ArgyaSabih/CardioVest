@@ -209,15 +209,15 @@ export default function Dashboard() {
                 Lokasi Anda sudah terkirim{live.gps.acc ? ` (akurasi sekitar ${Math.round(live.gps.acc)} m)` : ''}.
               </p>
             ) : (
-              <p className="state-note">GPS sedang mencari sinyal. Lokasi dikirim ke keluarga begitu didapat.</p>
+              <p className="state-note">Lokasi dikirim ke keluarga begitu diterima dari alat.</p>
             )}
             {!linked && (
-              <p className="state-note">Bila alat terputus lebih dari 30 detik, alat mengirim SMS berisi lokasi ke keluarga.</p>
+              <p className="state-note">Alat sedang terputus dari WiFi. Data dikirim lagi begitu tersambung.</p>
             )}
             <ResetAlarm allowed={live.remoteReset && linked} level="CRITICAL" />
             <details className="state-more">
               <summary>Kenapa status ini Darurat?</summary>
-              <p>EKG, denyut jantung, dan keringat Anda sama-sama menunjukkan tanda bahaya pada jantung pada saat yang sama.</p>
+              <p>EKG, denyut jantung, keringat, dan oksigen darah Anda sama-sama menunjukkan tanda bahaya pada jantung pada saat yang sama.</p>
               {live.event?.public_token && (
                 <p><Link href={`/darurat/${live.event.public_token}`}>Buka halaman darurat yang dilihat keluarga</Link></p>
               )}

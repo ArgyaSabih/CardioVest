@@ -1,14 +1,3 @@
-"""Layanan cloud: subscriber MQTT -> sliding window -> CNN 1D -> decision engine -> publish.
-
-Alur (BAB 5.4.2, BAB 8.2):
-  device/+/ecg    -> WindowAssembler -> CnnInference -> DecisionEngine -> state/alert/cmd
-  device/+/vital  -> ValidatorState (HR, GSR, SQI, kalibrasi baseline) + pembaruan lokasi/jatuh
-  device/+/event  -> hardware reset (S3 -> S1)
-  device/+/lwt    -> status online/offline
-
-Antrean internal (queue.Queue) berperan sebagai message queue di antara broker dan
-layanan inferensi, sehingga pemrosesan tidak memblokir thread jaringan MQTT.
-"""
 from __future__ import annotations
 
 import json
@@ -33,7 +22,6 @@ from .windowing import WindowAssembler
 
 log = logging.getLogger("cloud")
 
-# Epoch ms di bawah ini berarti jam perangkat belum tersinkron (millis sejak boot, bukan waktu nyata)
 MIN_VALID_EPOCH_MS = 1_600_000_000_000
 
 
@@ -57,20 +45,21 @@ class DeviceCtx:
     last_gps: dict | None = None
     online: bool = False
     reset_ts: int = 0
-    reset_recv: int = 0                 # waktu cloud saat event reset diterima
+    reset_recv: int = 0
     last_decision: dict | None = None
-    restored: str | None = None         # state yang dipulihkan dari database, menunggu konfirmasi perangkat
-    restored_why: str = ""              # alasan state ditahan: "layanan cloud restart" / "perangkat tersambung lagi"
+    restored: str | None = None
+    restored_why: str = ""
     clock_warned: bool = False
     quality: dict | None = None
     ecg_source: str = "hardware"
     ecg_rekaman: str | None = None
     reset_source: str = "device"
-    remote_clear_at: int = 0            # waktu reset jarak jauh; >0 = menunggu alat melepas latch
+    remote_clear_at: int = 0
     remote_clear_sent: int = 0
     mode: str = C.MODE_DEMO
     mode_req_at: int = 0
     mode_sent: int = 0
+    calib_req_at: int = 0
 
 
 class CloudService:
@@ -88,7 +77,6 @@ class CloudService:
         self.client.reconnect_delay_set(1, 30)
         self._running = True
 
-    # ------------------------------------------------------------------ MQTT
     def _on_connect(self, c, userdata, flags, reason_code, props):
         if reason_code.is_failure:
             log.error("gagal terhubung ke broker: %s", reason_code)
@@ -108,7 +96,6 @@ class CloudService:
         self.client.publish(T.t(device_id, kind), json.dumps(obj, separators=(",", ":")),
                             qos=T.QOS[kind], retain=retain)
 
-    # ------------------------------------------------------------------ helper
     def ctx(self, device_id: str) -> DeviceCtx:
         if device_id not in self.devices:
             d = DeviceCtx(device_id)
@@ -116,15 +103,12 @@ class CloudService:
             log.info("perangkat terdeteksi: %s", device_id)
             last = self.repo.last_state(device_id)
             if last and last[0] != C.STATE_NORMAL:
-                # Layanan cloud restart di tengah episode: lanjutkan state & event yang masih terbuka
                 d.engine.restore(last[0])
                 d.state_since = last[1]
                 ev = self.repo.open_event_of(device_id)
                 if ev:
                     d.event_id, _, d.event_peak = ev
                 if last[0] == C.STATE_CRITICAL:
-                    # Tombol reset bisa saja ditekan ketika cloud mati. Tunggu vital pertama: latch NVS
-                    # perangkat menentukan apakah CRITICAL masih berlaku (lihat handle_vital).
                     d.restored = last[0]
                     d.restored_why = "layanan cloud restart"
                 d.last_reason = f"dipulihkan dari database setelah layanan cloud restart ({last[0]})"
@@ -167,6 +151,7 @@ class CloudService:
             "hr": (vals or {}).get("hr", v.get("hr")),
             "hr_source": (vals or {}).get("hr_source", v.get("hr_source")),
             "gsr": (vals or {}).get("gsr", v.get("gsr")),
+            "spo2": (vals or {}).get("spo2", v.get("spo2")),
             "validator_quality": "terdegradasi (HR dari ECG)" if (vals or {}).get("degraded") else "independen",
             "fall_detected": bool(v.get("fall_detected")),
             "event_id": d.event_id,
@@ -175,13 +160,12 @@ class CloudService:
             g = d.last_gps
             p["gps"] = ({"lat": g["lat"], "lng": g["lon"], "accuracy": g.get("accuracy_m")}
                         if g and g.get("fix") else None)
-            p["message"] = ("DARURAT: indikasi serangan jantung terkonfirmasi multi-sensor. "
+            p["message"] = ("DARURAT: indikasi serangan jantung. "
                             "Segera hubungi 119 / ambulans dan menuju lokasi pengguna.")
         else:
             p["message"] = "Terdeteksi pola EKG mencurigakan. Hentikan aktivitas dan beristirahat."
         return p
 
-    # ------------------------------------------------------------------ transisi
     def _apply_transition(self, d: DeviceCtx, dec: dict, conf: float, cls: str | None,
                           vals: dict | None) -> None:
         ts = now_ms()
@@ -191,12 +175,18 @@ class CloudService:
         lvl = logging.CRITICAL if b == C.STATE_CRITICAL else logging.WARNING
         log.log(lvl, "TRANSISI %s: %s -> %s | %s", d.device_id, a, b, dec["reason"])
 
-        # setiap transisi menutup episode lama (WARNING yang naik ke CRITICAL menjadi episode baru)
         if d.event_id is not None:
-            by_reset = dec["reason"].startswith(("hardware reset", "reset jarak jauh"))
+            why = dec["reason"]
+            if why.startswith("label rekaman"):
+                normal_end = "label rekaman dataset"
+            elif why.startswith("alat dinyalakan ulang"):
+                normal_end = "alat dinyalakan ulang"
+            elif why.startswith(("hardware reset", "reset jarak jauh", "perangkat sudah direset")):
+                normal_end = "reset dari aplikasi web" if d.reset_source == "remote" else "reset tombol fisik"
+            else:
+                normal_end = "pulih (histeresis)"
             end_reason = {C.STATE_CRITICAL: "eskalasi ke CRITICAL", C.STATE_WARNING: "berubah ke WARNING",
-                          C.STATE_NORMAL: (("reset dari aplikasi web" if d.reset_source == "remote" else "reset tombol fisik")
-                                           if by_reset else "pulih (histeresis)")}[b]
+                          C.STATE_NORMAL: normal_end}[b]
             self.repo.update_event(d.event_id, end_ts=ts, end_reason=end_reason)
             d.event_id = None
         if b in (C.STATE_WARNING, C.STATE_CRITICAL):
@@ -218,22 +208,22 @@ class CloudService:
             self.notifier.dispatch(et, d.device_id, payload)
         elif b == C.STATE_NORMAL and a == C.STATE_CRITICAL:
             remote = d.reset_source == "remote"
+            if dec["reason"].startswith("label rekaman"):
+                msg = "Status CRITICAL diakhiri karena rekaman dataset berganti."
+            elif dec["reason"].startswith("alat dinyalakan ulang"):
+                msg = "Status CRITICAL diakhiri karena alat dinyalakan ulang."
+            elif remote:
+                msg = "Status CRITICAL diakhiri dari aplikasi web."
+            else:
+                msg = "Status CRITICAL diakhiri melalui tombol reset perangkat (pertolongan telah tiba)."
             self._pub(d.device_id, "alert", {"event_type": "resolved", "timestamp": ts,
                                              "device_id": d.device_id, "state": b,
-                                             "source": "remote" if remote else "device",
-                                             "message": ("Status CRITICAL diakhiri dari aplikasi web."
-                                                         if remote else
-                                                         "Status CRITICAL diakhiri melalui tombol reset "
-                                                         "perangkat (pertolongan telah tiba).")})
+                                             "source": "remote" if remote else "device", "message": msg})
 
-    # ------------------------------------------------------------------ handler
     def handle_ecg(self, device_id: str, payload: bytes, recv_ms: int) -> None:
         d = self.ctx(device_id)
         pkt, fmt = decode(payload, device_id)
         dur_ms = int(pkt.n * 1000 / pkt.fs)
-        # Jam perangkat belum tersinkron (NTP/jam seluler gagal): t0 = ms sejak boot. Paket live tetap
-        # diproses dengan waktu terima cloud. Dulu paket seperti ini dianggap "terlambat" sehingga FSM
-        # tidak pernah bergerak dan alarm tidak bisa menyala tanpa ada pesan galat apa pun.
         clock_bad = pkt.clock_unsynced or pkt.t0 < MIN_VALID_EPOCH_MS or pkt.t0 > recv_ms + 120_000
         if clock_bad:
             if not d.clock_warned:
@@ -267,6 +257,13 @@ class CloudService:
         if late:
             row.update(accepted=False, state=d.engine.state,
                        reason="paket hasil retransmisi buffer: disimpan, tidak menggerakkan FSM")
+        elif self._label_mode(d):
+            target = C.REKAMAN_STATE.get(d.ecg_rekaman or "normal", C.STATE_NORMAL)
+            reason = f"label rekaman {d.ecg_rekaman}: {target} (mode Test, tanpa validator)"
+            d.last_reason = reason
+            self._force_state(d, target, reason, conf, C.CLASSES[cls])
+            row.update(accepted=True, state=d.engine.state, reason=reason,
+                       validators=d.validators.evaluate().dict())
         elif not quality.ok:
             row.update(accepted=False, state=d.engine.state,
                        reason=f"tidak diputuskan, kualitas sinyal: {quality.reason}")
@@ -276,7 +273,8 @@ class CloudService:
                        reason="window memuat sampel sebelum hardware reset: tidak menggerakkan FSM")
         else:
             snap = d.validators.evaluate()
-            dec = d.engine.step(cls, conf, snap.ind_gsr, snap.ind_hr, snap.degraded, snap.motion).dict()
+            dec = d.engine.step(cls, conf, snap.ind_gsr, snap.ind_hr, snap.degraded, snap.motion,
+                                snap.ind_spo2).dict()
             row.update(accepted=dec["accepted"], state=dec["state"], reason=dec["reason"],
                        validators=snap.dict(), decision=dec)
             d.last_reason = dec["reason"]
@@ -286,9 +284,8 @@ class CloudService:
             elif d.event_id is not None and conf > d.event_peak and cls != C.CLS_NORMAL:
                 d.event_peak = conf
                 self.repo.update_event(d.event_id, peak_conf=conf)
-        row["process_latency_ms"] = now_ms() - t_end  # transmisi + antre + inferensi + keputusan
+        row["process_latency_ms"] = now_ms() - t_end
         if not late and not row.get("decision", {}).get("changed"):
-            # heartbeat state retained per window: alasan & progres kalibrasi selalu segar bagi klien
             self._publish_state(d)
         self.repo.save_inference(row)
         self._pub(device_id, "inference", row)
@@ -296,8 +293,37 @@ class CloudService:
                  conf, ",".join(f"{p:.2f}" for p in probs), infer_ms, row["state"],
                  " (late)" if late else "")
 
+    @staticmethod
+    def _label_mode(d: DeviceCtx) -> bool:
+        return d.mode == C.MODE_TEST and d.ecg_source == "dataset"
+
+    def _force_state(self, d: DeviceCtx, target: str, reason: str, conf: float, cls: str | None) -> None:
+        if d.engine.state == target:
+            return
+        if d.engine.state == C.STATE_CRITICAL:
+            t = now_ms()
+            d.reset_source = "remote"
+            d.reset_recv = t
+            d.remote_clear_at = d.remote_clear_sent = t
+            self._pub(d.device_id, "cmd", {"cmd": "clear_latch", "state": C.STATE_NORMAL, "ts": t})
+        dec = d.engine.force(target, reason).dict()
+        self._apply_transition(d, dec, conf, cls, d.validators.evaluate().dict())
+
+    def _request_calibration(self, d: DeviceCtx, v: dict) -> None:
+        if v.get("buffered") or v.get("gsr_on") is None:
+            return
+        t = now_ms()
+        if (d.validators.calibrated or d.engine.state != C.STATE_NORMAL
+                or d.validators.calibrating(v.get("ts", t))
+                or t - d.calib_req_at < C.GSR_CALIB_RETRY_S * 1000):
+            return
+        d.calib_req_at = t
+        self._pub(d.device_id, "cmd", {"cmd": "gsr_calibrate", "seconds": C.CALIB_SECONDS + 5, "ts": t})
+        log.info("%s: kalibrasi baseline GSR %d s diminta", d.device_id, C.CALIB_SECONDS)
+
     def handle_source(self, device_id: str, payload: bytes) -> None:
         d = self.ctx(device_id)
+        was_label = self._label_mode(d)
         try:
             v = json.loads(payload or b"{}")
         except json.JSONDecodeError:
@@ -313,7 +339,10 @@ class CloudService:
         d.late.reset()
         d.last_reason = f"sumber EKG: {src}" + (f" ({rek})" if rek else "")
         log.warning("%s: %s", device_id, d.last_reason)
-        self._publish_state(d)
+        if was_label and not self._label_mode(d):
+            self._reset_remote(d, "pergantian sumber EKG ke hardware")
+        else:
+            self._publish_state(d)
 
     def handle_vital(self, device_id: str, payload: bytes) -> None:
         d = self.ctx(device_id)
@@ -323,12 +352,12 @@ class CloudService:
         self._reconcile_latch(d, v)
         self._reconcile_mode(d, v)
         d.validators.add(v, d.engine.state)
+        self._request_calibration(d, v)
         g = v.get("gps")
         if g and g.get("fix") and not v.get("buffered"):
             d.last_gps = g
         if d.engine.state != C.STATE_CRITICAL or d.event_id is None or v.get("buffered"):
             return
-        # pembaruan informasi pada event CRITICAL yang sedang berlangsung
         if g and g.get("fix") and not d.event_gps_sent:
             d.event_gps_sent = True
             self.repo.update_event(d.event_id, lat=g["lat"], lon=g["lon"])
@@ -383,7 +412,6 @@ class CloudService:
             self._publish_state(d)
 
     def _reconcile_latch(self, d: DeviceCtx, v: dict) -> None:
-        """Samakan state cloud dengan latch CRITICAL perangkat (field local_state pada vital)."""
         if v.get("buffered"):
             return
         local = v.get("local_state")
@@ -395,7 +423,6 @@ class CloudService:
                 self._publish_state(d)
                 self._pub(d.device_id, "cmd", {"cmd": "set_state", "state": C.STATE_CRITICAL, "ts": now_ms()})
             else:
-                # Latch perangkat sudah kosong: tombol reset ditekan ketika layanan cloud mati
                 dec = d.engine.hardware_reset().dict()
                 dec["reason"] = ("perangkat sudah direset (tombol fisik) ketika layanan cloud tidak aktif"
                                  if d.restored_why == "layanan cloud restart" else
@@ -432,9 +459,13 @@ class CloudService:
         e = json.loads(payload)
         if e.get("type") != "hardware_reset":
             return
+        boot = e.get("reason") == "boot"
         d.restored = None
         d.remote_clear_at = 0
-        dec = d.engine.hardware_reset().dict()
+        if boot:
+            d.validators = ValidatorState()
+            d.calib_req_at = 0
+        dec = d.engine.hardware_reset(boot).dict()
         d.reset_source = "device"
         d.reset_ts = int(e.get("ts", now_ms()))
         d.reset_recv = now_ms()
@@ -491,24 +522,19 @@ class CloudService:
         (log.info if d.online else log.warning)("%s: status perangkat %s %s", device_id, status.upper(),
                                                 f"({s['reason']})" if s.get("reason") else "")
         self._publish_state(d)
-        if d.online:  # sinkronkan state ke perangkat yang baru tersambung
+        if d.online:
             if d.engine.state == C.STATE_CRITICAL:
-                # Jangan langsung memerintahkan CRITICAL: tombol reset mungkin ditekan selama alat offline.
-                # Alat mengirim event reset itu tepat setelah LWT online, dan perintah CRITICAL yang berpacu
-                # dengannya bisa mengunci alat lagi. Tunggu vital pertama yang membawa latch perangkat.
                 d.restored = C.STATE_CRITICAL
                 d.restored_why = "perangkat tersambung lagi"
             else:
                 self._pub(device_id, "cmd", {"cmd": "set_state", "state": d.engine.state, "ts": now_ms()})
 
-    # ------------------------------------------------------------------ worker
     def _prune(self) -> None:
-        """Retensi F-BE-4, dijalankan sekali saat mulai lalu tiap 6 jam dari thread worker."""
         try:
             out = self.repo.prune(C.RETENSI_HARI, now_ms())
             if any(out.values()):
                 log.info("retensi %d hari: baris dihapus %s", C.RETENSI_HARI, out)
-        except Exception:  # noqa: BLE001
+        except Exception:
             log.exception("retensi gagal")
 
     def _worker(self) -> None:
@@ -542,7 +568,7 @@ class CloudService:
                     self.handle_lwt(dev, payload)
                 elif kind == "remote":
                     self.handle_remote(dev, payload)
-            except Exception:  # noqa: BLE001  layanan tidak boleh mati karena satu pesan rusak
+            except Exception:
                 log.exception("gagal memproses %s", topic)
 
     def run(self) -> None:

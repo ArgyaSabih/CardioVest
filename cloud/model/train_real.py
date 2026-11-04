@@ -1,21 +1,3 @@
-"""Pelatihan CNN 1D tiga kelas pada PTB-XL + MIT-BIH (hasil prepare.py).
-
-    python cloud/model/train_real.py --data datasets/ecg_c251_250hz.npz --epochs 40
-
-Mengikuti BAB 10.4:
-  * arsitektur Tabel 'Arsitektur CNN 1D' (dipakai ulang dari train.py, 44.547 parameter)
-  * input 1.750 sampel @ 250 Hz (7 s), Z-score per window
-  * split 70/15/15 inter-patient, terstratifikasi per pasien
-  * augmentasi: derau Gaussian sigma 0,05, baseline wander f < 0,5 Hz, pergeseran waktu (crop acak)
-  * Adam 1e-3, ReduceLROnPlateau(0,5; patience 5), EarlyStopping(patience 10), class weight
-
-Keluaran (cloud/model/artifacts/):
-  cnn1d_ecg.keras            model baru (model sintetis lama dicadangkan sebagai cnn1d_ecg_sintetis.keras)
-  metrics.json               metrik uji lengkap (per kelas, per sumber, per kondisi, analisis tau_conf)
-  confusion_matrix.png, training_curves.png, tau_conf.png
-  history.csv, split_pasien.csv
-dan bank replay dataset: dataset/dataset/replay_bank.npz (window dari pasien set uji).
-"""
 from __future__ import annotations
 
 import argparse
@@ -35,9 +17,9 @@ sys.path.insert(0, str(ROOT / "common"))
 sys.path.insert(0, str(HERE))
 
 os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "2")
-import tensorflow as tf  # noqa: E402
+import tensorflow as tf
 
-from train import build_model  # noqa: E402  arsitektur identik
+from train import build_model
 
 CLASSES = ["Normal", "Pra-Serangan", "Serangan"]
 WIN, SEG, FS = 1750, 2500, 250
@@ -45,10 +27,7 @@ ART = HERE / "artifacts"
 TAG_RANK = ["vf", "vt", "af", "svt", "pvc", "cd", "st_depression", "stemi", "normal"]
 
 
-# ============================================================== split inter-patient
 def patient_split(pid, y, tag, src, seed=42, ratios=(0.70, 0.15, 0.15)):
-    """Bagi PASIEN ke train/val/test. Strata = (sumber, kelas terberat, tag paling langka).
-    Strata dengan < 3 pasien seluruhnya masuk train (mis. VF MIT-BIH hanya dari rekaman 207)."""
     rng = np.random.default_rng(seed)
     info = defaultdict(lambda: {"cls": 0, "tags": set(), "src": ""})
     for p, c, t, s in zip(pid, y, tag, src):
@@ -75,7 +54,6 @@ def patient_split(pid, y, tag, src, seed=42, ratios=(0.70, 0.15, 0.15)):
     return np.array([assign[p] for p in pid]), assign
 
 
-# ============================================================== data generator
 def zscore(x):
     return (x - x.mean(axis=-1, keepdims=True)) / (x.std(axis=-1, keepdims=True) + 1e-8)
 
@@ -102,17 +80,16 @@ class Augmented(tf.keras.utils.Sequence):
 
     def __getitem__(self, i):
         b = self.idx[i * self.batch:(i + 1) * self.batch]
-        st = self.rng.integers(0, SEG - WIN + 1, len(b))                       # geser waktu
+        st = self.rng.integers(0, SEG - WIN + 1, len(b))
         x = np.stack([self.X[j, s:s + WIN] for j, s in zip(b, st)]).astype(np.float32)
         x = zscore(x)
         x *= self.rng.uniform(0.85, 1.15, (len(b), 1))
-        f = self.rng.uniform(0.05, 0.5, (len(b), 1))                          # baseline wander
+        f = self.rng.uniform(0.05, 0.5, (len(b), 1))
         x += self.rng.uniform(0, 0.3, (len(b), 1)) * np.sin(2 * np.pi * f * self.t + self.rng.uniform(0, 6.3, (len(b), 1)))
-        x += self.rng.normal(0, 0.05, x.shape)                                 # derau Gaussian
+        x += self.rng.normal(0, 0.05, x.shape)
         return x[..., None], self.y[b]
 
 
-# ============================================================== metrik
 def per_class_metrics(yt, yp):
     cm = np.zeros((3, 3), int)
     for a, b in zip(yt, yp):
@@ -137,7 +114,7 @@ def evaluate(model, X, y, tag, src):
     try:
         from sklearn.metrics import roc_auc_score
         res["auc_ovr_macro"] = round(float(roc_auc_score(y, prob, multi_class="ovr")), 4)
-    except Exception:  # noqa: BLE001
+    except Exception:
         pass
     res["per_sumber"] = {}
     for s in np.unique(src):
@@ -163,7 +140,6 @@ def evaluate(model, X, y, tag, src):
 
 
 def eval_synthetic(model, n_per=60, seed=7):
-    """Seberapa cocok model data nyata terhadap ECG sintetis heartsim_common.ecg_synth."""
     from heartsim_common.ecg_synth import CLASS_MORPHS, MORPH_CLASS, make_window
     rng = np.random.default_rng(seed)
     out = {}
@@ -177,7 +153,6 @@ def eval_synthetic(model, n_per=60, seed=7):
     return out
 
 
-# ============================================================== plot
 def plots(hist, cm, taus, out):
     import matplotlib
     matplotlib.use("Agg")
@@ -216,25 +191,16 @@ def plots(hist, cm, taus, out):
     fig.tight_layout(); fig.savefig(out / "tau_conf.png", dpi=160); plt.close(fig)
 
 
-# ============================================================== bank replay
 def build_replay_bank(model, X, y, tag, rec, hr, split, out_path, per_tag=60, min_ok=10,
                       tau=0.44, seed=1):
-    """Bank window untuk pemutar EKG dataset.
-
-    Urutan sumber per kondisi: set UJI (pasien held-out) -> validasi -> train. Window dari split
-    berikutnya hanya ditambahkan bila window uji yang terklasifikasi benar dengan p_conf >= tau
-    kurang dari `min_ok` (mis. VT hanya 1 pasien uji, VF hanya ada di rekaman 207 yang masuk train).
-    Asal split, prediksi, dan confidence setiap window disimpan agar dapat dilaporkan apa adanya."""
     rng = np.random.default_rng(seed)
-    # Replay memutar window 10 s berulang, sehingga model melihat berbagai potongan 7 s.
-    # Window dinilai "baik" hanya bila benar dan yakin (>= tau) pada TIGA posisi potongan.
     preds, confs = [], []
     for st in (0, (SEG - WIN) // 2, SEG - WIN):
         pr = model.predict(zscore(X[:, st:st + WIN].astype(np.float32))[..., None], batch_size=256, verbose=0)
         preds.append(pr.argmax(1)); confs.append(pr.max(1))
     preds, confs = np.stack(preds), np.stack(confs)
     pred = preds[1]
-    conf = np.where((preds == y).all(0), confs.min(0), 0.0)     # 0 bila ada potongan yang salah
+    conf = np.where((preds == y).all(0), confs.min(0), 0.0)
     good = (pred == y) & (conf >= tau)
     sel = []
     for t in np.unique(tag):
@@ -243,8 +209,8 @@ def build_replay_bank(model, X, y, tag, rec, hr, split, out_path, per_tag=60, mi
             m = np.where((tag == t) & (split == sp))[0]
             if not len(m):
                 continue
-            pick = rng.choice(m, min(per_tag, len(m)), replace=False)   # sampel acak (tak bias)
-            ok_extra = np.setdiff1d(m[good[m]], pick)            # seluruh window 'baik' ikut (maks. 150)
+            pick = rng.choice(m, min(per_tag, len(m)), replace=False)
+            ok_extra = np.setdiff1d(m[good[m]], pick)
             sel.extend((i, sp, True) for i in pick)
             sel.extend((i, sp, False) for i in ok_extra[:150])
             pick = np.concatenate([pick, ok_extra[:150]])
@@ -261,7 +227,6 @@ def build_replay_bank(model, X, y, tag, rec, hr, split, out_path, per_tag=60, mi
 
 
 def mi_location(model, X, y, rec, src, ptbxl_dir):
-    """Sensitivity kelas Serangan PTB-XL per lokasi infark (subclass diagnostik PTB-XL)."""
     import ast
     import pandas as pd
     db = pd.read_csv(Path(ptbxl_dir) / "ptbxl_database.csv", index_col="ecg_id")
@@ -282,7 +247,6 @@ def mi_location(model, X, y, rec, src, ptbxl_dir):
             for k, (n, ok) in sorted(res.items(), key=lambda kv: -kv[1][0])}
 
 
-# ============================================================== main
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--data", type=Path, required=True)
@@ -309,8 +273,6 @@ def main():
     X, y, tag, pid, src, rec, hr = (d[k] for k in ("X", "y", "tag", "pid", "src", "rec", "hr"))
     y = y.astype(np.int64)
     if a.cap_per_patient > 0:
-        # MIT-BIH: 30 menit rekaman menghasilkan ratusan window dari SATU pasien. Tanpa pembatasan,
-        # segelintir pasien mendominasi set validasi/uji sehingga metrik berayun tajam antar-epoch.
         rng = np.random.default_rng(a.seed)
         keep = np.ones(len(y), bool)
         groups = defaultdict(list)
@@ -327,7 +289,6 @@ def main():
         m = split == s
         print(f"{s:<5}: {m.sum():6d} window, {len({p for p, v in assign.items() if v == s}):5d} pasien, "
               f"kelas={np.bincount(y[m], minlength=3).tolist()}")
-    # pastikan tidak ada kebocoran pasien antar-split
     for s1, s2 in (("train", "val"), ("train", "test"), ("val", "test")):
         assert not (set(pid[split == s1]) & set(pid[split == s2])), "kebocoran pasien!"
 
@@ -353,7 +314,6 @@ def main():
                                                verbose=1)]
         tr_idx = np.where(tr)[0]
         if a.oversample_rare > 1:
-            # VT/VF hanya ~1 % data Serangan; tanpa oversampling model nyaris tidak mengenalinya
             rare = tr_idx[np.isin(tag[tr_idx], ["vt", "vf"])]
             tr_idx = np.concatenate([tr_idx] + [rare] * (a.oversample_rare - 1))
             print(f"oversampling VT/VF x{a.oversample_rare}: {len(rare)} -> {len(rare) * a.oversample_rare} window")

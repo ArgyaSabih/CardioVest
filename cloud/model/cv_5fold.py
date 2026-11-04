@@ -1,16 +1,3 @@
-"""Validasi silang 5-fold berbasis PASIEN (kriteria sukses minimum 6.3.1, strategi Subbab 5.3.3).
-
-    python cloud/model/cv_5fold.py --data datasets/ecg_c251_250hz.npz --out artefak_cv
-
-Tiap pasien hanya muncul di satu fold uji. Untuk fold k: fold k = uji; dari pasien sisanya ±15 %
-diambil sebagai validasi (early stopping), sisanya latih. Arsitektur, augmentasi, pembatasan window
-per pasien, oversampling VT/VF, dan class weight sama persis dengan train_real.py, sehingga angka
-rata-rata ± simpangan baku di sini menggambarkan kestabilan model produksi, bukan model lain.
-
-Hasil per fold disimpan segera (cv_metrics.json), jadi skrip bisa dihentikan lalu dilanjutkan:
-fold yang sudah selesai tidak dilatih ulang. Strata dengan < 5 pasien (mis. VF MIT-BIH yang hanya
-dari satu rekaman) selalu masuk data latih dan tidak pernah diuji; ini dicatat di keluaran.
-"""
 from __future__ import annotations
 
 import argparse
@@ -21,7 +8,7 @@ from pathlib import Path
 
 import numpy as np
 
-import train_real as T  # noqa: E402  (impor TF + arsitektur + augmentasi yang sama)
+import train_real as T
 
 tf = T.tf
 
@@ -39,7 +26,6 @@ def cap_per_patient(pid, tag, cap, seed):
 
 
 def fold_assignment(pid, y, tag, src, k=5, seed=42):
-    """Pasien -> fold 0..k-1 secara terstratifikasi; -1 = selalu latih (strata terlalu kecil)."""
     rng = np.random.default_rng(seed)
     info = defaultdict(lambda: {"cls": 0, "tags": set(), "src": ""})
     for p, c, t, s in zip(pid, y, tag, src):
@@ -62,7 +48,7 @@ def fold_assignment(pid, y, tag, src, k=5, seed=42):
             continue
         for i, p in enumerate(ps):
             fold[p] = (i + offset) % k
-        offset += len(ps)          # sebar sisa pembagian ke fold berbeda antar-strata
+        offset += len(ps)
     return fold
 
 
@@ -105,7 +91,6 @@ def main():
         tf.keras.utils.set_random_seed(a.seed + k)
         te = fw == k
         rest = ~te
-        # validasi = ±15 % pasien dari sisa (pakai patient_split yang sama, ambil bagian 'val'+'test')
         sp, _ = T.patient_split(pid[rest], y[rest], tag[rest], src[rest], a.seed + k, ratios=(0.85, 0.15, 0.0))
         idx_rest = np.flatnonzero(rest)
         va = np.zeros(len(y), bool)

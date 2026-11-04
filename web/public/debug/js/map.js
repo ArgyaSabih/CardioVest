@@ -7,45 +7,36 @@ export function createMap(box, empty, meta) {
   let marker = null;
   let circle = null;
 
-  function waiting(text, metaText) {
-    if (map) return;
-    empty.textContent = text;
-    meta.textContent = metaText;
+  function clear() {
+    if (!map) return;
+    map.remove();
+    map = marker = circle = null;
+    box.className = "map";
+    box.textContent = "";
+    box.append(empty);
+  }
+
+  function waiting(mode) {
+    clear();
+    empty.textContent = mode === "test"
+      ? "Mode Test: lokasi muncul begitu data dari alat masuk."
+      : "Mode Demo: lokasi hanya dikirim saat status Darurat.";
+    meta.textContent = "Siaga";
   }
 
   return {
     idle(mode) {
-      waiting(
-        mode === "test"
-          ? "Mode Test: GPS menyala terus. Lokasi muncul begitu modul mendapat sinyal satelit."
-          : "Mode Demo: GPS hanya dinyalakan saat status Darurat.",
-        "Siaga",
-      );
+      if (!map) waiting(mode);
     },
-    show(g) {
-      if (!g) return;
-      if (!g.fix) {
-        if (g.nmea === false) {
-          waiting(
-            "Modul GPS tidak mengirim data. Periksa kabel: TX GPS ke GPIO19, RX GPS ke GPIO18, VCC ke 3V3/5V, GND ke GND.",
-            `Tidak ada data NMEA, baud ${g.baud ?? "?"}`,
-          );
-        } else {
-          waiting(
-            `Mencari satelit (${g.sats ?? 0} terlihat). Letakkan alat di luar ruangan atau dekat jendela.`,
-            `Mencari satelit, ${g.sats ?? 0} terlihat`,
-          );
-        }
-        return;
-      }
-      const link = `https://www.google.com/maps?q=${g.lat},${g.lon}`;
+    show(g, mode) {
+      if (!g || !g.active || !g.fix) return waiting(mode);
       meta.innerHTML = "";
       const a = document.createElement("a");
-      a.href = link;
+      a.href = `https://www.google.com/maps?q=${g.lat},${g.lon}`;
       a.target = "_blank";
       a.rel = "noopener";
       a.textContent = `${num(g.lat, 6)}, ${num(g.lon, 6)}`;
-      meta.append(a, ` ±${num(g.accuracy_m)} m, ${g.sats} satelit`);
+      meta.append(a, g.accuracy_m != null ? ` ±${num(g.accuracy_m)} m` : "");
       if (!window.L) return;
       if (!map) {
         box.textContent = "";
@@ -58,11 +49,10 @@ export function createMap(box, empty, meta) {
         L.control.layers({ Peta: road, Satelit: sat, OpenStreetMap: osm }).addTo(map);
         const color = cssVar("--crit");
         marker = L.circleMarker([g.lat, g.lon], { radius: 7, weight: 2, color, fillColor: color, fillOpacity: 0.9 }).addTo(map);
-        circle = L.circle([g.lat, g.lon], { radius: g.accuracy_m, color }).addTo(map);
+        circle = L.circle([g.lat, g.lon], { radius: g.accuracy_m ?? 5, color }).addTo(map);
       } else {
         marker.setLatLng([g.lat, g.lon]);
-        circle.setLatLng([g.lat, g.lon]).setRadius(g.accuracy_m);
-        map.panTo([g.lat, g.lon]);
+        circle.setLatLng([g.lat, g.lon]).setRadius(g.accuracy_m ?? 5);
       }
     },
   };

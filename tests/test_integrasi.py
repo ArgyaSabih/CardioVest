@@ -1,9 +1,3 @@
-"""Uji integrasi layanan cloud tanpa broker dan tanpa TensorFlow.
-
-Model CNN diganti model palsu yang hasilnya bisa diatur, sehingga yang diuji murni alur layanan:
-penyusunan window, gerbang FSM, penyimpanan, dan pemulihan state. Uji di berkas ini lahir dari
-temuan saat menyiapkan uji di alat nyata (lihat CHANGELOG.md).
-"""
 import json
 import time
 
@@ -16,7 +10,6 @@ from heartsim_common.ecg_synth import EcgStream, to_counts
 
 
 class FakeModel:
-    """Pengganti CnnInference: kelas & keyakinan ditentukan uji."""
 
     def __init__(self, *_, **__):
         self.cls, self.conf, self.calls = C.CLS_NORMAL, 0.95, 0
@@ -62,14 +55,12 @@ def now():
 
 
 def feed(svc, n, t_start=None, **kw):
-    """Kirim n paket ECG berurutan; kembalikan baris inferensi yang dipublikasikan."""
     t0 = now() - n * 3500 if t_start is None else t_start
     for i in range(n):
         svc.handle_ecg("cv-t", ecg_payload(i, t0 + i * 3500, **kw), now())
     return [o for k, o in svc.published if k == "inference"]
 
 
-# ---------------------------------------------------------------- lead-off
 def test_lead_off_flag_survives_binary_payload():
     p = EcgPacket("x", 1, 1_790_000_000_000, 250, np.zeros(875, np.int16))
     p.lead_off = True
@@ -86,17 +77,13 @@ def test_lead_off_window_does_not_move_fsm(svc):
 
 
 def test_flat_signal_without_flag_is_not_classified(svc):
-    """Perangkat lama / JSON tanpa flag: sinyal datar tetap tidak boleh diputuskan CNN."""
     svc.model.cls, svc.model.conf = C.CLS_ATTACK, 0.99
     rows = feed(svc, 4, flat=True)
     assert rows and not any(r["accepted"] for r in rows)
     assert svc.ctx("cv-t").engine.state == C.STATE_NORMAL
 
 
-# ---------------------------------------------------------------- jam belum sinkron
 def test_unsynced_device_clock_still_drives_fsm(svc):
-    """Sebelum NTP / jam seluler tersinkron, t0 perangkat bernilai milidetik sejak boot.
-    Dulu semua paket dianggap 'terlambat' sehingga alarm tidak pernah bisa menyala."""
     svc.model.cls, svc.model.conf = C.CLS_PRE, 0.95
     rows = feed(svc, 3, t_start=5_000)
     assert any(r["accepted"] for r in rows)
@@ -104,7 +91,6 @@ def test_unsynced_device_clock_still_drives_fsm(svc):
     assert rows[-1]["clock_unsynced"]
 
 
-# ---------------------------------------------------------------- pemulihan state setelah restart
 def test_cloud_restart_restores_critical(tmp_path, monkeypatch):
     import cloud.service as S
 
@@ -116,18 +102,17 @@ def test_cloud_restart_restores_critical(tmp_path, monkeypatch):
     a.notifier.dispatch = lambda *x, **k: None
     d = a.ctx("cv-t")
     for i in range(3):
-        a.handle_vital("cv-t", vital(now(), hr=130, gsr=25.0))
+        a.handle_vital("cv-t", vital(now(), hr=130, gsr=25.0, spo2=86.0))
     a.model.cls, a.model.conf = C.CLS_ATTACK, 0.95
     feed(a, 3)
     assert d.engine.state == C.STATE_CRITICAL
 
-    b = S.CloudService("localhost", 1, db)            # layanan cloud restart
+    b = S.CloudService("localhost", 1, db)
     b.published = []
     b._pub = lambda dev, kind, obj, retain=False: b.published.append((kind, obj))
     b.notifier.dispatch = lambda *x, **k: None
     d2 = b.ctx("cv-t")
     assert d2.engine.state == C.STATE_CRITICAL and d2.event_id is not None
-    # belum ada perintah ke alat sebelum latch perangkat terkonfirmasi
     assert not any(k == "cmd" for k, _ in b.published)
     b.handle_vital("cv-t", vital(now(), local_state="CRITICAL"))
     assert d2.engine.state == C.STATE_CRITICAL
@@ -135,8 +120,6 @@ def test_cloud_restart_restores_critical(tmp_path, monkeypatch):
 
 
 def test_reset_pressed_while_cloud_down(tmp_path, monkeypatch):
-    """CRITICAL tersimpan di database, tetapi tombol reset ditekan saat cloud mati:
-    vital pertama melaporkan NORMAL, jadi cloud menutup event alih-alih mengunci alat lagi."""
     import cloud.service as S
 
     monkeypatch.setattr(S, "CnnInference", FakeModel)
@@ -158,15 +141,12 @@ def test_reset_pressed_while_cloud_down(tmp_path, monkeypatch):
 
 
 def test_device_latch_is_adopted_when_cloud_forgot(svc):
-    """Perangkat masih CRITICAL (latch NVS) tetapi cloud baru (database kosong): cloud harus ikut
-    CRITICAL dan membuka event, bukan menampilkan NORMAL kepada keluarga."""
     svc.handle_vital("cv-t", vital(now(), local_state="CRITICAL"))
     d = svc.ctx("cv-t")
     assert d.engine.state == C.STATE_CRITICAL and d.event_id is not None
     assert any(k == "alert" and o["event_type"] == "critical" for k, o in svc.published)
 
 
-# ---------------------------------------------------------------- reset saat alat offline
 def _critical(svc):
     d = svc.ctx("cv-t")
     svc._apply_transition(d, d.engine.adopt_critical("uji").dict(), 0.9, "Serangan", None)
@@ -175,9 +155,6 @@ def _critical(svc):
 
 
 def test_reconnect_does_not_relatch_before_reset_arrives(svc):
-    """Kasus reset saat offline: saat alat tersambung lagi, cloud dulu langsung mengirim
-    cmd CRITICAL (sinkronisasi). Perintah itu berpacu dengan event reset yang dikirim alat setelah
-    LWT online, dan bisa mengunci alat lagi setelah reset."""
     d = _critical(svc)
     svc.handle_lwt("cv-t", b'{"status":"offline"}')
     svc.handle_lwt("cv-t", b'{"status":"online"}')
@@ -197,7 +174,6 @@ def test_reconnect_with_latched_device_confirms_critical(svc):
     assert "tersambung lagi" in d.last_reason
 
 
-# ---------------------------------------------------------------- reset dari aplikasi web
 def _remote(who="Pengguna Uji"):
     return json.dumps({"type": "remote_reset", "by": who, "ts": now()}).encode()
 
@@ -265,3 +241,60 @@ def test_remote_reset_gives_up_when_device_never_clears(svc, monkeypatch):
     d.reset_recv -= 20_000
     svc.handle_vital("cv-t", vital(now(), local_state="CRITICAL"))
     assert d.engine.state == C.STATE_CRITICAL
+
+
+def _src(svc, source, rekaman=None):
+    svc.handle_source("cv-t", json.dumps({"source": source, "rekaman": rekaman}).encode())
+
+
+def test_test_mode_dataset_follows_recording_label(svc):
+    d = svc.ctx("cv-t")
+    d.mode = C.MODE_TEST
+    _src(svc, "dataset", "stemi")
+    svc.model.cls, svc.model.conf = C.CLS_NORMAL, 0.95
+    feed(svc, 2)
+    assert d.engine.state == C.STATE_CRITICAL
+    _src(svc, "dataset", "af")
+    svc.published.clear()
+    feed(svc, 2)
+    assert d.engine.state == C.STATE_WARNING
+    cmds = [o["cmd"] for k, o in svc.published if k == "cmd"]
+    assert cmds.index("clear_latch") < cmds.index("set_state")
+    _src(svc, "dataset", "normal")
+    feed(svc, 2)
+    assert d.engine.state == C.STATE_NORMAL
+
+
+def test_leaving_test_dataset_resets_to_normal(svc):
+    d = svc.ctx("cv-t")
+    d.mode = C.MODE_TEST
+    _src(svc, "dataset", "vt")
+    feed(svc, 2)
+    assert d.engine.state == C.STATE_CRITICAL
+    _src(svc, "hardware")
+    assert d.engine.state == C.STATE_NORMAL
+
+
+def test_demo_mode_dataset_still_needs_validators(svc):
+    d = svc.ctx("cv-t")
+    _src(svc, "dataset", "stemi")
+    for i in range(3):
+        svc.handle_vital("cv-t", vital(now() + i * 1000, hr=75, gsr=None, gsr_on=False, ppg_on=False))
+    svc.model.cls, svc.model.conf = C.CLS_ATTACK, 0.95
+    feed(svc, 4)
+    assert d.engine.state == C.STATE_WARNING
+
+
+def test_boot_event_resets_state_and_requests_calibration(svc):
+    d = svc.ctx("cv-t")
+    svc.model.cls, svc.model.conf = C.CLS_PRE, 0.95
+    feed(svc, 3)
+    assert d.engine.state == C.STATE_WARNING
+    svc.published.clear()
+    svc.handle_event("cv-t", json.dumps({"type": "hardware_reset", "reason": "boot", "ts": now()}).encode())
+    assert d.engine.state == C.STATE_NORMAL
+    svc.handle_vital("cv-t", vital(now(), gsr=None, gsr_on=False, ppg_on=False))
+    cmds = [o for k, o in svc.published if k == "cmd" and o.get("cmd") == "gsr_calibrate"]
+    assert cmds and cmds[0]["seconds"] == C.CALIB_SECONDS + 5
+    svc.handle_vital("cv-t", vital(now(), gsr=None, gsr_on=False, ppg_on=False))
+    assert len([o for k, o in svc.published if k == "cmd" and o.get("cmd") == "gsr_calibrate"]) == 1

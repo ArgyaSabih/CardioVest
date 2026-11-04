@@ -195,7 +195,7 @@ export function transitionText(to, reason = '') {
     return n ? `Pola EKG tidak biasa terbaca ${n[1]} kali berturut-turut (sekitar ${Math.round(n[1] * 3.5)} detik).` : 'Pola EKG tidak biasa terbaca beberapa kali berturut-turut.';
   }
   if (to === 'CRITICAL') {
-    if (/cross-validation/.test(r)) return 'EKG menunjukkan pola serangan, dan denyut jantung serta keringat ikut abnormal pada saat yang sama.';
+    if (/cross-validation/.test(r)) return 'EKG menunjukkan pola serangan, denyut jantung, keringat, dan oksigen darah ikut tidak normal pada saat yang sama.';
     if (/latch|perangkat/.test(r)) return 'Alat sudah dalam kondisi darurat dan cloud mengikutinya.';
     return 'Tanda serangan jantung terdeteksi.';
   }

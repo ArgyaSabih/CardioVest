@@ -1,15 +1,3 @@
-"""Ekspor model ke format luaran L2 laporan (.h5 dan .onnx) dan pastikan keluarannya identik.
-
-    pip install tf2onnx onnxruntime        # sekali; tidak dibutuhkan layanan cloud
-    python cloud/model/ekspor_model.py
-
-Hasil di cloud/model/artifacts/:
-  cnn1d_ecg.h5     format HDF5 Keras (bisa dibuka TensorFlow/Keras versi lama)
-  cnn1d_ecg.onnx   format ONNX (bisa dijalankan ONNX Runtime di server tanpa TensorFlow)
-  ekspor_model.json  ringkasan arsitektur + selisih keluaran antarformat pada data uji
-
-Layanan cloud tetap memakai cnn1d_ecg.keras; dua berkas ini untuk portabilitas dan dokumentasi.
-"""
 from __future__ import annotations
 
 import json
@@ -20,7 +8,7 @@ from pathlib import Path
 import numpy as np
 
 os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "2")
-import tensorflow as tf  # noqa: E402
+import tensorflow as tf
 
 HERE = Path(__file__).resolve().parent
 ART = HERE / "artifacts"
@@ -32,7 +20,6 @@ def main() -> None:
     model = tf.keras.models.load_model(src, compile=False)
     n_in = model.input_shape[1]
 
-    # data pembanding: window bank replay (rekaman asli), Z-score seperti di layanan inferensi
     bank = np.load(ROOT / "dataset" / "dataset" / "replay_bank.npz")
     x = bank["X"][:256, :n_in].astype(np.float32)
     x = ((x - x.mean(1, keepdims=True)) / (x.std(1, keepdims=True) + 1e-8))[..., None]

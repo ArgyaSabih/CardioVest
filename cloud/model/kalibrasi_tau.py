@@ -1,43 +1,3 @@
-"""Kalibrasi ambang kepercayaan tau_conf (BAB 4.4.4, Tabel target performa BAB 4.7).
-
-    python cloud/model/kalibrasi_tau.py --data datasets/ecg_c251_250hz.npz
-
-Aturan BAB 4.4.4: "kalibrasi tau_conf diprioritaskan memaksimalkan Sensitivity dengan Specificity
-sebagai kendala minimum". Ambang DIPILIH pada set VALIDASI dan hanya DILAPORKAN pada set UJI,
-sehingga angka uji tidak bias oleh proses pemilihan.
-
-Dua tingkat analisis:
-
-1. Tingkat window (keluaran CNN + gerbang tau). Window yang p_conf < tau "tidak diputuskan".
-     Sens_Serangan_efektif = P(diterima & prediksi Serangan | Serangan)
-     Sens_abnormal_efektif = P(diterima & prediksi non-Normal | non-Normal)    (memicu WARNING)
-     Spesifisitas_efektif  = 1 - P(diterima & prediksi non-Normal | Normal)    (alarm palsu potensial)
-   Window "tidak diputuskan" pada pasien Normal dihitung benar (tidak memicu apa pun), sedangkan
-   pada pasien sakit dihitung terlewat. Inilah trade-off yang diatur tau.
-
-2. Tingkat sistem (CNN + tau + FSM cloud.decision_engine apa adanya). Episode disusun dari
-   window-window milik PASIEN dan KONDISI yang sama (tiga posisi potongan 7 s per rekaman 10 s),
-   sehingga korelasi antar-window dalam satu pasien ikut terbawa:
-     * Serangan + validator positif (1_GSR = 1_HR = 1) -> P(CRITICAL <= 60 s), waktu ke CRITICAL
-     * Serangan, validator negatif                     -> P(WARNING <= 60 s)
-     * Pra-Serangan                                    -> P(WARNING <= 60 s)
-     * Normal (istirahat, validator negatif)            -> masuk WARNING palsu per jam
-     * Normal + aktivitas fisik (1_GSR = 1_HR = 1)      -> CRITICAL palsu per jam
-   Asumsi: urutan window dalam episode diambil acak dari kumpulan window pasien tersebut;
-   window berurutan nyata lebih berkorelasi, sehingga angka per jam adalah estimasi kasar.
-
-3. tau adaptif gerak (tau_motion). Saat IMU mendeteksi aktivitas, artefak gerak membuat model membaca ECG
-   Normal sebagai Serangan. Window uji/validasi diberi artefak gerak sintetis heartsim_common.ecg_synth
-   (EcgStream, motion 0,6 dan 0,9), lalu diukur per tau (mode terdegradasi N = 3, seperti saat bergerak SQI PPG
-   turun):
-     * WARNING palsu dalam episode artefak 45 s (Normal, 1_HR = 1 karena HR semu, 1_GSR = 0)
-     * CRITICAL palsu dalam episode 45 s (Normal + olahraga: 1_HR = 1_GSR = 1)
-     * P(CRITICAL <= 60 s) bila serangan terjadi SAAT bergerak (biaya sensitivitas)
-   tau_motion = tau terkecil (>= tau_conf) dengan WARNING palsu <= 5 % pada setiap intensitas gerak
-   (BAB 6.2: false alarm akibat interferensi < 5 %), dipilih pada validasi.
-
-Keluaran: artifacts/kalibrasi_tau.json, artifacts/kalibrasi_tau.png, artifacts/kalibrasi_tau_gerak.png
-"""
 from __future__ import annotations
 
 import argparse
@@ -54,24 +14,22 @@ sys.path.insert(0, str(ROOT / "cloud"))
 sys.path.insert(0, str(ROOT / "common"))
 sys.path.insert(0, str(HERE))
 
-from train_real import ART, SEG, WIN, patient_split, zscore  # noqa: E402
+from train_real import ART, SEG, WIN, patient_split, zscore
 
-import tensorflow as tf  # noqa: E402
+import tensorflow as tf
 
-from cloud.decision_engine import DecisionEngine  # noqa: E402
-from heartsim_common import config as C  # noqa: E402
-from heartsim_common.ecg_synth import EcgStream  # noqa: E402
+from cloud.decision_engine import DecisionEngine
+from heartsim_common import config as C
+from heartsim_common.ecg_synth import EcgStream
 
 HOP_S = 3.5
-WIN_PER_HOUR = int(3600 / HOP_S)          # 1.028 window per jam
-EP_WIN = int(60 / HOP_S)                  # 17 window = 60 s
+WIN_PER_HOUR = int(3600 / HOP_S)
+EP_WIN = int(60 / HOP_S)
 TAUS = np.round(np.arange(0.34, 0.951, 0.02), 2)
 CROPS = (0, (SEG - WIN) // 2, SEG - WIN)
 
 
-# ------------------------------------------------------------------ data
 def load_split(path, seed=42, cap=60):
-    """Identik dengan train_real.main(): pembatasan per (pasien, kondisi) lalu split inter-patient."""
     d = np.load(path, allow_pickle=False)
     X, y, tag, pid, src = (d[k] for k in ("X", "y", "tag", "pid", "src"))
     y = y.astype(np.int64)
@@ -90,7 +48,6 @@ def load_split(path, seed=42, cap=60):
 
 
 def predict_crops(model, X):
-    """Probabilitas pada tiga posisi potongan 7 s -> (n, 3 potongan, 3 kelas)."""
     out = []
     for st in CROPS:
         out.append(model.predict(zscore(X[:, st:st + WIN].astype(np.float32))[..., None],
@@ -98,7 +55,6 @@ def predict_crops(model, X):
     return np.stack(out, 1)
 
 
-# ------------------------------------------------------------------ tingkat window
 def window_metrics(prob, y, tau):
     pred, conf = prob.argmax(-1), prob.max(-1)
     acc = conf >= tau
@@ -116,9 +72,7 @@ def window_metrics(prob, y, tau):
     }
 
 
-# ------------------------------------------------------------------ tingkat sistem
 def run_episode(pred, conf, tau, ind_gsr, ind_hr, n_win, rng, degraded=False):
-    """Satu episode: urutan n_win window acak dari kumpulan window (pred, conf) satu pasien."""
     eng = DecisionEngine(tau_conf=tau)
     k = rng.integers(0, len(pred), n_win)
     t_warn = t_crit = None
@@ -132,7 +86,7 @@ def run_episode(pred, conf, tau, ind_gsr, ind_hr, n_win, rng, degraded=False):
             crit_entries += 1
             t_crit = t_crit if t_crit is not None else i
             t_warn = t_warn if t_warn is not None else i
-            eng.hardware_reset()        # pada simulasi Normal: hitung tiap alarm palsu lalu reset
+            eng.hardware_reset()
     return t_warn, t_crit, warn_entries, crit_entries
 
 
@@ -164,7 +118,6 @@ def system_metrics(prob, y, tag, pid, taus, n_rep=6, seed=0, degraded=False):
             for _ in range(n_rep):
                 tw, _, _, _ = run_episode(p, c, tau, False, False, EP_WIN, rng, degraded)
                 warn_pre.append(tw is not None)
-        # Normal: satu jam per pasien (sampel 400 pasien agar cepat)
         sel = rng.choice(len(g_nrm), min(400, len(g_nrm)), replace=False)
         fw, fc, any_fw = [], [], []
         for s in sel:
@@ -186,7 +139,6 @@ def system_metrics(prob, y, tag, pid, taus, n_rep=6, seed=0, degraded=False):
 
 
 def bootstrap_ci(prob, y, pid, tau, n=500, seed=0):
-    """CI 95 % bootstrap per PASIEN untuk metrik window pada tau terpilih."""
     rng = np.random.default_rng(seed)
     up = np.unique(pid)
     idx_of = defaultdict(list)
@@ -216,10 +168,7 @@ def ece(prob, y, bins=10):
     return round(float(e), 4)
 
 
-# ------------------------------------------------------------------ pemilihan
 def choose(win_val, sys_val, spec_min, fa_max):
-    """Maksimalkan P(CRITICAL<=60 s) pada episode Serangan (lalu sens. window Serangan) dengan kendala:
-    spesifisitas efektif window >= spec_min DAN WARNING palsu pada Normal <= fa_max per jam."""
     best = None
     for w, s in zip(win_val, sys_val):
         ok = w["spesifisitas_efektif"] >= spec_min and s["warning_palsu_per_jam_normal"] <= fa_max
@@ -231,13 +180,11 @@ def choose(win_val, sys_val, spec_min, fa_max):
     return None if best is None else best[1]
 
 
-# ------------------------------------------------------------------ tau adaptif gerak
 MOTIONS = (0.6, 0.9)
-EP_ART = int(45 / HOP_S)                  # 12 window = episode artefak 45 s
+EP_ART = int(45 / HOP_S)
 
 
 def add_artefact(X, motion, seed=0):
-    """Tambahkan artefak gerak sintetis (heartsim_common.ecg_synth) ke tiap rekaman 10 s (mV)."""
     rng = np.random.default_rng(seed)
     out = X.astype(np.float32).copy()
     for i in range(len(out)):
@@ -248,7 +195,6 @@ def add_artefact(X, motion, seed=0):
 
 
 def artefact_metrics(model, X, y, tag, pid, taus, seed=0, n_rep=4):
-    """Per intensitas gerak dan per tau: alarm palsu pada Normal + artefak, deteksi Serangan + artefak."""
     res = {}
     for mot in MOTIONS:
         m_n, m_a = y == 0, y == 2
@@ -400,7 +346,6 @@ def main():
                 "ci95_bootstrap_pasien": bootstrap_ci(cache["test"][0], cache["test"][1], cache["test"][3], tau_sel)},
     })
 
-    # ---- tahap 3: tau adaptif gerak
     print("analisis artefak gerak (validasi)...", flush=True)
     taus_m = [t for t in TAUS if t >= tau_sel]
     art_val = artefact_metrics(model, X[split == "val"], y[split == "val"], tag[split == "val"],

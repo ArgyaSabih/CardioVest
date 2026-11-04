@@ -13,7 +13,7 @@ web/public/debug/
 │   ├── controls.js   # Mode alat, Sumber EKG, Jenis rekaman, tombol Jalankan/Jeda
 │   ├── connection.js # Socket.IO ke backend (namespace /debug)
 │   ├── ecg.js        # dekoder paket EKG dan grafik kertas EKG
-│   ├── map.js        # peta GPS (Leaflet)
+│   ├── map.js        # peta lokasi (Leaflet): tampil saat alat mengirim lokasi, hilang saat tidak
 │   ├── log.js        # riwayat kejadian
 │   └── labels.js     # teks label, nama state, format angka dan waktu
 └── vendor/           # socket.io client, Leaflet
@@ -37,6 +37,17 @@ Perintah dari halaman dikirim dengan `conn.send({ type, ... })`:
 |---|---|---|
 | `mode` | `mode: "demo" \| "test"` | perintah mode ke alat lewat layanan cloud |
 | `source` | `source: "hardware" \| "dataset"`, `rekaman` | sumber EKG, disimpan retained di broker |
+
+## Isi tampilan vital
+
+| Bagian | Sumber | Catatan |
+|---|---|---|
+| Detak jantung | `vital.hr`, `hr_source` | dari PPG bila menyala dan SQI ≥ 0,5, selain itu dari EKG |
+| SpO2 | `vital.spo2` | kosong dan bertanda "PPG mati" saat `ppg_on` false (mode Demo, status Normal) |
+| GSR | `vital.gsr`, `state.calibration` | bertanda "GSR mati" saat `gsr_on` false |
+| Validator | `inference.validators` | `ind_hr`, `ind_gsr`, `ind_spo2`; Darurat butuh HR, GSR, dan SpO2 sekaligus |
+| Sensor | `vital.sensors`, `ppg_on`, `gsr_on`, `gps.active` | chip redup = sensor mati atau tidak terdeteksi |
+| Lokasi | `vital.gps` | peta muncul bila `gps.fix` true (Demo saat Darurat, Test selalu) dan hilang lagi bila tidak |
 
 ## Menambah tampilan
 

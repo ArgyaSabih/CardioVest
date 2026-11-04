@@ -135,10 +135,6 @@ export default function Contacts() {
       )}
       {list?.length >= 5 && <p className="muted small">Sudah 5 kontak, batas maksimal. Hapus salah satu untuk menambah yang baru.</p>}
       {editing === null && <ErrorNote error={err} />}
-      <p className="muted small block">
-        Bila internet di alat putus saat darurat, alat mengirim SMS sendiri lewat kartu SIM-nya. Nomor tujuan SMS
-        itu disetel saat alat dipasang, terpisah dari daftar ini, jadi pastikan isinya sama.
-      </p>
     </>
   );
 }

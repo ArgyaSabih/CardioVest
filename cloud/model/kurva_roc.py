@@ -1,10 +1,3 @@
-"""Kurva ROC dan AUC per kelas (luaran L2 laporan) pada set uji inter-patient.
-
-    python cloud/model/kurva_roc.py --data datasets/ecg_c251_250hz.npz
-
-Split pasien direkonstruksi persis seperti train_real.py (seed dan pembatasan window sama), lalu
-model produksi diuji pada window uji. Hasil: artifacts/roc.png dan artifacts/roc.json.
-"""
 from __future__ import annotations
 
 import argparse
@@ -16,10 +9,10 @@ import numpy as np
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-from bandingkan_lead import load  # noqa: E402
-from train_real import CLASSES, center_crop  # noqa: E402
+from bandingkan_lead import load
+from train_real import CLASSES, center_crop
 
-import tensorflow as tf  # noqa: E402
+import tensorflow as tf
 
 
 def roc(y_true: np.ndarray, score: np.ndarray):

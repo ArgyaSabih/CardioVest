@@ -1,15 +1,3 @@
-"""Bandingkan dua model (mis. Lead I vs Lead II) secara berpasangan pada pasien uji yang sama.
-
-    python cloud/model/bandingkan_lead.py \\
-        --a datasets/leadI.npz  --model-a artefak_leadI/cnn1d_ecg.keras \\
-        --b datasets/leadII.npz --model-b artefak_leadII/cnn1d_ecg.keras \\
-        --ptbxl-dir datasets/ptbxl --json docs/analisis_lead.json
-
-Kedua dataset harus dibuat dari rekaman yang sama (prepare.py dengan --lead berbeda), sehingga split
-pasien (seed sama) dan window ujinya identik. Selisih sensitivity dihitung per window yang sama, lalu
-interval kepercayaan 95 % diperoleh dengan bootstrap per PASIEN (window dari satu pasien tidak independen).
-Selisih yang intervalnya memuat nol tidak boleh dibaca sebagai "lebih baik".
-"""
 from __future__ import annotations
 
 import argparse
@@ -23,16 +11,16 @@ import numpy as np
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-from train_real import center_crop, patient_split  # noqa: E402
+from train_real import center_crop, patient_split
 
-import tensorflow as tf  # noqa: E402
+import tensorflow as tf
 
 
 def load(path, cap=60, seed=42):
     d = np.load(path, allow_pickle=False)
     X, y, tag, pid, src, rec = (d[k] for k in ("X", "y", "tag", "pid", "src", "rec"))
     y = y.astype(np.int64)
-    rng = np.random.default_rng(seed)          # pembatasan per (pasien, kondisi) persis seperti train_real.py
+    rng = np.random.default_rng(seed)
     keep = np.ones(len(y), bool)
     groups = defaultdict(list)
     for i, (p, t) in enumerate(zip(pid, tag)):
@@ -62,7 +50,6 @@ def mi_subclasses(rec, ptbxl_dir):
 
 
 def boot_diff(ok_a, ok_b, pid, n=2000, seed=0):
-    """CI 95 % selisih (b - a) dengan resampling pasien."""
     rng = np.random.default_rng(seed)
     pats = np.unique(pid)
     idx = {p: np.flatnonzero(pid == p) for p in pats}

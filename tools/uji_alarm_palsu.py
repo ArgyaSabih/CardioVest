@@ -1,21 +1,3 @@
-"""Perkiraan alarm palsu saat alat dipakai sehari-hari, memakai rekaman wearable BUT QDB.
-
-    python tools/uji_alarm_palsu.py              # 18 rekaman x 60 menit (unduh ~170 MB sekali)
-    python tools/uji_alarm_palsu.py --menit 20   # lebih cepat
-
-BUT QDB direkam dengan Bittium Faros 180 (ECG 1 lead 1000 Hz + akselerometer 100 Hz) saat subjek
-beraktivitas bebas. Potongan kontinu tiap rekaman diproses seperti di CardioVest:
-  ECG  -> 250 Hz -> FIR 0,5–40 Hz + notch 50 Hz (sama dengan firmware) -> window 7 s, hop 3,5 s
-  ACC  -> simpangan baku |a| per detik -> median 7 detik terakhir (= DecisionEngine.activity)
-  CNN asli + gerbang kualitas + DecisionEngine asli (tau, tau gerak, N, M sesuai config)
-
-Validator GSR/HR tidak ada di BUT QDB, jadi uji ini mengukur:
-  * WARNING palsu per jam  (WARNING tidak butuh validator; cukup N window non-Normal berturut-turut)
-  * batas atas CRITICAL palsu per jam, dengan anggapan terburuk validator selalu positif (mis. sedang
-    olahraga berat: HR > 120 dan berkeringat). Setelah CRITICAL engine di-reset agar hitungan lanjut.
-Subjek BUT QDB tidak sedang serangan jantung, jadi setiap WARNING/CRITICAL dihitung palsu. Lead dan
-posisi elektroda Faros tidak sama dengan Lead I CardioVest; anggap angka ini perkiraan kasar.
-"""
 from __future__ import annotations
 
 import argparse
@@ -30,10 +12,10 @@ from scipy.signal import lfilter, resample_poly
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT / "common"), str(ROOT / "cloud"), str(ROOT / "tools")]
-from analisis_sqi import BUTQDB, FIR, FS, FS_SRC, NA, NB, WIN, http  # noqa: E402
-from cloud.decision_engine import DecisionEngine  # noqa: E402
-from cloud.signal_quality import assess  # noqa: E402
-from heartsim_common import config as C  # noqa: E402
+from analisis_sqi import BUTQDB, FIR, FS, FS_SRC, NA, NB, WIN, http
+from cloud.decision_engine import DecisionEngine
+from cloud.signal_quality import assess
+from heartsim_common import config as C
 
 HOP = C.HOP_SAMPLES
 MODEL = Path(os.getenv("MODEL_PATH") or ROOT / "cloud" / "model" / "artifacts" / "cnn1d_ecg.keras")
@@ -50,7 +32,6 @@ def load_stretch(rec: str, minutes: int, cache: Path, rng) -> dict:
     ahea = http(f"{BUTQDB}/{rec}/{rec}_ACC.hea").decode().splitlines()
     ag = [(float(l.split()[2].split("(")[0]), float(l.split()[2].split("(")[1].split(")")[0])) for l in ahea[1:4]]
     n = minutes * 60 * FS_SRC
-    # mulai di bagian yang dianotasi konsensus (kelas != 0)
     rows = list(csv.reader(http(f"{BUTQDB}/{rec}/{rec}_ANN.csv").decode().splitlines()))
     segs = [(int(r[9]) - 1, int(r[10]), int(r[11])) for r in rows if len(r) >= 12 and r[9].strip()]
     lo = min(a for a, _, c in segs if c)
@@ -65,8 +46,8 @@ def load_stretch(rec: str, minutes: int, cache: Path, rng) -> dict:
     ecg = (np.concatenate(chunks).astype(np.float64) - base) / gain / 1000.0
     a0, an = s0 // 10, n // 10
     raw = np.frombuffer(http(f"{BUTQDB}/{rec}/{rec}_ACC.dat", (6 * a0, 6 * (a0 + an) - 1)), "<i2").reshape(-1, 3)
-    acc = np.stack([(raw[:, i] - ag[i][1]) / ag[i][0] / 1000.0 for i in range(3)], 1)   # g
-    lab = np.zeros(n // FS_SRC, np.int8)                    # kelas kualitas per detik
+    acc = np.stack([(raw[:, i] - ag[i][1]) / ag[i][0] / 1000.0 for i in range(3)], 1)
+    lab = np.zeros(n // FS_SRC, np.int8)
     for a, b, c in segs:
         lo_s, hi_s = max(a, s0), min(b, s0 + n)
         if hi_s > lo_s:
@@ -81,8 +62,8 @@ def windows(d: dict):
     y = resample_poly(d["ecg"].astype(np.float64), 1, FS_SRC // FS)
     y = lfilter(NB, NA, lfilter(FIR, 1.0, y - y[0]))
     mag = np.linalg.norm(d["acc"], axis=1)
-    sd_s = mag[: mag.size // 100 * 100].reshape(-1, 100).std(1)          # simpangan baku |a| per detik
-    starts = range(int(2.5 * FS), y.size - WIN + 1, HOP)                 # lewati pemanasan filter
+    sd_s = mag[: mag.size // 100 * 100].reshape(-1, 100).std(1)
+    starts = range(int(2.5 * FS), y.size - WIN + 1, HOP)
     X, act, lab = [], [], []
     for s in starts:
         X.append(y[s:s + WIN])
@@ -98,7 +79,7 @@ def run_fsm(cls, conf, motion, ok, use_gate: bool, n: int, validators: bool, tau
     warn_windows = 0
     for c, p, m, q in zip(cls, conf, motion, ok):
         if use_gate and not q:
-            continue                                    # sama dengan service: window dilewati
+            continue
         dec = eng.step(int(c), float(p), validators, validators, False, bool(m))
         if dec.changed and dec.state == C.STATE_WARNING:
             warn += 1

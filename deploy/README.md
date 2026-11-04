@@ -90,8 +90,7 @@ yang sudah ada lewat **⋯ → Edit**. Setiap perubahan variabel butuh **Deploym
 
 ## E. ESP32
 
-Semua pengaturan pribadi alat ada di satu berkas, `firmware/cardiovest_c251/rahasia.h` (salinan
-`rahasia.contoh.h`, tidak ikut git):
+Semua pengaturan alat ada di bagian atas `firmware/cardiovest_c251/cardiovest_c251.ino`:
 
 ```c
 #define WIFI_SSID "nama WiFi 2,4 GHz"
@@ -100,19 +99,17 @@ Semua pengaturan pribadi alat ada di satu berkas, `firmware/cardiovest_c251/raha
 #define MQTT_HOST "xxxxxxxx.ala.asia-southeast1.emqxsl.com"
 #define MQTT_USER "cardiovest"
 #define MQTT_PASS "sandi dari langkah A"
-
-#define SMS_NOMOR {"+62812xxxxxxx", "+62813xxxxxxx"}
 ```
 
-`.ino` tidak berisi nilai-nilai ini lagi. TLS sudah aktif di `.ino` (`MQTT_USE_TLS 1`, port 8883), wajib untuk
-EMQX Serverless.
+Alat hanya memakai WiFi. TLS sudah aktif (`MQTT_USE_TLS 1`, port 8883), wajib untuk EMQX Serverless. Lokasi dikirim
+sebagai koordinat statis (`GPS_STATIC_LAT`, `GPS_STATIC_LON`).
 
 ---
 
 ## Debug viewer (`/debug`)
 
-Tampilan realtime untuk tim: EKG di atas kertas EKG (25 mm/s), detak jantung, GSR, kualitas sinyal,
-probabilitas CNN, keputusan FSM, gerak dan sensor, GPS, dan riwayat kejadian. Tanpa login atau token.
+Tampilan realtime untuk tim: EKG di atas kertas EKG (25 mm/s), detak jantung, SpO2, GSR, kualitas sinyal,
+probabilitas CNN, keputusan FSM, gerak dan sensor, lokasi, dan riwayat kejadian. Tanpa login atau token.
 
 Selama server, broker, atau alat belum tersambung, halaman tertutup jendela "Alat terputus" yang menunjukkan
 bagian mana yang belum siap. Jendela itu hilang sendiri begitu data dari alat masuk (alat dianggap terputus bila
@@ -120,14 +117,16 @@ bagian mana yang belum siap. Jendela itu hilang sendiri begitu data dari alat ma
 
 | Panel kiri | Fungsi |
 |---|---|
-| **1 Mode alat**: Demo / Test | Demo = mekanisme asli (GPS siaga sampai Darurat). Test = semua modul menyala termasuk GPS |
-| **2 Sumber sinyal EKG**: Hardware / Dataset | Hardware = EKG dari ESP32. Dataset = EKG dari rekaman PTB-XL/MIT-BIH; HR, GSR, gerak, dan GPS tetap dari ESP32 |
+| **1 Mode alat**: Demo / Test | Demo = mekanisme hemat energi: PPG dan GSR menyala mulai Waspada, lokasi tampil saat Darurat. Test = semua sensor menyala dan lokasi selalu tampil |
+| **2 Sumber sinyal EKG**: Hardware / Dataset | Hardware = EKG dari ESP32. Dataset = EKG dari rekaman PTB-XL/MIT-BIH; HR, SpO2, GSR, gerak, dan lokasi tetap dari ESP32 |
 | **3 Jenis rekaman** | dipakai bila sumber Dataset; dikelompokkan Normal, Pra-serangan, Serangan |
 | **Jalankan** / **Jeda** | Jalankan menerapkan pilihan lalu menampilkan data. Jeda menghentikan tampilan |
 
-Pilihan yang belum diterapkan ditandai biru, dan tombol berubah menjadi **Terapkan dan jalankan**. EKG dari
-Dataset diproses seperti EKG alat (CNN, FSM, riwayat, notifikasi), dan pilihannya tersimpan di broker;
-kembalikan ke **Hardware** setelah selesai menguji.
+Pilihan yang belum diterapkan ditandai biru, dan tombol berubah menjadi **Terapkan dan jalankan**. Di mode Demo,
+EKG dari Dataset diproses seperti EKG alat (CNN, FSM dengan validator dari rompi, riwayat, notifikasi), sehingga
+rekaman serangan berhenti di Waspada bila pemakai rompi sehat. Di mode Test, status langsung mengikuti label rekaman
+(normal, pra-serangan, serangan). Pilihan sumber tersimpan di broker; kembalikan ke **Hardware** setelah selesai
+menguji.
 
 Alat lain: tambahkan `?device=cv-002` di belakang alamat. Struktur kode dan cara mengembangkannya:
 [`web/public/debug/README.md`](../web/public/debug/README.md).

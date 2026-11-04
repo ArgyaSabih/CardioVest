@@ -21,7 +21,6 @@ def test_binary_roundtrip_and_size():
     q, fmt = decode(buf, "hw-test")
     assert fmt == "binary" and q.buffered and q.t0 == p.t0
     assert np.array_equal(p.samples, q.samples)
-    # delta encoding ~1,1 byte/sampel (BAB 5.4.2): harus jauh di bawah int16 mentah (2 byte)
     assert (len(buf) - 20) / p.n < 1.5
 
 
@@ -32,7 +31,6 @@ def test_binary_escape_large_jump():
 
 
 def test_legacy_hw_magic_still_decoded():
-    """Paket dari firmware sebelum ganti nama (penanda 'HW') tetap diterima cloud."""
     import numpy as np
     from heartsim_common.codec import EcgPacket, decode, encode
     p = EcgPacket("cv-001", 7, 1_790_000_000_000, 250, np.arange(-40, 40, dtype=np.int16))

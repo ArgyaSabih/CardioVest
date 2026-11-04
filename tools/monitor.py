@@ -1,12 +1,3 @@
-"""Monitor terminal real-time untuk data alat CardioVest di broker MQTT.
-
-    python tools/monitor.py --host localhost --device-id cv-001
-    MQTT_TLS=1 MQTT_USER=<user> MQTT_PASS=<sandi> python tools/monitor.py --host <host EMQX> --port 8883
-
-Menampilkan: state FSM, alasan keputusan, vital (HR/sumber/SQI/GSR/akselerasi/GPS/jatuh),
-hasil CNN terakhir, grafik ECG ringkas, laju data per topik, dan log alert/transisi.
-Tekan Ctrl+C untuk keluar.
-"""
 from __future__ import annotations
 
 import argparse
@@ -51,7 +42,6 @@ class Monitor:
         self.bytes: deque[tuple[float, str, int]] = deque(maxlen=5000)
         self.connected = False
 
-    # ------------------------------------------------------------------ MQTT
     def on_connect(self, c, u, f, rc, p):
         self.connected = not rc.is_failure
         c.subscribe([(f"device/{self.dev}/#", 2)])
@@ -67,7 +57,7 @@ class Monitor:
                         self.ecg.extend(p.samples.tolist())
                     return
                 d = json.loads(msg.payload or b"{}")
-            except Exception:  # noqa: BLE001
+            except Exception:
                 return
             if kind == "state":
                 if self.state.get("state") and d.get("state") != self.state.get("state"):
@@ -98,7 +88,6 @@ class Monitor:
         self.log.appendleft((time.strftime("%H:%M:%S"), tag,
                              text if len(text) < 140 else text[:137] + "...", style))
 
-    # ------------------------------------------------------------------ render
     def _sparkline(self, width: int, rows: int = 5) -> Text:
         if len(self.ecg) < 50:
             return Text("menunggu data ECG...", style="dim")
@@ -142,15 +131,16 @@ class Monitor:
         cal = st.get("calibration") or {}
         tv.add_row("HR", f"{v.get('hr', '-')} bpm  (sumber {v.get('hr_source', '-')}; PPG {v.get('hr_ppg', '-')}, "
                          f"ECG {v.get('hr_ecg', '-')})")
-        tv.add_row("SQI PPG", str(v.get("sqi", "-")))
+        tv.add_row("SQI PPG", str(v.get("sqi", "-")) + ("  (PPG mati)" if v.get("ppg_on") is False else ""))
+        tv.add_row("SpO2", f"{v.get('spo2', '-')} %")
         cal_txt = ("terkalibrasi" if cal.get("calibrated")
                    else f"kalibrasi {cal.get('progress_s', 0)}/{cal.get('target_s', '?')} s")
         tv.add_row("GSR", f"{v.get('gsr', '-')} uS  (ambang {cal.get('threshold', '-')} uS, {cal_txt})")
         a = v.get("accel") or {}
         tv.add_row("Akselerasi", f"|a| = {a.get('mag', '-')} g   jatuh: {v.get('fall_detected', '-')}")
         g = v.get("gps")
-        tv.add_row("GPS", "standby" if not g else (f"{g['lat']}, {g['lon']} (±{g['accuracy_m']} m)"
-                                                   if g.get("fix") else "mencari satelit..."))
+        tv.add_row("Lokasi", f"{g['lat']}, {g['lon']} (±{g.get('accuracy_m', '-')} m)" if g and g.get("fix")
+                   else "tidak dikirim")
         tv.add_row("State lokal", str(v.get("local_state", "-")))
 
         ti = Table(show_header=False, box=None, expand=True)
@@ -164,7 +154,8 @@ class Monitor:
         dec = inf.get("decision") or {}
         ti.add_row("Kelas", f"{inf.get('class', '-')} (p_conf {inf.get('p_conf', '-')}, "
                             f"{'diterima' if inf.get('accepted') else 'tidak diputuskan'})")
-        ti.add_row("Validator", f"1_GSR={int(bool(val.get('ind_gsr')))} 1_HR={int(bool(val.get('ind_hr')))} "
+        ti.add_row("Validator", f"1_HR={int(bool(val.get('ind_hr')))} 1_GSR={int(bool(val.get('ind_gsr')))} "
+                                f"1_SpO2={int(bool(val.get('ind_spo2')))} "
                                 f"{'TERDEGRADASI' if val.get('degraded') else 'independen'}")
         ti.add_row("Persistence", f"non-Normal {dec.get('consec_non_normal', '-')}/{dec.get('n_required', '-')}, "
                                   f"Normal {dec.get('consec_normal', '-')}")

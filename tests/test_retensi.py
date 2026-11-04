@@ -1,4 +1,3 @@
-"""Retensi F-BE-4: data mentah lama dihapus, ECG di sekitar event tetap ada."""
 import numpy as np
 
 from cloud.storage import Repository

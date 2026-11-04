@@ -48,7 +48,10 @@ const slimVital = (v) => ({
   hr: v.hr,
   hr_source: v.hr_source,
   sqi: v.sqi,
+  spo2: v.spo2 ?? null,
   gsr: v.gsr,
+  ppg_on: v.ppg_on ?? null,
+  gsr_on: v.gsr_on ?? null,
   fall: !!v.fall_detected,
   fall_ts: v.fall_ts ?? null,
   lead_off: !!v.lead_off,
@@ -150,7 +153,7 @@ export function composeAlert(dev, a) {
     const token = a.event_id ? publicTokenFor(dev, a.event_id) : null;
     const titles = { critical: `DARURAT: ${name}`, critical_fall: `DARURAT: ${name} terjatuh`, critical_location: `Lokasi ${name} sudah tersedia` };
     const bodies = {
-      critical: 'Tanda bahaya pada jantung terdeteksi oleh EKG, denyut, dan keringat. Telepon 119, ketuk untuk lokasi.',
+      critical: 'Tanda bahaya pada jantung terdeteksi oleh EKG, denyut, keringat, dan oksigen darah. Telepon 119, ketuk untuk lokasi.',
       critical_fall: 'Sensor gerak mencatat jatuh saat keadaan darurat. Ketuk untuk melihat lokasi.',
       critical_location: 'GPS alat sudah mendapat koordinat. Ketuk untuk petunjuk arah.',
     };
@@ -274,8 +277,8 @@ export function startBackend(server) {
         signal_ok: r.signal_ok !== false,
         signal_reason: r.quality?.reason || null,
         validators: r.validators
-          ? { hr: r.validators.hr, gsr: r.validators.gsr, ind_hr: r.validators.ind_hr, ind_gsr: r.validators.ind_gsr,
-            degraded: r.validators.degraded, motion: r.validators.motion }
+          ? { hr: r.validators.hr, gsr: r.validators.gsr, spo2: r.validators.spo2 ?? null, ind_hr: r.validators.ind_hr,
+            ind_gsr: r.validators.ind_gsr, ind_spo2: !!r.validators.ind_spo2, degraded: r.validators.degraded, motion: r.validators.motion }
           : null,
       };
       toFamily(dev).emit('inference', L.inference);

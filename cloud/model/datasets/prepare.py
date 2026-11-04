@@ -1,25 +1,3 @@
-"""Praproses PTB-XL + MIT-BIH menjadi satu berkas dataset window 10 s @ 250 Hz, Lead I / MLII.
-
-    python cloud/model/datasets/prepare.py \
-        --ptbxl  datasets/ptb-xl-a-large-publicly-available-electrocardiography-dataset-1.0.3.zip \
-        --mitdb  datasets/mit-bih-arrhythmia-database-1.0.0.zip \
-        --out    datasets/ecg_c251_250hz.npz
-
-Argumen --ptbxl / --mitdb boleh berupa berkas zip PhysioNet atau folder hasil ekstraksi.
-
-Langkah (BAB 10.4 'Setup eksperimen'):
-  * PTB-XL: records100 (100 Hz, 10 s) lead I -> resample ke 250 Hz (2.500 sampel).
-    Versi 100 Hz dipilih karena pita sinyal perangkat hanya 0,5-40 Hz (AD8232 + filter digital),
-    sehingga informasi di atas 50 Hz tidak dibutuhkan dan ukuran unduhan jauh lebih kecil.
-  * MIT-BIH: kanal MLII 360 Hz -> 250 Hz, dipotong window 10 s dengan stride 5 s.
-    Rekaman ber-pacemaker (102, 104, 107, 217) dikecualikan.
-  * Band-pass Butterworth 0,5-40 Hz (zero-phase), satuan tetap mV.
-  * Label tiga kelas + tag morfologi: lihat labels.py.
-
-Keluaran .npz: X float16 [N, 2500] (mV), y int8, tag, pid (id pasien untuk split inter-patient),
-src, rec, hr (bpm per window), fold (strat_fold PTB-XL; -1 untuk MIT-BIH).
-Pelatihan memotong window 7 s (1.750 sampel) secara acak dari window 10 s (augmentasi geser waktu).
-"""
 from __future__ import annotations
 
 import argparse
@@ -35,10 +13,10 @@ import wfdb
 from scipy.signal import butter, find_peaks, resample_poly, sosfiltfilt
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from labels import CLASS_NAMES, MIT_PACED, MIT_SAME_SUBJECT, mitdb_window_label, ptbxl_label  # noqa: E402
+from labels import CLASS_NAMES, MIT_PACED, MIT_SAME_SUBJECT, mitdb_window_label, ptbxl_label
 
 FS = 250
-SEG = 2500                     # 10 s
+SEG = 2500
 SOS = butter(2, [0.5, 40], btype="bandpass", fs=FS, output="sos")
 
 
@@ -47,7 +25,6 @@ def bandpass(x: np.ndarray) -> np.ndarray:
 
 
 def estimate_hr(x: np.ndarray, fs: int = FS) -> float:
-    """Estimasi HR kasar (Pan-Tompkins ringkas) untuk metadata bank replay."""
     d = np.diff(x) ** 2
     w = np.convolve(d, np.ones(int(0.15 * fs)) / (0.15 * fs), mode="same")
     if w.max() <= 0:
@@ -58,9 +35,7 @@ def estimate_hr(x: np.ndarray, fs: int = FS) -> float:
     return float(np.clip(60 * fs / np.median(np.diff(pk)), 20, 320))
 
 
-# ------------------------------------------------------------------ akses zip / folder
 def materialize(src: Path, work: Path, needed) -> Path:
-    """Ekstrak hanya anggota zip yang dibutuhkan; kembalikan folder akar dataset."""
     if src.is_dir():
         return src
     work.mkdir(parents=True, exist_ok=True)
@@ -76,7 +51,6 @@ def materialize(src: Path, work: Path, needed) -> Path:
     return work / sorted(roots)[0] if len(roots) == 1 else work
 
 
-# ------------------------------------------------------------------ PTB-XL
 PTBXL_LEADS = ["I", "II", "III", "AVR", "AVL", "AVF", "V1", "V2", "V3", "V4", "V5", "V6"]
 
 
@@ -102,14 +76,14 @@ def load_ptbxl(src: Path, work: Path, limit: int | None = None, start: int = 0, 
             continue
         try:
             sig, meta = wfdb.rdsamp(str(root / r.filename_lr), channels=[PTBXL_LEADS.index(lead.upper())])
-        except Exception:  # noqa: BLE001
+        except Exception:
             skipped["gagal dibaca"] += 1
             continue
         x = sig[:, 0].astype(np.float64)
         if not np.isfinite(x).all() or np.ptp(x) < 0.05:
             skipped["sinyal datar/NaN"] += 1
             continue
-        x = bandpass(resample_poly(x, 5, 2))[:SEG]           # 100 Hz -> 250 Hz
+        x = bandpass(resample_poly(x, 5, 2))[:SEG]
         if x.size < SEG:
             skipped["terlalu pendek"] += 1
             continue
@@ -122,9 +96,7 @@ def load_ptbxl(src: Path, work: Path, limit: int | None = None, start: int = 0, 
     return X, rows
 
 
-# ------------------------------------------------------------------ MIT-BIH
 def rhythm_track(ann, n: int, ratio: float) -> np.ndarray:
-    """Array label ritme per sampel (250 Hz) dari aux_note '(XXX'."""
     track = np.full(n, "", dtype=object)
     cur, start = "(N", 0
     for s, a in zip(ann.sample, ann.aux_note):
@@ -149,7 +121,7 @@ def load_mitdb(src: Path, work: Path, stride_s: float = 5.0):
         sig, meta = wfdb.rdsamp(str(base / rec))
         names = meta["sig_name"]
         ch = names.index("MLII") if "MLII" in names else 0
-        x = bandpass(resample_poly(sig[:, ch].astype(np.float64), 25, 36))   # 360 -> 250 Hz
+        x = bandpass(resample_poly(sig[:, ch].astype(np.float64), 25, 36))
         ann = wfdb.rdann(str(base / rec), "atr")
         ratio = FS / meta["fs"]
         track = rhythm_track(ann, x.size, ratio)
@@ -157,7 +129,7 @@ def load_mitdb(src: Path, work: Path, stride_s: float = 5.0):
         sym = np.asarray(ann.symbol)
         pid = f"mitdb:{MIT_SAME_SUBJECT.get(rec, rec)}"
         step = int(stride_s * FS)
-        rare_step = int(1.0 * FS)   # VT/VF sangat jarang: window diambil tiap 1 s (tumpang tindih)
+        rare_step = int(1.0 * FS)
         for a in range(0, x.size - SEG, rare_step):
             regular = a % step == 0
             b = a + SEG

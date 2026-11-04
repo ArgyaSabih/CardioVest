@@ -1,12 +1,3 @@
-"""Dispatcher notifikasi tiruan (mock) mengikuti 'Algoritma Push Notification Dispatch' (BAB 8.6).
-
-* WARNING  -> hanya User Utama, priority=high
-* CRITICAL -> User Utama + seluruh kontak darurat (FCM multicast), payload berisi GPS & status jatuh
-* Retry exponential backoff: wait(n) = base_delay * 2^n + jitter, base 1 s, maks 5 percobaan, maks 32 s
-
-Belum mengirim ke Firebase sungguhan; hasilnya dicatat ke log dan tabel notifications.
-Untuk integrasi nyata, ganti _send_fcm() dengan firebase_admin.messaging.send_each_for_multicast().
-"""
 from __future__ import annotations
 
 import json

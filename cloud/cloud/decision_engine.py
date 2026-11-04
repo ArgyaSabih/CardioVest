@@ -1,19 +1,3 @@
-"""Decision engine: Hybrid Finite State Machine tiga state (BAB 4.5, BAB 5.5).
-
-S1 NORMAL, S2 WARNING, S3 CRITICAL (latching; hanya keluar melalui hardware reset R(t)=1).
-
-Gerbang:
-  * tau_conf   : prediksi dengan p_conf < tau_conf = "tidak diputuskan", tidak mengubah apa pun.
-                 tau adaptif gerak: bila IMU mendeteksi aktivitas, dipakai tau_motion (lebih tinggi)
-                 karena artefak gerak mudah terbaca sebagai pola abnormal
-  * persistence: S1 -> S2 bila >= N window berturut-turut non-Normal (N=2; N=3 saat validator
-                 terdegradasi, yaitu HR bersumber dari ECG karena SQI PPG rendah)
-  * histeresis : S2 -> S1 bila >= N+M window berturut-turut Normal (M=1)
-  * cross-validation: masuk S3 hanya bila kelas = Serangan AND 1_GSR AND 1_HR
-                 (dari S1 tetap mensyaratkan persistence N window non-Normal)
-
-Modul ini murni (tanpa I/O) sehingga dapat diuji unit (lihat tests/test_fsm.py).
-"""
 from __future__ import annotations
 
 import statistics
@@ -23,7 +7,6 @@ from dataclasses import asdict, dataclass
 from heartsim_common import config as C
 
 
-# ====================================================================== validator
 @dataclass
 class ValidatorSnapshot:
     hr: float | None
@@ -37,13 +20,14 @@ class ValidatorSnapshot:
     degraded: bool
     motion: bool = False
     activity_g: float | None = None
+    spo2: float | None = None
+    ind_spo2: bool = False
 
     def dict(self) -> dict:
         return asdict(self)
 
 
 class ValidatorState:
-    """Menyimpan vital terbaru, kalibrasi baseline GSR, dan menghitung indikator boolean."""
 
     def __init__(self, calib_seconds: int = C.CALIB_SECONDS, k: float = C.GSR_K):
         self.vitals: deque[dict] = deque(maxlen=20)
@@ -51,6 +35,7 @@ class ValidatorState:
         self.k = k
         self._calib: list[float] = []
         self._calib_start: int | None = None
+        self._calib_last: int | None = None
         self.mu: float | None = None
         self.sigma: float | None = None
         self.gsr_threshold = C.GSR_ABS_HIGH
@@ -63,6 +48,10 @@ class ValidatorState:
         g = v.get("gsr")
         if self.calibrated or g is None or state != C.STATE_NORMAL:
             return
+        gap = C.GSR_CALIB_GAP_S * 1000
+        if self._calib_last is not None and v["ts"] - self._calib_last > gap:
+            self._calib, self._calib_start = [], None
+        self._calib_last = v["ts"]
         if self._calib_start is None:
             self._calib_start = v["ts"]
         self._calib.append(float(g))
@@ -70,8 +59,12 @@ class ValidatorState:
             self.mu = statistics.fmean(self._calib)
             self.sigma = statistics.pstdev(self._calib)
             thr = max(self.mu + self.k * self.sigma, self.mu + C.GSR_MIN_MARGIN)
-            self.gsr_threshold = round(min(thr, C.GSR_ABS_HIGH), 2)   # 20 uS = batas aman atas
+            self.gsr_threshold = round(min(thr, C.GSR_ABS_HIGH), 2)
             self.calibrated = True
+
+    def calibrating(self, now: int) -> bool:
+        return (not self.calibrated and self._calib_last is not None
+                and now - self._calib_last <= C.GSR_CALIB_GAP_S * 1000)
 
     def calibration_info(self) -> dict:
         progress = 0.0
@@ -90,9 +83,11 @@ class ValidatorState:
         recent = list(self.vitals)[-3:]
         hrs = [v["hr"] for v in recent if v.get("hr") is not None]
         gsrs = [v["gsr"] for v in recent[-2:] if v.get("gsr") is not None]
+        spo2s = [v["spo2"] for v in recent if v.get("spo2") is not None]
         last = recent[-1] if recent else {}
         hr = round(statistics.median(hrs), 1) if hrs else None
         gsr = round(statistics.fmean(gsrs), 2) if gsrs else None
+        spo2 = round(statistics.median(spo2s), 1) if spo2s else None
         hr_source = last.get("hr_source", "PPG")
         activity = self.activity()
         return ValidatorSnapshot(
@@ -100,17 +95,14 @@ class ValidatorState:
             gsr_threshold=self.gsr_threshold, gsr_calibrated=self.calibrated,
             ind_gsr=gsr is not None and gsr > self.gsr_threshold,
             ind_hr=hr is not None and (hr > C.HR_HIGH or hr < C.HR_LOW),
-            degraded=hr_source == "ECG",
+            degraded=hr_source == "ECG" and last.get("ppg_on", True) is not False,
             motion=activity is not None and activity > C.MOTION_SD_G,
             activity_g=None if activity is None else round(activity, 3),
+            spo2=spo2,
+            ind_spo2=spo2 is not None and spo2 < C.SPO2_LOW,
         )
 
     def activity(self) -> float | None:
-        """Tingkat aktivitas fisik (g) selama rentang window ECG terakhir.
-
-        Utama: median `accel.sd` (simpangan baku |a| dalam satu periode vital, dihitung perangkat dari
-        seluruh sampel IMU). Cadangan bila perangkat lama tidak mengirim `sd`: simpangan baku `accel.mag`
-        antar-paket vital."""
         recent = list(self.vitals)[-C.MOTION_WINDOW_S:]
         acc = [v.get("accel") or {} for v in recent]
         sds = [a["sd"] for a in acc if a.get("sd") is not None]
@@ -120,7 +112,6 @@ class ValidatorState:
         return float(statistics.pstdev(mags)) if len(mags) >= 3 else None
 
 
-# ====================================================================== FSM
 @dataclass
 class Decision:
     state: str
@@ -145,7 +136,7 @@ class DecisionEngine:
         self.tau_motion = max(tau_conf, C.TAU_CONF_MOTION if tau_motion is None else tau_motion)
         self.tau_warn = max(tau_conf, C.TAU_WARN if tau_warn is None else tau_warn)
         self.n = n
-        self.n_pre = C.PERSIST_N_PRE if n_pre is None else n_pre   # 0 = sama dengan n
+        self.n_pre = C.PERSIST_N_PRE if n_pre is None else n_pre
         self.n_degraded = n_degraded
         self.m = m
         self.state = C.STATE_NORMAL
@@ -157,7 +148,7 @@ class DecisionEngine:
                         self.consec_non_normal, self.consec_normal)
 
     def step(self, cls: int, p_conf: float, ind_gsr: bool, ind_hr: bool,
-             degraded: bool = False, motion: bool = False) -> Decision:
+             degraded: bool = False, motion: bool = False, ind_spo2: bool = False) -> Decision:
         prev = self.state
         n_req = self.n_degraded if degraded else self.n
         tau = self.tau_motion if motion else self.tau_conf
@@ -179,10 +170,10 @@ class DecisionEngine:
             self.consec_normal = 0
 
         cls_name = C.CLASSES[cls]
-        gate = cls == C.CLS_ATTACK and ind_gsr and ind_hr
+        gate = cls == C.CLS_ATTACK and ind_hr and ind_gsr and ind_spo2
         if cls == C.CLS_PRE and self.n_pre:
             n_req = max(n_req, self.n_pre)
-        val_txt = f"1_GSR={int(ind_gsr)}, 1_HR={int(ind_hr)}"
+        val_txt = f"1_HR={int(ind_hr)}, 1_GSR={int(ind_gsr)}, 1_SpO2={int(ind_spo2)}"
 
         if self.state == C.STATE_CRITICAL:
             reason = "CRITICAL terkunci (latching); menunggu hardware reset"
@@ -200,10 +191,10 @@ class DecisionEngine:
                 reason = f"{cls_name} {self.consec_non_normal}/{n_req} window (persistence belum terpenuhi)"
             else:
                 reason = "Normal"
-        else:  # WARNING
+        else:
             if gate:
                 self.state = C.STATE_CRITICAL
-                reason = f"gerbang cross-validation terpenuhi: Serangan AND {val_txt}"
+                reason = f"gerbang cross-validation terpenuhi: Serangan, {val_txt}"
             elif self.consec_normal >= n_req + self.m:
                 self.state = C.STATE_NORMAL
                 reason = f"Normal persisten {self.consec_normal}/{n_req + self.m} window (histeresis)"
@@ -214,17 +205,19 @@ class DecisionEngine:
         return self._decision(prev, True, reason, n_req)
 
     def restore(self, state: str) -> None:
-        """Pulihkan state setelah layanan cloud restart (dari tabel transitions)."""
         if state in C.STATES:
             self.state = state
             self.consec_non_normal = self.consec_normal = 0
 
     def adopt_critical(self, reason: str) -> Decision:
-        """Perangkat melaporkan latch CRITICAL (NVS) yang tidak diketahui cloud, mis. cloud baru
-        restart dengan database kosong. Latch perangkat adalah sumber kebenaran: hanya tombol fisik
-        yang boleh melepasnya, jadi cloud ikut CRITICAL."""
         prev = self.state
         self.state = C.STATE_CRITICAL
+        self.consec_non_normal = self.consec_normal = 0
+        return self._decision(prev, True, reason, self.n)
+
+    def force(self, state: str, reason: str) -> Decision:
+        prev = self.state
+        self.state = state
         self.consec_non_normal = self.consec_normal = 0
         return self._decision(prev, True, reason, self.n)
 
@@ -240,5 +233,6 @@ class DecisionEngine:
     def remote_reset(self, who: str = "aplikasi web") -> Decision:
         return self._reset(f"reset jarak jauh dari {who}")
 
-    def hardware_reset(self) -> Decision:
-        return self._reset("hardware reset R(t)=1 dari perangkat")
+    def hardware_reset(self, boot: bool = False) -> Decision:
+        return self._reset("alat dinyalakan ulang (tombol EN/RST)" if boot
+                           else "hardware reset R(t)=1 dari perangkat")

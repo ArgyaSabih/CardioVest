@@ -10,6 +10,7 @@ const qs = new URLSearchParams(location.search);
 const DEVICE = qs.get("device") || "cv-001";
 const BACKEND = (qs.get("backend") || window.CV_BACKEND || "https://cardiovest.onrender.com").replace(/\/$/, "");
 const REKAMAN = rekamanLabels();
+const SPO2_LOW = 90;
 const $ = (id) => document.getElementById(id);
 
 $("deviceId").textContent = DEVICE;
@@ -54,6 +55,7 @@ let lastFallTs = null;
 let modeRequest = null;
 let audio = null;
 let fallTimer = null;
+let gsrThreshold = null;
 const traffic = [];
 
 const set = (id, text) => {
@@ -96,7 +98,7 @@ function renderState() {
     set("calibration", c.calibrated
       ? `Selesai, ambang ${num(c.threshold, 1)} µS`
       : `Berjalan ${c.progress_s ?? 0} dari ${c.target_s ?? "?"} detik, ambang sementara ${num(c.threshold, 1)} µS`);
-    set("gsrNote", `Ambang ${num(c.threshold, 1)} µS`);
+    gsrThreshold = c.threshold;
   }
 }
 setInterval(renderState, 1000);
@@ -113,7 +115,8 @@ function renderMode() {
 function clearView() {
   strip.clear();
   set("ecgPacket", "");
-  for (const id of ["hr", "gsr", "sqi"]) set(id, "");
+  for (const id of ["hr", "gsr", "sqi", "spo2"]) set(id, "");
+  for (const id of ["gsrNote", "spo2Note"]) set(id, "");
   for (const id of ["hrNote", "accel", "fall", "localState", "sensors", "decision", "validators", "persistence", "quality"]) {
     set(id, id === "hrNote" ? "" : "–");
   }
@@ -209,20 +212,32 @@ const handlers = {
     set("vitalTime", `Diperbarui ${clock(d.ts)}`);
     set("hr", d.hr == null ? "" : num(d.hr));
     set("hrNote", `Dari ${d.hr_source ?? "?"}. PPG ${num(d.hr_ppg)}, EKG ${num(d.hr_ecg)} bpm`);
+    const ppgOff = d.ppg_on === false;
+    const gsrOff = d.gsr_on === false;
+    set("spo2", d.spo2 == null ? "" : num(d.spo2, 1));
+    set("spo2Note", ppgOff ? "PPG mati, menyala mulai status Waspada" : `Validator bila di bawah ${SPO2_LOW}%`);
     set("gsr", d.gsr == null ? "" : num(d.gsr, 2));
-    set("sqi", d.sqi == null ? "" : num(d.sqi, 2));
+    set("gsrNote", gsrOff ? "GSR mati, menyala saat kalibrasi dan mulai status Waspada" : `Ambang ${num(gsrThreshold, 1)} µS`);
+    set("sqi", d.sqi == null || ppgOff ? "" : num(d.sqi, 2));
+    set("sqiNote", ppgOff ? "PPG mati, menyala mulai status Waspada" : "SQI 0 sampai 1, makin tinggi makin bersih");
     const a = d.accel || {};
     html("accel", `x ${num(a.x, 2)}, y ${num(a.y, 2)}, z ${num(a.z, 2)} g<small>Total ${num(a.mag, 2)} g, simpangan ${num(a.sd, 3)} g</small>`);
     html("fall", d.fall_detected ? chip("Terdeteksi", 'data-tone="crit"') : "Tidak");
     html("localState", `${STATES[d.local_state]?.word ?? d.local_state ?? "–"} ${d.lead_off ? chip("Elektroda lepas", 'data-tone="crit"') : ""}`);
     const s = d.sensors || {};
-    const sensors = [["EKG", s.ecg], ["PPG", s.ppg], ["GSR", s.gsr], ["IMU", s.imu], ["GPS", !!d.gps]];
+    const sensors = [
+      ["EKG", s.ecg],
+      ["PPG", s.ppg && d.ppg_on !== false],
+      ["GSR", d.gsr_on ?? s.gsr],
+      ["IMU", s.imu],
+      ["Lokasi", !!d.gps?.active],
+    ];
     html("sensors", `<span class="chips">${sensors.map(([k, on]) => chip(k, `data-on="${!!on}"`)).join("")}</span>${d.i2c ? `<small>I2C: ${d.i2c}</small>` : ""}`);
     if (d.mode) {
       deviceMode = d.mode;
       renderMode();
     }
-    if (d.gps) map.show(d.gps);
+    map.show(d.gps, d.mode ?? deviceMode);
     if (d.fall_detected && d.fall_ts && d.fall_ts !== lastFallTs) {
       lastFallTs = d.fall_ts;
       fallAlarm(d);
@@ -242,8 +257,9 @@ const handlers = {
     const why = d.reason ? d.reason[0].toUpperCase() + d.reason.slice(1) : d.accepted ? "Diterima FSM" : "Tidak diputuskan";
     html("decision", `${CLASSES[d.class_idx] ?? d.class}, keyakinan ${num(d.p_conf, 2)}<small>${why}</small>`);
     const v = d.validators;
+    const ya = (b) => (b ? "mendukung" : "tidak mendukung");
     html("validators", v
-      ? `GSR ${v.ind_gsr ? "mendukung" : "tidak mendukung"}, HR ${v.ind_hr ? "mendukung" : "tidak mendukung"}<small>${v.degraded ? "Mode terdegradasi" : "Mode independen"}${v.motion ? ", pemakai sedang bergerak" : ""}</small>`
+      ? `HR ${ya(v.ind_hr)}, GSR ${ya(v.ind_gsr)}, SpO2 ${ya(v.ind_spo2)}<small>Darurat butuh HR, GSR, dan SpO2 sekaligus. ${v.degraded ? "Mode terdegradasi" : "Mode independen"}${v.motion ? ", pemakai sedang bergerak" : ""}</small>`
       : "–");
     const dec = d.decision;
     html("persistence", dec

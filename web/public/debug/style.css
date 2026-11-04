@@ -666,7 +666,7 @@ li[data-tone="wait"] .gate-mark {
 
 @media (max-width: 1180px) {
   .monitor { grid-template-columns: 1fr; }
-  .readouts { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .readouts { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
   .readout-hr .readout-value { font-size: 44px; }
   .columns { grid-template-columns: 1fr; }
   .status { grid-template-columns: 1fr; }

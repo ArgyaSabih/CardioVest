@@ -1,18 +1,3 @@
-"""Pengodean payload segmen ECG.
-
-Dua format didukung:
-1. JSON (default, mudah di-debug):
-   {"device_id", "seq", "t0", "fs", "n", "unit", "samples": [int16...], "buffered"}
-2. Biner delta-encoded (BAB 5.4.2, BAB 10.5):
-   header  : magic 'CV' (versi lama 'HW' tetap diterima) | ver u8 | flags u8 | seq u32 | t0 u64 (ms) | fs u16 | n u16
-   body    : sampel pertama int16, lalu delta antar-sampel:
-             int8 bila -127..127, selain itu escape 0x80 + int16 (big-endian)
-   flags   : bit0 = buffered (hasil retransmisi ring-buffer)
-             bit1 = lead_off (ada sampel saat elektroda AD8232 lepas; sampel tsb. bernilai 0)
-             bit2 = clock_unsynced (jam perangkat belum tersinkron NTP/seluler; t0 = ms sejak boot)
-
-Cloud mendeteksi format otomatis: JSON selalu diawali '{', biner diawali 'CV' (atau 'HW').
-"""
 from __future__ import annotations
 
 import json
@@ -22,10 +7,10 @@ from dataclasses import dataclass, field
 import numpy as np
 
 MAGIC = b"CV"
-LEGACY_MAGIC = b"HW"            # firmware/prototipe sebelum ganti nama ke CardioVest; tetap diterima
+LEGACY_MAGIC = b"HW"
 VERSION = 1
 F_BUFFERED, F_LEAD_OFF, F_CLOCK_UNSYNCED = 0x01, 0x02, 0x04
-_HDR = struct.Struct(">2sBBIQHH")  # 20 byte
+_HDR = struct.Struct(">2sBBIQHH")
 ESCAPE = 0x80
 
 
@@ -33,20 +18,19 @@ ESCAPE = 0x80
 class EcgPacket:
     device_id: str
     seq: int
-    t0: int                 # epoch ms sampel pertama
+    t0: int
     fs: int
-    samples: np.ndarray     # int16
+    samples: np.ndarray
     buffered: bool = False
     extra: dict = field(default_factory=dict)
-    lead_off: bool = False          # elektroda lepas pada sebagian/seluruh paket
-    clock_unsynced: bool = False    # t0 berasal dari jam perangkat yang belum tersinkron
+    lead_off: bool = False
+    clock_unsynced: bool = False
 
     @property
     def n(self) -> int:
         return int(self.samples.size)
 
 
-# ---------------------------------------------------------------- JSON
 def encode_json(p: EcgPacket) -> bytes:
     obj = {
         "device_id": p.device_id,
@@ -64,7 +48,6 @@ def encode_json(p: EcgPacket) -> bytes:
     return json.dumps(obj, separators=(",", ":")).encode()
 
 
-# ---------------------------------------------------------------- biner
 def encode_binary(p: EcgPacket) -> bytes:
     s = p.samples.astype(np.int32)
     flags = ((F_BUFFERED if p.buffered else 0) | (F_LEAD_OFF if p.lead_off else 0)
@@ -107,13 +90,11 @@ def decode_binary(buf: bytes, device_id: str = "") -> EcgPacket:
                      lead_off=bool(flags & F_LEAD_OFF), clock_unsynced=bool(flags & F_CLOCK_UNSYNCED))
 
 
-# ---------------------------------------------------------------- umum
 def encode(p: EcgPacket, fmt: str = "json") -> bytes:
     return encode_binary(p) if fmt == "binary" else encode_json(p)
 
 
 def decode(buf: bytes, device_id: str = "") -> tuple[EcgPacket, str]:
-    """Kembalikan (paket, format)."""
     if buf[:2] in (MAGIC, LEGACY_MAGIC):
         return decode_binary(buf, device_id), "binary"
     obj = json.loads(buf)

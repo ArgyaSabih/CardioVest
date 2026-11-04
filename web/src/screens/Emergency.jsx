@@ -65,7 +65,7 @@ export default function Emergency() {
         </div>
         <p className="plate-line">
           {active
-            ? `CardioVest mendeteksi tanda bahaya pada jantung ${who} ${since(ev.started_at)}. EKG, denyut jantung, dan keringatnya sama-sama tidak biasa.`
+            ? `CardioVest mendeteksi tanda bahaya pada jantung ${who} ${since(ev.started_at)}. EKG, denyut jantung, keringat, dan oksigen darahnya sama-sama tidak biasa.`
             : `${ev.end_reason === 'reset dari aplikasi web' ? 'Alarm dihentikan dari aplikasi' : 'Tombol reset di alat ditekan'} ${since(ev.ended_at)}. Pastikan ${who} sudah mendapat pertolongan.`}
         </p>
         {ev.fall_detected && active && <p className="plate-flag">Sensor gerak mencatat {who} terjatuh.</p>}
@@ -103,14 +103,14 @@ export default function Emergency() {
             </p>
           </>
         ) : (
-          <p className="muted">GPS alat sedang mencari sinyal satelit. Peta muncul begitu koordinat diterima. Di dalam gedung, GPS bisa butuh beberapa menit.</p>
+          <p className="muted">Lokasi alat belum diterima. Peta muncul begitu alat mengirim koordinat.</p>
         )}
       </section>
 
       <ErrorNote error={err} />
       <p className="muted small">
         {ev.device_online === false
-          ? 'Alat sedang tidak terhubung ke internet. Bila putus lebih dari 30 detik, alat mengirim SMS berisi lokasi terakhir.'
+          ? 'Alat sedang tidak terhubung ke internet. Data disimpan di alat dan dikirim lagi begitu WiFi tersambung.'
           : 'Alat terhubung ke server.'}
         {ev.hr ? ` Denyut terakhir ${Math.round(ev.hr)} bpm.` : ''}
       </p>

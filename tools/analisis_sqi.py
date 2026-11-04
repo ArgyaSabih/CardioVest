@@ -1,25 +1,3 @@
-"""Analisis gerbang kualitas sinyal (cloud/cloud/signal_quality.py) pada data nyata.
-
-    python tools/analisis_sqi.py                      # bank replay + BUT QDB (unduh ~35 MB sekali)
-    python tools/analisis_sqi.py --tanpa-butqdb       # bank replay saja, tanpa internet
-
-Dua sumber data:
-
-1. Bank replay dataset (dataset/dataset/replay_bank.npz): rekaman PTB-XL/MIT-BIH/CUDB per
-   kondisi (normal, ST depresi, STEMI, AF, PVC, SVT, VT, VF). Pertanyaannya: apakah gerbang atau
-   ambang SQI dari literatur ikut menolak ritme berbahaya?
-2. BUT QDB (Brno University of Technology ECG Quality Database, PhysioNet): rekaman wearable 24 jam
-   dari Bittium Faros 180 saat aktivitas harian, dengan anotasi kualitas konsensus:
-     kelas 1  semua gelombang (P, QRS, T) jelas
-     kelas 2  QRS jelas, deteksi QRS masih andal
-     kelas 3  QRS tidak bisa dideteksi andal, sinyal tidak layak dianalisis
-   Window 7 s diambil dari dalam segmen berlabel lewat HTTP Range (tanpa mengunduh 174 MB per
-   rekaman), diturunkan ke 250 Hz, lalu dilewatkan FIR 0,5–40 Hz 501 tap dan notch 50 Hz seperti
-   firmware, supaya yang dinilai mirip dengan yang benar-benar diterima cloud.
-
-Bila model CNN tersedia, prediksinya pada window kelas 3 juga dihitung: seberapa sering derau
-terbaca "Serangan" atau "Pra-Serangan" dengan keyakinan di atas tau.
-"""
 from __future__ import annotations
 
 import argparse
@@ -37,18 +15,17 @@ from scipy.signal import firwin, iirnotch, lfilter, resample_poly
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT / "common"), str(ROOT / "cloud")]
-from cloud.signal_quality import assess  # noqa: E402
-from heartsim_common import config as C  # noqa: E402
+from cloud.signal_quality import assess
+from heartsim_common import config as C
 
 BUTQDB = "https://physionet-open.s3.amazonaws.com/butqdb/1.0.0"
 FS_SRC, FS = 1000, C.FS_ECG
-WIN = C.WINDOW_SAMPLES                      # 1750 sampel = 7 s
-PRE_S = 2.5                                 # data sebelum window untuk "memanaskan" filter kausal
-PER_CLASS = 40                              # window per kelas per rekaman
+WIN = C.WINDOW_SAMPLES
+PRE_S = 2.5
+PER_CLASS = 40
 FIR = firwin(501, [0.5, 40], pass_zero=False, fs=FS)
 NB, NA = iirnotch(50, 30, FS)
 
-# ambang literatur (Li, Mark & Clifford 2008; Clifford dkk. 2012; Orphanidou dkk. 2015)
 LIT = {"kSQI < 5": lambda q: q["ksqi"] is not None and q["ksqi"] < 5,
        "pSQI di luar 0,5–0,8": lambda q: q["psqi"] is not None and not (0.5 <= q["psqi"] <= 0.8),
        "basSQI < 0,95": lambda q: q["bassqi"] is not None and q["bassqi"] < 0.95}
@@ -91,7 +68,7 @@ def butqdb_windows(cache: Path, seed: int = 7) -> dict:
             w = np.array([b - a - need for a, b in cand], float)
             for i in rng.choice(len(cand), size=PER_CLASS, p=w / w.sum()):
                 a, b = cand[i]
-                s0 = int(rng.integers(a, b - need)) - 1          # anotasi berbasis 1
+                s0 = int(rng.integers(a, b - need)) - 1
                 if s0 >= 0 and s0 + need <= n_total:
                     jobs.append((rec, cls, s0, need, gain, base))
 
@@ -130,8 +107,6 @@ def _download_db(db: str, dest: Path) -> list[str]:
 
 
 def ventricular_windows(cache_dir: Path) -> dict:
-    """Window 7 s VF / flutter ventrikel / VT / derau dari CUDB (Creighton) dan VFDB (MIT-BIH Malignant
-    Ventricular Ectopy). Keduanya 250 Hz, jadi tidak perlu resampling; tetap lewat FIR + notch firmware."""
     import wfdb
     rhythm = {"(VF": "vf", "(VFIB": "vf", "(VFL": "vfl", "(VT": "vt", "(NOISE": "derau", "(N": "normal"}
     out = {"x": [], "tag": [], "rec": []}
@@ -146,7 +121,7 @@ def ventricular_windows(cache_dir: Path) -> dict:
                 aux = aux.strip("\x00 ")
                 lab = None
                 if sym == "[":
-                    lab = "vf"                   # CUDB: awal episode VF/flutter
+                    lab = "vf"
                 elif sym == "]":
                     lab = "normal"
                 elif aux in rhythm:
@@ -179,7 +154,6 @@ def qualities(windows_mv: np.ndarray) -> list[dict]:
 
 
 def auc(pos: np.ndarray, neg: np.ndarray) -> float:
-    """AUC Mann-Whitney: peluang skor kelas positif > skor kelas negatif."""
     pos, neg = pos[~np.isnan(pos)], neg[~np.isnan(neg)]
     r = np.argsort(np.argsort(np.concatenate([pos, neg]))) + 1
     return float((r[: pos.size].sum() - pos.size * (pos.size + 1) / 2) / (pos.size * neg.size))

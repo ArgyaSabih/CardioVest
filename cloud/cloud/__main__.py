@@ -1,4 +1,3 @@
-"""Jalankan layanan cloud: python -m cloud [--db data/cardiovest.db]"""
 from __future__ import annotations
 
 import argparse

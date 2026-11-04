@@ -1,12 +1,3 @@
-"""Ekspor data dummy dari SQLite ke CSV.
-
-    python -m cloud.export --db data/cardiovest.db --out data/export
-
-Menghasilkan:
-  vitals.csv, inferences.csv, transitions.csv, events.csv, notifications.csv, device_status.csv,
-  ecg_samples.csv (t_ms, nilai count, nilai mV; seluruh sampel berurutan, dapat dibatasi --ecg-minutes),
-  ringkasan.txt (statistik singkat, termasuk laju data per topik)
-"""
 from __future__ import annotations
 
 import argparse

@@ -1,17 +1,3 @@
-"""Kalibrasi tau / N dari data alat CardioVest sendiri (dijalankan setelah uji pakai).
-
-    # salinan database yang konsisten (termasuk isi WAL) ke data/export/:
-    python -c "import sqlite3; sqlite3.connect('data/cardiovest.db').execute(\"VACUUM INTO 'data/export/cardiovest.db'\")"
-    python tools/kalibrasi_lapangan.py --db data/export/cardiovest.db --dari "2026-11-02 08:00" --sampai "2026-11-02 14:00"
-
-Pakai rentang waktu ketika pemakai SEHAT (tidak ada kejadian jantung): setiap WARNING/CRITICAL di
-rentang itu adalah alarm palsu. Skrip memutar ulang semua window yang tersimpan di tabel inferences
-(kelas, keyakinan, validator GSR/HR, status gerak, hasil gerbang kualitas) melalui DecisionEngine
-dengan kombinasi tau, N, dan PERSIST_N_PRE yang berbeda, lalu membandingkan alarm palsu per jam
-dengan sensitivitas dari docs/uji_sensitivitas.json (data klinis, bukan dari alat ini).
-
-Tidak perlu TensorFlow; cukup Python + numpy.
-"""
 from __future__ import annotations
 
 import argparse
@@ -23,8 +9,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT / "common"), str(ROOT / "cloud")]
-from cloud.decision_engine import DecisionEngine  # noqa: E402
-from heartsim_common import config as C  # noqa: E402
+from cloud.decision_engine import DecisionEngine
+from heartsim_common import config as C
 
 CLS = {name: i for i, name in enumerate(C.CLASSES)}
 
@@ -80,7 +66,6 @@ def main() -> None:
     rows = load(a.db, a.device, ms(a.dari), ms(a.sampai))
     if len(rows) < 20:
         sys.exit(f"hanya {len(rows)} window di rentang itu; rekam minimal beberapa jam")
-    # jam efektif = jumlah window x hop (celah ketika alat mati tidak ikut dihitung)
     hours = len(rows) * C.HOP_SECONDS / 3600
     n_bad = sum(not r["ok"] for r in rows)
     n_mot = sum(r["motion"] for r in rows)

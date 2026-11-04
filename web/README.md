@@ -81,7 +81,7 @@ await api('/source', { method: 'POST', body: { source: 'hardware' } });
 4. **Nyalakan notifikasi** di menu Akun. Di iPhone, tambahkan ke Layar Utama dulu (iOS 16.4+).
 5. Saat alat mendeteksi sesuatu:
    - **WARNING** → hanya ke User Utama ("istirahat dulu").
-   - **CRITICAL** → User Utama dan semua kontak, berisi lokasi GPS dan status jatuh. Kontak membuka
+   - **CRITICAL** → User Utama dan semua kontak, berisi lokasi alat dan status jatuh. Kontak membuka
      Halaman 6 tanpa login, bisa menelepon 119/112 atau User Utama, dan menekan **"Saya terima"**.
      Konfirmasi itu langsung muncul di beranda User Utama.
    - Kegagalan kirim dicoba sampai 5 kali dengan jeda 1, 2, 4, 8 detik + jitter (maksimal 32 s). Setiap
@@ -111,6 +111,7 @@ Tangkapan layar tiap halaman (lebar 390 px dan desktop) ada di `docs/tangkapan_l
 
 - Notifikasi FCM di `cloud/notifier.py` masih tiruan untuk log. Jalur notifikasi
   yang sungguhan adalah Web Push dari aplikasi ini.
-- Belum ada SMS/WhatsApp dari server. Saat offline lebih dari 30 detik dalam kondisi CRITICAL, alat
-  mengirim SMS sendiri lewat SIM7600.
+- Belum ada SMS/WhatsApp. Alat hanya memakai WiFi; saat WiFi putus, data disimpan di alat dan dikirim ulang begitu
+  tersambung.
+- Lokasi yang dikirim alat adalah koordinat statis yang ditulis di firmware.
 - SQLite cukup untuk puluhan alat. Untuk skala lebih besar, lihat `docs/penyesuaian_laporan.md`.

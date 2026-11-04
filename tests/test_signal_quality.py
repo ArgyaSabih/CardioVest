@@ -1,8 +1,3 @@
-"""Gerbang kualitas sinyal: ritme berbahaya tidak boleh tertahan, sinyal yang jelas rusak harus tertahan.
-
-Angka lengkap pada data nyata (CUDB, VFDB, BUT QDB) ada di docs/analisis_sqi.md; uji ini memakai
-bank replay yang ikut di repo supaya bisa jalan tanpa internet.
-"""
 from pathlib import Path
 
 import numpy as np
@@ -29,13 +24,12 @@ def test_bank_rhythms_pass_gate(tag):
 
 def test_broadband_noise_is_blocked():
     rng = np.random.default_rng(1)
-    noise = rng.normal(0, 0.3, C.WINDOW_SAMPLES)            # derau putih ~ gesekan elektroda
+    noise = rng.normal(0, 0.3, C.WINDOW_SAMPLES)
     q = assess(counts(noise))
     assert not q.ok and q.reason.startswith("derau")
 
 
 def test_vf_like_sine_is_not_noise():
-    """VF kasar ~ osilasi 4–6 Hz: kurtosis rendah tetapi daya terpusat, tidak boleh dianggap derau."""
     t = np.arange(C.WINDOW_SAMPLES) / C.FS_ECG
     rng = np.random.default_rng(2)
     vf = 0.6 * np.sin(2 * np.pi * (5 + 0.3 * np.sin(2 * np.pi * 0.2 * t)) * t) + rng.normal(0, 0.03, t.size)

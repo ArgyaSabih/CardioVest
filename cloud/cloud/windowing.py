@@ -1,8 +1,3 @@
-"""Penyusunan sliding window 1.750 sampel dengan hop 875 (overlap 50 %, BAB 4.7).
-
-Perangkat mengirim 875 sampel baru tiap 3,5 s. Window = paket sebelumnya + paket saat ini,
-hanya bila nomor urut (seq) berurutan; celah (paket QoS 0 hilang) memulai ulang penyusunan.
-"""
 from __future__ import annotations
 
 import numpy as np
@@ -12,7 +7,6 @@ from heartsim_common.config import HOP_SAMPLES, WINDOW_SAMPLES
 
 
 class Window(tuple):
-    """(sampel int16, t0_window_ms) + atribut tambahan; tetap bisa di-unpack sebagai 2-tuple."""
 
     lead_off: bool = False
     clock_unsynced: bool = False
@@ -27,9 +21,6 @@ class WindowAssembler:
         self._prev = None
 
     def push(self, p: EcgPacket) -> Window | None:
-        """Kembalikan Window (window int16, t0_window_ms) atau None bila belum lengkap.
-
-        Window.lead_off bernilai True bila salah satu dari dua paket membawa flag elektroda lepas."""
         prev, self._prev = self._prev, p
         if prev is None or p.n != HOP_SAMPLES:
             return None

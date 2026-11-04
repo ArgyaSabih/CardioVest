@@ -1,15 +1,3 @@
-"""Sisi lain dari tools/uji_alarm_palsu.py: berapa yang TERLEWAT bila tau/N dinaikkan.
-
-    python tools/uji_sensitivitas.py
-
-1. Episode VT/VF/flutter kontinu dari CUDB + VFDB (kanal pertama saja, karena alat hanya punya
-   satu lead). Tiap episode >= 20 s dijalankan dari state NORMAL melalui gerbang kualitas +
-   DecisionEngine asli; dicatat apakah WARNING/CRITICAL tercapai dalam 30 s dan berapa lama.
-   Validator HR dianggap positif (VT/VF > 120 bpm); validator GSR dianggap positif untuk batas atas.
-2. Bank replay (subset acak set uji PTB-XL/MIT-BIH): peluang satu window STEMI/ST depresi/dll. terbaca
-   non-Normal dengan keyakinan >= tau. Rekaman PTB-XL hanya 10 s, jadi persistence N tidak bisa
-   diuji langsung; angka p^N (anggapan window independen) dicetak sebagai perkiraan kasar.
-"""
 from __future__ import annotations
 
 import json
@@ -22,10 +10,10 @@ from scipy.signal import lfilter
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT / "common"), str(ROOT / "cloud"), str(ROOT / "tools")]
-from analisis_sqi import FIR, NA, NB, PRE_S, WIN, _download_db  # noqa: E402
-from cloud.decision_engine import DecisionEngine  # noqa: E402
-from cloud.signal_quality import assess  # noqa: E402
-from heartsim_common import config as C  # noqa: E402
+from analisis_sqi import FIR, NA, NB, PRE_S, WIN, _download_db
+from cloud.decision_engine import DecisionEngine
+from cloud.signal_quality import assess
+from heartsim_common import config as C
 
 HOP = C.HOP_SAMPLES
 MODEL = Path(os.getenv("MODEL_PATH") or ROOT / "cloud" / "model" / "artifacts" / "cnn1d_ecg.keras")
@@ -113,7 +101,6 @@ def main() -> None:
               f"{(f'{lat:.1f} s' if lat else '-'):>16}")
 
     b = np.load(ROOT / "dataset" / "dataset" / "replay_bank.npz")
-    # hanya subset acak dari set uji: sebagian bank berisi window pilihan (demo) dan data latih
     keep = b["acak"].astype(bool) & (b["split"].astype(str) == "test")
     X = b["X"][keep, :WIN].astype(np.float64)
     tags = b["tag"].astype(str)[keep]
@@ -122,7 +109,7 @@ def main() -> None:
     print(f"\n== Bank replay, subset acak set uji ({keep.sum()} window): P(window non-Normal dengan keyakinan >= tau); kolom p^2 / p^3 = perkiraan kasar")
     print(f"{'kondisi':<14}" + "".join(f"{f'tau {t:.2f}':>20}" for t in taus))
     out["bank"] = {}
-    for tag in ["stemi", "st_depression", "cd", "af", "normal"]:      # VT/VF: lihat bagian 1
+    for tag in ["stemi", "st_depression", "cd", "af", "normal"]:
         m = tags == tag
         cells, row = [], {}
         for t in taus:

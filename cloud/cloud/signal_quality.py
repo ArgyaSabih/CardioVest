@@ -1,27 +1,3 @@
-"""Penilaian kualitas sinyal ECG per window sebelum keputusan FSM.
-
-Dua lapis:
-
-1. Gerbang teknis (MEMBLOKIR keputusan). Hanya kegagalan yang pasti bukan sinyal jantung:
-   * elektroda lepas: flag LO+/LO- AD8232 yang dibawa paket (bit1 header biner / "lead_off" JSON)
-   * sinyal datar: rentang puncak-ke-puncak < 0,05 mV, atau > 1 s berturut-turut tanpa perubahan
-   * derau: kSQI < 4 DAN pSQI < 0,5, yaitu tidak ada kompleks yang menonjol sekaligus daya tersebar
-     di luar pita QRS. Satu indeks saja tidak cukup: VF juga berkurtosis rendah, tetapi dayanya
-     terpusat di 3–7 Hz sehingga pSQI-nya tinggi (≥ 0,6 pada semua window VF/VT yang diuji).
-   Window seperti ini tetap disimpan, tetapi tidak menggerakkan FSM, karena Z-score pada sinyal
-   datar menghasilkan masukan CNN yang tidak bermakna dan bisa terbaca kelas apa pun.
-
-2. Indeks SQI dari literatur (masing-masing TIDAK memblokir; hanya kombinasi di atas yang dipakai):
-   * saturasi: porsi sampel di atas ±5 mV. Tidak memblokir: dengan penguatan AD8232 1100 dan ADC
-     3,3 V, sinyal alat sudah terpotong di sekitar ±1,5 mV, sedangkan di VFDB aturan ini justru
-     menahan window VT asli yang amplitudonya besar.
-   * kSQI  : kurtosis sinyal; ECG bersih bersifat "runcing" (kurtosis > 5) [Li, Mark & Clifford 2008]
-   * pSQI  : rasio daya 5–15 Hz terhadap 5–40 Hz, rentang wajar ±0,5–0,8 [Li dkk. 2008; Clifford dkk. 2012]
-   * basSQI: 1 − daya 0–1 Hz / daya 0–40 Hz, mendekati 1 bila tidak ada baseline wander
-   Ambang tunggal dari literatur tidak dipakai: kSQI < 5 menolak 100 % window VF di bank replay.
-   Pengujian lengkap (bank replay, CUDB, VFDB, dan BUT QDB dari alat wearable) ada di
-   docs/analisis_sqi.md dan bisa diulang dengan tools/analisis_sqi.py.
-"""
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
@@ -30,10 +6,10 @@ import numpy as np
 
 from heartsim_common.config import ECG_COUNTS_PER_MV, FS_ECG
 
-FLAT_PTP_MV = 0.05          # rentang minimum ECG yang masih bermakna
-FLAT_RUN_S = 1.0            # durasi sampel identik berturut-turut yang dianggap datar
-SAT_MV = 5.0                # ECG permukaan jarang melebihi ±5 mV
-NOISE_KSQI = 4.0            # derau = kSQI < NOISE_KSQI dan pSQI < NOISE_PSQI
+FLAT_PTP_MV = 0.05
+FLAT_RUN_S = 1.0
+SAT_MV = 5.0
+NOISE_KSQI = 4.0
 NOISE_PSQI = 0.5
 
 
@@ -68,13 +44,11 @@ def _band_power(f: np.ndarray, p: np.ndarray, lo: float, hi: float) -> float:
 
 
 def spectral_sqi(mv: np.ndarray, fs: int = FS_ECG) -> tuple[float | None, float | None, float | None]:
-    """Kembalikan (kSQI, pSQI, basSQI). None bila sinyal terlalu datar untuk dihitung."""
     x = mv - mv.mean()
     sd = x.std()
     if sd < 1e-6:
         return None, None, None
-    k = float(np.mean(x ** 4) / sd ** 4)                         # kurtosis Pearson (normal = 3)
-    # periodogram berjendela Hann (numpy saja, tanpa dependensi scipy di image cloud)
+    k = float(np.mean(x ** 4) / sd ** 4)
     f = np.fft.rfftfreq(x.size, 1 / fs)
     p = np.abs(np.fft.rfft(x * np.hanning(x.size))) ** 2
     p540 = _band_power(f, p, 5, 40)

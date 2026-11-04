@@ -46,14 +46,14 @@
               <input type="radio" name="mode" value="demo">
               <svg class="card-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 5.6a5 5 0 0 0-7.1 0L12 7.3l-1.7-1.7a5 5 0 0 0-7.1 7.1L12 21.4l8.8-8.7a5 5 0 0 0 0-7.1z"/></svg>
               <span class="card-title">Demo</span>
-              <span class="card-desc">Mekanisme asli. GPS siaga sampai Darurat.</span>
+              <span class="card-desc">Mekanisme asli. PPG dan GSR menyala mulai Waspada, lokasi saat Darurat.</span>
               <span class="card-mark" aria-hidden="true"></span>
             </label>
             <label class="card">
               <input type="radio" name="mode" value="test">
               <svg class="card-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M14.5 17.5l2 2 4-4"/></svg>
               <span class="card-title">Test</span>
-              <span class="card-desc">Semua modul menyala, termasuk GPS.</span>
+              <span class="card-desc">Semua sensor menyala. Dataset langsung memakai status label rekaman.</span>
               <span class="card-mark" aria-hidden="true"></span>
             </label>
           </div>
@@ -151,6 +151,11 @@
             <p class="readout-note" id="hrNote"></p>
           </div>
           <div class="readout">
+            <p class="readout-label">Saturasi oksigen (SpO2)</p>
+            <p class="readout-value"><span id="spo2"></span><small>%</small></p>
+            <p class="readout-note" id="spo2Note"></p>
+          </div>
+          <div class="readout">
             <p class="readout-label">Konduktansi kulit (GSR)</p>
             <p class="readout-value"><span id="gsr"></span><small>µS</small></p>
             <p class="readout-note" id="gsrNote"></p>
@@ -158,7 +163,7 @@
           <div class="readout">
             <p class="readout-label">Kualitas sinyal PPG</p>
             <p class="readout-value"><span id="sqi"></span></p>
-            <p class="readout-note">SQI 0 sampai 1, makin tinggi makin bersih</p>
+            <p class="readout-note" id="sqiNote">SQI 0 sampai 1, makin tinggi makin bersih</p>
           </div>
         </div>
       </section>
@@ -201,7 +206,7 @@
       <div class="columns">
         <section class="panel">
           <header class="panel-head">
-            <h2>Lokasi GPS</h2>
+            <h2>Lokasi</h2>
             <p id="gpsMeta">Siaga</p>
           </header>
           <div class="map" id="map"><p class="map-empty" id="mapEmpty"></p></div>
