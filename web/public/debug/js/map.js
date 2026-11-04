@@ -18,10 +18,8 @@ export function createMap(box, empty, meta) {
 
   function waiting(mode) {
     clear();
-    empty.textContent = mode === "test"
-      ? "Mode Test: lokasi muncul begitu data dari alat masuk."
-      : "Mode Demo: lokasi hanya dikirim saat status Darurat.";
-    meta.textContent = "Siaga";
+    empty.textContent = mode === "test" ? "Menunggu lokasi" : "Aktif saat Darurat";
+    meta.textContent = "–";
   }
 
   return {

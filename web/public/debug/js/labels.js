@@ -4,26 +4,26 @@ export const STATES = {
   CRITICAL: { word: "Darurat", tone: "crit" },
 };
 
-export const CLASSES = ["Normal", "Pra-serangan", "Serangan"];
+export const CLASSES = ["Normal", "Pra-Serangan", "Serangan"];
 
 export const LOG_TAGS = {
   transisi: ["Transisi", "warn"],
   alert: ["Peringatan", "crit"],
   koneksi: ["Koneksi", "info"],
   sinyal: ["Sinyal", "warn"],
-  mode: ["Mode alat", "info"],
+  mode: ["Mode Alat", "info"],
   jatuh: ["Jatuh", "crit"],
   sumber: ["Sumber EKG", "info"],
   server: ["Server", "crit"],
-  jam: ["Jam alat", "warn"],
+  jam: ["Jam Alat", "warn"],
 };
 
 export const EVENTS = {
   warning: "Waspada",
   critical: "Darurat",
-  critical_fall: "Darurat, pemakai terjatuh",
-  critical_location: "Lokasi darurat tersedia",
-  resolved: "Keadaan darurat selesai",
+  critical_fall: "Darurat, Jatuh",
+  critical_location: "Lokasi Darurat",
+  resolved: "Darurat Selesai",
 };
 
 export const MODES = { demo: "Demo", test: "Test" };

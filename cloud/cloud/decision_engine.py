@@ -227,7 +227,7 @@ class DecisionEngine:
         self.consec_non_normal = 0
         self.consec_normal = 0
         if prev == C.STATE_NORMAL:
-            return self._decision(prev, False, f"{why}; state sudah NORMAL, penghitung persistence dibersihkan", self.n)
+            return self._decision(prev, False, f"{why}; sudah NORMAL", self.n)
         return self._decision(prev, True, why, self.n)
 
     def remote_reset(self, who: str = "aplikasi web") -> Decision:

@@ -101,12 +101,14 @@ Modul GPS dan modem seluler tidak dipakai. Lokasi dikirim sebagai koordinat stat
 | Lokasi statis | tidak dikirim | tidak dikirim | dikirim | dikirim |
 
 * **PPG** dimatikan lewat bit *shutdown* MAX30102 (register 0x09). Setelah menyala, HR dan SpO2 butuh sekitar
-  5 detik sampai stabil. Field `ppg_on` di vital menandai status dayanya.
+  5 detik sampai stabil. Field `ppg_on` di vital menandai status dayanya, `ppg_contact` dan `ppg_ir` menunjukkan
+  kontak kulit (IR di bawah 50.000 dianggap tidak menempel). HR, SpO2, dan SQI kosong selama tidak ada kontak.
 * **SpO2** dihitung dari rasio AC/DC LED merah terhadap IR (R), lalu SpO2 = 110 − 25·R. Nilai hanya dikirim bila
   kontak kulit ada dan SQI PPG ≥ 0,5. Pendekatan ini belum dikalibrasi klinis.
 * **GSR** dibaca hanya saat dibutuhkan. Kalibrasi baseline dipicu cloud dengan perintah
   `{"cmd":"gsr_calibrate","seconds":35}` setelah alat menyala; selama itu GSR menyala walaupun status NORMAL.
-  Field `gsr_on` di vital menandai status bacaannya.
+  Field `gsr_on` di vital menandai status bacaannya, dan `gsr_adc` berisi nilai ADC mentah. GSR kosong bila ADC
+  mendekati `GSR_ADC_NO_SKIN` (elektroda tidak menempel).
 * **IMU** selalu menyala karena dipakai untuk τ adaptif gerak, Kalman adaptif, dan deteksi jatuh.
 
 ### Reset

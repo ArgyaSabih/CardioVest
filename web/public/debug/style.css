@@ -516,6 +516,7 @@ button { font: inherit; color: inherit; }
 
 .map, .map-leaflet { height: 260px; border-top: 1px solid var(--rule); }
 .map { display: grid; place-items: center; }
+.gate-text:empty { display: none; }
 .map-empty { max-width: 46ch; padding: 24px; text-align: center; font-size: 15px; color: var(--ink-soft); }
 .map-leaflet { width: 100%; }
 #gpsMeta a { color: inherit; }

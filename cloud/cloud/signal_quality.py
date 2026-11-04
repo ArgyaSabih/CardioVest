@@ -69,12 +69,11 @@ def assess(window_counts: np.ndarray, lead_off: bool = False, fs: int = FS_ECG,
         k, ps, bs = spectral_sqi(mv, fs)
 
     if lead_off:
-        reason = "elektroda lepas (flag LO+/LO- AD8232): rapatkan kaos/elektroda"
+        reason = "elektroda lepas (LO+/LO-)"
     elif ptp < FLAT_PTP_MV or run_s > FLAT_RUN_S:
-        reason = f"sinyal datar ({ptp:.3f} mV, {run_s:.1f} s tanpa perubahan): periksa elektroda/kabel"
+        reason = f"sinyal datar ({ptp:.3f} mV, konstan {run_s:.1f} s)"
     elif k is not None and ps is not None and k < NOISE_KSQI and ps < NOISE_PSQI:
-        reason = (f"derau: tidak ada kompleks QRS yang menonjol (kSQI {k:.1f}) dan daya tersebar di luar "
-                  f"pita QRS (pSQI {ps:.2f}); kemungkinan gerak atau kontak elektroda buruk")
+        reason = f"derau (kSQI {k:.1f}, pSQI {ps:.2f})"
     else:
         reason = ""
     return SignalQuality(ok=not reason, reason=reason, ptp_mv=ptp, flat_run_s=run_s, saturated=sat,

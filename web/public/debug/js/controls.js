@@ -33,19 +33,16 @@ export function createControls({ labels, onChange }) {
     step.dataset.locked = String(!dataset);
     for (const i of inputs) if (i.name === "rekaman") i.tabIndex = dataset ? 0 : -1;
     if (dataset) lock.innerHTML = `Diputar: <b>${labels[value("rekaman")]}</b>`;
-    else lock.textContent = "Aktif bila sumber EKG Dataset.";
+    else lock.textContent = "Hanya untuk Dataset.";
     const list = changes();
     runBtn.dataset.running = String(running && !list.length);
-    runText.textContent = list.length ? "Terapkan dan jalankan" : running ? "Jeda" : "Jalankan";
+    runText.textContent = list.length ? "Terapkan" : running ? "Jeda" : "Jalankan";
     if (list.length) {
       note.dataset.tone = "pending";
-      note.innerHTML = `Belum diterapkan: <b>${list.join(", ")}</b>.`;
-    } else if (running) {
-      note.dataset.tone = "live";
-      note.textContent = applied.source === "dataset" ? "Menampilkan EKG dataset dan vital dari alat." : "Menampilkan data langsung dari alat.";
+      note.innerHTML = `Belum diterapkan: <b>${list.join(", ")}</b>`;
     } else {
-      note.dataset.tone = "";
-      note.textContent = "Tampilan dijeda. Pilihan di atas berlaku saat Jalankan ditekan.";
+      note.dataset.tone = running ? "live" : "";
+      note.textContent = "";
     }
   }
 

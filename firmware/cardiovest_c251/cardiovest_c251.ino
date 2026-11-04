@@ -152,10 +152,13 @@ struct Vitals
   float hr_ppg = NAN;
   float sqi = 0;
   float spo2 = NAN;
+  bool ppg_contact = false;
+  float ppg_ir = NAN;
   bool ecg_ok = false;
   bool gsr_ok = false;
   bool gsr_on = false;
   float gsr_us = NAN;
+  float gsr_adc = NAN;
   bool imu_ok = false;
   float ax = 0, ay = 0, az = 1, amag = 1, amag_sd = 0;
   bool fall_detected = false;
@@ -706,6 +709,8 @@ public:
     float ratio = pk_amp_ / resid;
     return ratio / (ratio + 4.0f);
   }
+  bool contact() const { return contact_; }
+  float irLevel() const { return dc_; }
   float spo2() const
   {
     if (!contact_ || isnan(spo2_) || sqi() < TAU_SQI)
@@ -1560,7 +1565,10 @@ void task_sensor_aux(void *)
       if (PIN_GSR_POWER >= 0)
         digitalWrite(PIN_GSR_POWER, gsr_on ? HIGH : LOW);
       if (!gsr_on)
+      {
         gsr_take_adc(&gsr_adc_drop);
+        s_gsr_adc_last = NAN;
+      }
       LOGF("GSR: %s", gsr_on ? "menyala" : "dimatikan (hemat energi, mode demo NORMAL)");
     }
     float gsr_adc;
@@ -1600,6 +1608,9 @@ void task_sensor_aux(void *)
       s_vitals.hr_ppg = ppg_on ? s_ppgp.hr() : NAN;
       s_vitals.sqi = ppg_on ? s_ppgp.sqi() : 0;
       s_vitals.spo2 = ppg_on ? s_ppgp.spo2() : NAN;
+      s_vitals.ppg_contact = ppg_on && s_ppgp.contact();
+      s_vitals.ppg_ir = ppg_on ? s_ppgp.irLevel() : NAN;
+      s_vitals.gsr_adc = gsr_on ? s_gsr_adc_last : NAN;
       s_vitals.gsr_on = gsr_on;
       s_vitals.gsr_ok = gsr_on && !isnan(gsr_ema);
       s_vitals.gsr_us = gsr_on ? gsr_ema : NAN;
@@ -2003,6 +2014,8 @@ size_t encode_vital_json(const Vitals &v, float hr_ecg, bool buffered, char *out
            json_num(c, sizeof(c), hr_ecg, 1), json_num(d, sizeof(d), v.sqi, 2), json_num(o, sizeof(o), v.spo2, 1),
            json_num(e, sizeof(e), gsr, 2));
   json_add(out, cap, &n, "\"ppg_on\":%s,\"gsr_on\":%s,", json_bool(v.ppg_on), json_bool(v.gsr_on));
+  json_add(out, cap, &n, "\"ppg_contact\":%s,\"ppg_ir\":%s,\"gsr_adc\":%s,", json_bool(v.ppg_contact),
+           json_num(a, sizeof(a), v.ppg_ir, 0), json_num(b, sizeof(b), v.gsr_adc, 0));
   if (v.imu_ok)
   {
     char sx[16], sy[16], sz[16], sm[16], sd[16];
@@ -2446,9 +2459,9 @@ void print_status()
   Serial.printf("state=%s mode=%s online=%d putus=%lu waktu_sinkron=%d buffer=%u B terkirim ecg=%lu vital=%lu byte=%lu\n",
                 stateName(g_state), s_test_mode ? "test" : "demo", g_net_online, (unsigned long)s_mqtt_drops, time_valid(), (unsigned)obuf_size(),
                 (unsigned long)s_tx_ecg, (unsigned long)s_tx_vital, (unsigned long)s_tx_bytes);
-  Serial.printf("ECG lead_off=%d HR_ecg=%.1f adc_gagal=%lu | PPG %s HR=%.1f SQI=%.2f SpO2=%.1f | GSR %s %.2f uS (ADC %.0f)\n",
-                g_lead_off, s_hr_ecg, (unsigned long)s_adc_fail, !s_has.ppg ? "tidak ada" : v.ppg_on ? "on" : "off", v.hr_ppg, v.sqi, v.spo2,
-                v.gsr_on ? "on" : "off", v.gsr_us, s_gsr_adc_last);
+  Serial.printf("ECG lead_off=%d HR_ecg=%.1f adc_gagal=%lu | PPG %s kontak=%d IR=%.0f HR=%.1f SQI=%.2f SpO2=%.1f | GSR %s %.2f uS (ADC %.0f)\n",
+                g_lead_off, s_hr_ecg, (unsigned long)s_adc_fail, !s_has.ppg ? "tidak ada" : v.ppg_on ? "on" : "off", v.ppg_contact, v.ppg_ir,
+                v.hr_ppg, v.sqi, v.spo2, v.gsr_on ? "on" : "off", v.gsr_us, s_gsr_adc_last);
   Serial.printf("I2C: %s\n", s_i2c_scan);
   Serial.printf("IMU %s |a|=%.3f g sd=%.3f g jatuh=%d | mengisi=%d | heap=%u B\n",
                 s_has.imu ? "on" : "off", v.amag, v.amag_sd, v.fall_detected, g_charging, (unsigned)ESP.getFreeHeap());

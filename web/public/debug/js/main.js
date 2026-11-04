@@ -74,7 +74,7 @@ function duration(secs) {
 
 function sourceLabel() {
   const a = controls.applied;
-  return a.source === "dataset" ? `Dataset, ${REKAMAN[a.rekaman] ?? a.rekaman}` : "Hardware (ESP32)";
+  return a.source === "dataset" ? `Dataset, ${REKAMAN[a.rekaman] ?? a.rekaman}` : "Hardware";
 }
 
 function renderSource() {
@@ -88,16 +88,16 @@ function renderState() {
   const s = STATES[stateObj.state] ?? { word: stateObj.state, tone: "none" };
   $("status").dataset.tone = s.tone;
   set("stateWord", s.word);
-  set("stateCode", `State FSM ${stateObj.state}`);
-  const why = stateObj.reason || "tanpa keterangan.";
-  set("stateReason", why[0].toUpperCase() + why.slice(1));
+  set("stateCode", stateObj.state);
+  const why = stateObj.reason || "";
+  set("stateReason", why ? why[0].toUpperCase() + why.slice(1) : "");
   const secs = Math.max(0, Math.round((Date.now() - stateObj.since) / 1000));
-  set("stateSince", `Sejak ${clock(stateObj.since)}, ${duration(secs)} lalu`);
+  set("stateSince", `${clock(stateObj.since)} (${duration(secs)})`);
   const c = stateObj.calibration;
   if (c) {
     set("calibration", c.calibrated
       ? `Selesai, ambang ${num(c.threshold, 1)} µS`
-      : `Berjalan ${c.progress_s ?? 0} dari ${c.target_s ?? "?"} detik, ambang sementara ${num(c.threshold, 1)} µS`);
+      : `${c.progress_s ?? 0}/${c.target_s ?? "?"} s, ambang ${num(c.threshold, 1)} µS`);
     gsrThreshold = c.threshold;
   }
 }
@@ -107,7 +107,7 @@ function renderMode() {
   const target = controls.applied.mode;
   if (!deviceMode) return set("deviceMode", "–");
   set("deviceMode", target && target !== deviceMode
-    ? `${MODES[deviceMode]}, menunggu alat pindah ke ${MODES[target]}`
+    ? `${MODES[deviceMode]} → ${MODES[target]}`
     : MODES[deviceMode] ?? deviceMode);
   map.idle(target ?? deviceMode);
 }
@@ -116,12 +116,12 @@ function clearView() {
   strip.clear();
   set("ecgPacket", "");
   for (const id of ["hr", "gsr", "sqi", "spo2"]) set(id, "");
-  for (const id of ["gsrNote", "spo2Note"]) set(id, "");
+  for (const id of ["gsrNote", "spo2Note", "sqiNote"]) set(id, "");
   for (const id of ["hrNote", "accel", "fall", "localState", "sensors", "decision", "validators", "persistence", "quality"]) {
     set(id, id === "hrNote" ? "" : "–");
   }
-  set("vitalTime", "Belum ada data vital");
-  set("infMeta", "Tiap window 7 detik, bergeser 3,5 detik");
+  set("vitalTime", "–");
+  set("infMeta", "");
   for (const row of document.querySelectorAll(".prob")) {
     row.querySelector("i").style.width = "0";
     row.querySelector(".prob-v").textContent = "–";
@@ -157,8 +157,8 @@ function beep() {
 
 function fallAlarm(d) {
   const a = d.accel || {};
-  log.add("jatuh", `Terdeteksi, percepatan total ${num(a.mag, 2)} g, status alat ${STATES[d.local_state]?.word ?? d.local_state}`);
-  set("fallAlert", `Jatuh terdeteksi pukul ${clock(d.fall_ts)}`);
+  log.add("jatuh", `|a| ${num(a.mag, 2)} g, ${STATES[d.local_state]?.word ?? d.local_state}`);
+  set("fallAlert", `Jatuh ${clock(d.fall_ts)}`);
   $("fallAlert").hidden = false;
   beep();
   setTimeout(beep, 800);
@@ -172,12 +172,12 @@ const handlers = {
   ecg(buf) {
     const p = decodeEcg(buf);
     if (!p.buffered) strip.push(p.samples);
-    set("ecgPacket", `Paket ${p.format}, ${num(buf.length)} byte`);
+    set("ecgPacket", `${p.format}, ${num(buf.length)} B`);
   },
 
   state(d) {
     if (prevState && prevState !== d.state) {
-      log.add("transisi", `${STATES[prevState]?.word ?? prevState} ke ${STATES[d.state]?.word ?? d.state}: ${d.reason}`);
+      log.add("transisi", `${STATES[prevState]?.word ?? prevState} → ${STATES[d.state]?.word ?? d.state}: ${d.reason}`);
     }
     prevState = d.state;
     stateObj = d;
@@ -185,12 +185,12 @@ const handlers = {
     if (!d.mode) return;
     if (modeRequest) {
       if (d.mode === modeRequest.mode) {
-        log.add("mode", `Alat sudah di mode ${MODES[d.mode]}`);
+        log.add("mode", MODES[d.mode]);
         modeRequest = null;
       } else if (Date.now() < modeRequest.until) {
         return;
       } else {
-        log.add("mode", `Alat tidak pindah ke mode ${MODES[modeRequest.mode]}, tetap ${MODES[d.mode]}`);
+        log.add("mode", `Gagal pindah ke ${MODES[modeRequest.mode]}, tetap ${MODES[d.mode]}`);
         modeRequest = null;
         controls.setApplied("mode", d.mode);
         renderMode();
@@ -199,7 +199,7 @@ const handlers = {
     }
     if (d.mode !== controls.applied.mode) {
       if (controls.applied.mode && running) {
-        log.add("mode", `Alat pindah ke mode ${MODES[d.mode]} dari tombol di alat, tampilan dijeda`);
+        log.add("mode", `${MODES[d.mode]} dari alat, dijeda`);
         pause();
       }
       controls.setApplied("mode", d.mode);
@@ -209,21 +209,24 @@ const handlers = {
 
   vital(d) {
     if (d.buffered) return;
-    set("vitalTime", `Diperbarui ${clock(d.ts)}`);
+    set("vitalTime", clock(d.ts));
     set("hr", d.hr == null ? "" : num(d.hr));
-    set("hrNote", `Dari ${d.hr_source ?? "?"}. PPG ${num(d.hr_ppg)}, EKG ${num(d.hr_ecg)} bpm`);
+    set("hrNote", `${d.hr_source ?? "?"} · PPG ${num(d.hr_ppg)} · EKG ${num(d.hr_ecg)}`);
     const ppgOff = d.ppg_on === false;
     const gsrOff = d.gsr_on === false;
     set("spo2", d.spo2 == null ? "" : num(d.spo2, 1));
-    set("spo2Note", ppgOff ? "PPG mati, menyala mulai status Waspada" : `Validator bila di bawah ${SPO2_LOW}%`);
+    const noSkin = d.ppg_contact === false;
+    const ppgNote = ppgOff ? "PPG mati" : noSkin ? `Tidak ada kontak, IR ${num(d.ppg_ir)}` : `IR ${num(d.ppg_ir)}`;
+    set("spo2Note", ppgOff || noSkin ? ppgNote : `Batas ${SPO2_LOW}%`);
     set("gsr", d.gsr == null ? "" : num(d.gsr, 2));
-    set("gsrNote", gsrOff ? "GSR mati, menyala saat kalibrasi dan mulai status Waspada" : `Ambang ${num(gsrThreshold, 1)} µS`);
+    const gsrNoSkin = !gsrOff && d.gsr == null && d.gsr_adc != null;
+    set("gsrNote", gsrOff ? "GSR mati" : gsrNoSkin ? `Tidak ada kontak, ADC ${num(d.gsr_adc)}` : `Ambang ${num(gsrThreshold, 1)} µS, ADC ${num(d.gsr_adc)}`);
     set("sqi", d.sqi == null || ppgOff ? "" : num(d.sqi, 2));
-    set("sqiNote", ppgOff ? "PPG mati, menyala mulai status Waspada" : "SQI 0 sampai 1, makin tinggi makin bersih");
+    set("sqiNote", ppgNote);
     const a = d.accel || {};
-    html("accel", `x ${num(a.x, 2)}, y ${num(a.y, 2)}, z ${num(a.z, 2)} g<small>Total ${num(a.mag, 2)} g, simpangan ${num(a.sd, 3)} g</small>`);
+    html("accel", `x ${num(a.x, 2)}, y ${num(a.y, 2)}, z ${num(a.z, 2)} g<small>|a| ${num(a.mag, 2)} g, sd ${num(a.sd, 3)} g</small>`);
     html("fall", d.fall_detected ? chip("Terdeteksi", 'data-tone="crit"') : "Tidak");
-    html("localState", `${STATES[d.local_state]?.word ?? d.local_state ?? "–"} ${d.lead_off ? chip("Elektroda lepas", 'data-tone="crit"') : ""}`);
+    html("localState", `${STATES[d.local_state]?.word ?? d.local_state ?? "–"} ${d.lead_off ? chip("Lead-off", 'data-tone="crit"') : ""}`);
     const s = d.sensors || {};
     const sensors = [
       ["EKG", s.ecg],
@@ -253,39 +256,39 @@ const handlers = {
       row.querySelector(".prob-v").textContent = num(p, 2);
       row.dataset.top = String(i === d.class_idx);
     }
-    set("infMeta", `Window ${d.seq}, inferensi ${num(d.infer_ms, 1)} ms, latensi ${num(d.process_latency_ms)} ms`);
-    const why = d.reason ? d.reason[0].toUpperCase() + d.reason.slice(1) : d.accepted ? "Diterima FSM" : "Tidak diputuskan";
-    html("decision", `${CLASSES[d.class_idx] ?? d.class}, keyakinan ${num(d.p_conf, 2)}<small>${why}</small>`);
+    set("infMeta", `Window ${d.seq} · ${num(d.infer_ms, 1)} ms · latensi ${num(d.process_latency_ms)} ms`);
+    const why = d.reason ? d.reason[0].toUpperCase() + d.reason.slice(1) : d.accepted ? "Diterima" : "Tidak diputuskan";
+    html("decision", `${CLASSES[d.class_idx] ?? d.class} ${num(d.p_conf, 2)}<small>${why}</small>`);
     const v = d.validators;
-    const ya = (b) => (b ? "mendukung" : "tidak mendukung");
+    const ya = (b) => (b ? "ya" : "tidak");
     html("validators", v
-      ? `HR ${ya(v.ind_hr)}, GSR ${ya(v.ind_gsr)}, SpO2 ${ya(v.ind_spo2)}<small>Darurat butuh HR, GSR, dan SpO2 sekaligus. ${v.degraded ? "Mode terdegradasi" : "Mode independen"}${v.motion ? ", pemakai sedang bergerak" : ""}</small>`
+      ? `HR ${ya(v.ind_hr)}, GSR ${ya(v.ind_gsr)}, SpO2 ${ya(v.ind_spo2)}<small>${v.degraded ? "Terdegradasi" : "Independen"}${v.motion ? ", bergerak" : ""}</small>`
       : "–");
     const dec = d.decision;
     html("persistence", dec
-      ? `${dec.consec_non_normal ?? 0} dari ${dec.n_required ?? "?"} window tidak normal<small>${dec.consec_normal ?? 0} window normal berturut-turut</small>`
+      ? `${dec.consec_non_normal ?? 0}/${dec.n_required ?? "?"} tidak normal<small>${dec.consec_normal ?? 0} normal berturut-turut</small>`
       : "–");
     const q = d.quality || {};
     const ok = d.signal_ok !== false;
     html("quality", ok
-      ? `Baik, ${num(q.ptp_mv, 2)} mV puncak ke puncak<small>kSQI ${num(q.ksqi, 2)}, pSQI ${num(q.psqi, 2)}, basSQI ${num(q.bassqi, 2)}</small>`
-      : `${chip("Diabaikan", 'data-tone="crit"')}<small>${q.reason ?? ""}</small>`);
+      ? `Baik, ${num(q.ptp_mv, 2)} mV p-p<small>kSQI ${num(q.ksqi, 2)}, pSQI ${num(q.psqi, 2)}, basSQI ${num(q.bassqi, 2)}</small>`
+      : `${chip("Ditolak", 'data-tone="crit"')}<small>${q.reason ?? ""}</small>`);
     if (lastSignalOk !== null && ok !== lastSignalOk) {
-      log.add("sinyal", ok ? "Kualitas EKG pulih, window kembali dinilai" : `Kualitas EKG buruk: ${q.reason ?? "tanpa keterangan"}`);
+      log.add("sinyal", ok ? "EKG pulih" : `EKG ditolak: ${q.reason ?? ""}`);
     }
     lastSignalOk = ok;
     if (d.clock_unsynced && !clockWarned) {
       clockWarned = true;
-      log.add("jam", "Jam alat belum tersinkron, cloud memakai waktu terima paket");
+      log.add("jam", "Belum sinkron, pakai waktu terima");
     }
   },
 
   alert(d) {
     const parts = [EVENTS[d.event_type] ?? d.event_type];
-    if (d.confidence != null) parts.push(`keyakinan ${num(d.confidence, 2)}`);
-    if (d.fall_detected) parts.push("disertai jatuh");
-    if (d.gps) parts.push(`lokasi ${d.gps.lat}, ${d.gps.lng}`);
-    log.add("alert", parts.join(", ") + (d.message ? `. ${d.message}` : ""));
+    if (d.confidence != null) parts.push(`p ${num(d.confidence, 2)}`);
+    if (d.fall_detected) parts.push("jatuh");
+    if (d.gps) parts.push(`${d.gps.lat}, ${d.gps.lng}`);
+    log.add("alert", parts.join(", "));
   },
 
 
@@ -294,7 +297,7 @@ const handlers = {
     const rek = source === "dataset" ? d.rekaman || "normal" : null;
     const before = controls.applied;
     if (source !== before.source || (rek && rek !== before.rekaman)) {
-      log.add("sumber", source === "dataset" ? `EKG dari dataset: ${REKAMAN[rek] ?? rek}` : "EKG dari hardware (ESP32)");
+      log.add("sumber", source === "dataset" ? `Dataset, ${REKAMAN[rek] ?? rek}` : "Hardware");
     }
     controls.setApplied("source", source);
     if (rek) controls.setApplied("rekaman", rek);
@@ -319,13 +322,13 @@ setInterval(() => {
   const now = Date.now();
   while (traffic.length && now - traffic[0][0] > 30000) traffic.shift();
   const total = traffic.reduce((s, [, n]) => s + n, 0);
-  set("rate", total ? `Data masuk ${num(total / 30)} B/s` : "");
+  set("rate", total ? `${num(total / 30)} B/s` : "");
 }, 2000);
 
 const presence = createPresence({
   device: DEVICE,
   onChange(ready) {
-    log.add("koneksi", ready ? `Alat ${DEVICE} terhubung` : `Alat ${DEVICE} terputus`);
+    log.add("koneksi", ready ? `${DEVICE} terhubung` : `${DEVICE} terputus`);
   },
 });
 
@@ -341,13 +344,13 @@ controls.form.addEventListener("submit", (e) => {
   if (running && !controls.hasPending) return pause();
   const todo = controls.takePending();
   if (todo.mode) {
-    log.add("mode", `Meminta alat pindah ke mode ${MODES[todo.mode]}`);
+    log.add("mode", `Minta ${MODES[todo.mode]}`);
     conn.send({ type: "mode", mode: todo.mode });
     modeRequest = { mode: todo.mode, until: Date.now() + 90_000 };
   }
   if (todo.source) {
     const s = todo.source;
-    log.add("sumber", s.source === "dataset" ? `EKG dari dataset: ${REKAMAN[s.rekaman] ?? s.rekaman}` : "EKG dari hardware (ESP32)");
+    log.add("sumber", s.source === "dataset" ? `Dataset, ${REKAMAN[s.rekaman] ?? s.rekaman}` : "Hardware");
     conn.send({ type: "source", ...s });
   }
   renderSource();

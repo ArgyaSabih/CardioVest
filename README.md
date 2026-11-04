@@ -179,7 +179,7 @@ keluar dari CRITICAL; jalur web adalah tambahan dan bisa dimatikan dengan `REMOT
 **Contoh `vital`:**
 ```json
 {"device_id":"cv-001","ts":1790677951422,"hr":124.6,"hr_source":"PPG","hr_ppg":124.6,"hr_ecg":109.6,
- "sqi":0.85,"spo2":96.4,"gsr":13.83,"ppg_on":true,"gsr_on":true,
+ "sqi":0.85,"spo2":96.4,"gsr":13.83,"ppg_on":true,"gsr_on":true,"ppg_contact":true,"ppg_ir":152340,"gsr_adc":1712,
  "accel":{"x":0.018,"y":0.055,"z":0.985,"mag":0.986,"sd":0.012},"fall_detected":false,"fall_ts":null,
  "local_state":"WARNING","mode":"demo","gps":{"active":false,"fix":false},"buffered":false}
 ```

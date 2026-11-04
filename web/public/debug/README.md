@@ -43,8 +43,8 @@ Perintah dari halaman dikirim dengan `conn.send({ type, ... })`:
 | Bagian | Sumber | Catatan |
 |---|---|---|
 | Detak jantung | `vital.hr`, `hr_source` | dari PPG bila menyala dan SQI ≥ 0,5, selain itu dari EKG |
-| SpO2 | `vital.spo2` | kosong dan bertanda "PPG mati" saat `ppg_on` false (mode Demo, status Normal) |
-| GSR | `vital.gsr`, `state.calibration` | bertanda "GSR mati" saat `gsr_on` false |
+| SpO2, SQI PPG | `vital.spo2`, `sqi`, `ppg_contact`, `ppg_ir` | "PPG mati" saat `ppg_on` false, "Tidak ada kontak" saat `ppg_contact` false |
+| GSR | `vital.gsr`, `gsr_adc`, `state.calibration` | "GSR mati" saat `gsr_on` false, "Tidak ada kontak" saat GSR kosong padahal menyala |
 | Validator | `inference.validators` | `ind_hr`, `ind_gsr`, `ind_spo2`; Darurat butuh HR, GSR, dan SpO2 sekaligus |
 | Sensor | `vital.sensors`, `ppg_on`, `gsr_on`, `gps.active` | chip redup = sensor mati atau tidak terdeteksi |
 | Lokasi | `vital.gps` | peta muncul bila `gps.fix` true (Demo saat Darurat, Test selalu) dan hilang lagi bila tidak |

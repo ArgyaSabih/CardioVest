@@ -111,7 +111,7 @@ class CloudService:
                 if last[0] == C.STATE_CRITICAL:
                     d.restored = last[0]
                     d.restored_why = "layanan cloud restart"
-                d.last_reason = f"dipulihkan dari database setelah layanan cloud restart ({last[0]})"
+                d.last_reason = f"dipulihkan setelah cloud restart ({last[0]})"
                 log.warning("%s: state %s dipulihkan dari database (event %s)", device_id, last[0], d.event_id)
             self._publish_state(d)
             if not d.restored:
