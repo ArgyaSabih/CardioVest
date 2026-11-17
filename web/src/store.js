@@ -26,7 +26,7 @@ const liveInit = {
   deviceId: '',
   state: 'NORMAL',
   mode: 'demo',
-  remoteReset: true,
+  remoteReset: false,
   since: null,
   reason: null,
   online: null,
@@ -73,7 +73,7 @@ const live = createSlice({
         leadOff: !!d.vital?.lead_off,
         event: d.event,
         contacts: d.contacts || [],
-        remoteReset: d.remote_reset !== false,
+        remoteReset: d.remote_reset === true,
         source: d.source ?? null,
         rekaman: d.rekaman ?? null,
       });
@@ -110,7 +110,7 @@ const live = createSlice({
     },
     location: (s, a) => {
       s.gps = a.payload;
-      s.trail = [...s.trail.slice(-359), a.payload];
+      s.trail = a.payload.reset ? [a.payload] : [...s.trail.slice(-359), a.payload];
     },
     fall: (s) => {
       s.fall = true;

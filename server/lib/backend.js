@@ -37,7 +37,7 @@ const slimState = (s) =>
     mode: s.mode === 'test' ? 'test' : 'demo',
     since: s.since,
     reason: s.reason,
-    gps: s.gps?.fix ? { lat: s.gps.lat, lng: s.gps.lon, acc: s.gps.accuracy_m } : null,
+    gps: s.gps?.fix ? { lat: s.gps.lat, lng: s.gps.lon, acc: s.gps.accuracy_m, src: s.gps.source ?? 'gps' } : null,
     calibration: s.calibration ?? null,
     signal: s.signal ? { ok: s.signal.ok, reason: s.signal.reason } : null,
     ts: s.ts,
@@ -64,7 +64,9 @@ const slimVital = (v) => ({
   gps: v.gps ?? null,
   sensors: v.sensors ?? null,
   i2c: v.i2c ?? null,
-  charging: !!v.charging,
+  net: v.net ?? null,
+  rssi: v.rssi ?? null,
+  gsm: v.gsm ?? null,
 });
 
 export const SEEN_MS = 10_000;
@@ -233,7 +235,7 @@ export function startBackend(server) {
       const prev = L.state?.state;
       L.state = s;
       if (s.state !== 'CRITICAL') L.trail = [];
-      else if (s.gps?.fix && !L.trail.length) L.trail.push({ lat: s.gps.lat, lng: s.gps.lon, acc: s.gps.accuracy_m, ts: now() });
+      else if (s.gps?.fix && !L.trail.length) L.trail.push({ lat: s.gps.lat, lng: s.gps.lon, acc: s.gps.accuracy_m, src: s.gps.source ?? 'gps', ts: now() });
       toFamily(dev).emit('state', slimState(s));
       if (prev && prev !== s.state) io.to(`devpub:${dev}`).emit('state', { state: s.state });
     },
@@ -254,9 +256,12 @@ export function startBackend(server) {
       toFamily(dev).emit('vital', L.vital);
       const g = v.gps;
       if (L.state?.state === 'CRITICAL' && g?.fix) {
-        const p = { lat: g.lat, lng: g.lon, acc: g.accuracy_m, ts: v.ts };
+        const p = { lat: g.lat, lng: g.lon, acc: g.accuracy_m, src: g.source ?? 'gps', ts: v.ts };
         const last = L.trail.at(-1);
-        if (!last || Math.hypot(last.lat - p.lat, last.lng - p.lng) > 2e-5 || p.ts - last.ts > 30_000) {
+        if (last && last.src !== 'gps' && p.src === 'gps') {
+          L.trail = [p];
+          toAll(dev).emit('location', { ...p, reset: true });
+        } else if (!last || last.src !== p.src || Math.hypot(last.lat - p.lat, last.lng - p.lng) > 2e-5 || p.ts - last.ts > 30_000) {
           L.trail.push(p);
           if (L.trail.length > 360) L.trail.shift();
           toAll(dev).emit('location', p);

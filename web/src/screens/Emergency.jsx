@@ -5,7 +5,7 @@ import { io } from 'socket.io-client';
 import { REALTIME_URL, api } from '../api.js';
 import { LocationMap, mapsLink } from '../components/map.jsx';
 import Icon from '../components/icons.jsx';
-import { AckList, CallButtons, ErrorNote, Wordmark, since } from '../components/ui.jsx';
+import { AckList, CallButtons, ErrorNote, LOC_SRC, Wordmark, since } from '../components/ui.jsx';
 
 export default function Emergency() {
   const { token } = useParams();
@@ -23,7 +23,7 @@ export default function Emergency() {
     const poll = setInterval(load, 20_000);
     const t = setInterval(() => tick((x) => x + 1), 5_000);
     const s = io(REALTIME_URL, { path: '/data/realtime', auth: { publicToken: token }, transports: ['websocket', 'polling'] });
-    s.on('location', (p) => setEv((e) => (e ? { ...e, location: p, trail: [...(e.trail || []), p] } : e)));
+    s.on('location', (p) => setEv((e) => (e ? { ...e, location: p, trail: p.reset ? [p] : [...(e.trail || []), p] } : e)));
     s.on('fall', () => setEv((e) => (e ? { ...e, fall_detected: true } : e)));
     s.on('state', () => load());
     s.on('ack', (p) => setEv((e) => (e ? { ...e, acks: p.acks } : e)));
@@ -98,6 +98,7 @@ export default function Emergency() {
             <LocationMap lat={loc.lat} lng={loc.lng} acc={loc.acc} trail={ev.trail} height={320} />
             <a className="btn primary wide" href={mapsLink(loc.lat, loc.lng)} target="_blank" rel="noreferrer">Petunjuk arah di Google Maps</a>
             <p className="muted small">
+              {loc.src && loc.src !== 'gps' ? `${LOC_SRC[loc.src] ?? 'Posisi perkiraan'}; diperbarui begitu GPS alat mendapat sinyal. ` : ''}
               {loc.acc ? `Akurasi sekitar ${Math.round(loc.acc)} m. ` : ''}
               {loc.ts ? `Diperbarui ${since(loc.ts)}.` : ''}
             </p>
@@ -110,7 +111,7 @@ export default function Emergency() {
       <ErrorNote error={err} />
       <p className="muted small">
         {ev.device_online === false
-          ? 'Alat sedang tidak terhubung ke internet. Data disimpan di alat dan dikirim lagi begitu WiFi tersambung.'
+          ? 'Alat sedang tidak terhubung ke internet. Data disimpan di alat dan dikirim lagi begitu WiFi atau jaringan seluler tersambung. SMS darurat tetap dikirim langsung dari alat.'
           : 'Alat terhubung ke server.'}
         {ev.hr ? ` Denyut terakhir ${Math.round(ev.hr)} bpm.` : ''}
       </p>

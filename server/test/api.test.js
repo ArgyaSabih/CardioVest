@@ -9,7 +9,7 @@ const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'cvgw-'));
 fs.copyFileSync(new URL('./fixtures/cloud.db', import.meta.url), path.join(tmp, 'cloud.db'));
 Object.assign(process.env, {
   PORT: '0', DATA_DIR: path.join(tmp, 'gw'), CLOUD_DB: path.join(tmp, 'cloud.db'),
-  DEVICES: 'cv-001:246810,cv-002:135790', PROXY_SECRET: 'rahasia-uji', MQTT_URL: 'mqtt://127.0.0.1:1', PUSH_BASE_DELAY_MS: '1',
+  DEVICES: 'cv-001:246810,cv-002:135790', PROXY_SECRET: 'rahasia-uji', MQTT_URL: 'mqtt://127.0.0.1:1', PUSH_BASE_DELAY_MS: '1', REMOTE_RESET: '1',
   CONTACTS_JSON: JSON.stringify([{ name: 'Bu Uji', relation: 'istri', phone: '+6281200000000' }]),
 });
 const { server, backend } = await import('../main.js');

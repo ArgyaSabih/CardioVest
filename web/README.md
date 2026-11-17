@@ -111,7 +111,8 @@ Tangkapan layar tiap halaman (lebar 390 px dan desktop) ada di `docs/tangkapan_l
 
 - Notifikasi FCM di `cloud/notifier.py` masih tiruan untuk log. Jalur notifikasi
   yang sungguhan adalah Web Push dari aplikasi ini.
-- Belum ada SMS/WhatsApp. Alat hanya memakai WiFi; saat WiFi putus, data disimpan di alat dan dikirim ulang begitu
-  tersambung.
-- Lokasi yang dikirim alat adalah koordinat statis yang ditulis di firmware.
+- SMS darurat dikirim langsung oleh modem SIM800L di alat (bukan dari server). Alat memakai WiFi dengan GPRS sebagai
+  cadangan; bila keduanya putus, data disimpan di alat dan dikirim ulang begitu tersambung.
+- Lokasi berasal dari GPS Neo-6M; sebelum fix tersedia, alat mengirim posisi terakhir atau koordinat cadangan
+  (ditandai di field `gps.source`).
 - SQLite cukup untuk puluhan alat. Untuk skala lebih besar, lihat `docs/penyesuaian_laporan.md`.

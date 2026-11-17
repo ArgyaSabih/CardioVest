@@ -41,6 +41,7 @@ class DeviceCtx:
     event_id: int | None = None
     event_peak: float = 0.0
     event_gps_sent: bool = False
+    event_gps_src: str | None = None
     event_fall_sent: bool = False
     last_gps: dict | None = None
     online: bool = False
@@ -111,7 +112,7 @@ class CloudService:
                 if last[0] == C.STATE_CRITICAL:
                     d.restored = last[0]
                     d.restored_why = "layanan cloud restart"
-                d.last_reason = f"dipulihkan dari database setelah layanan cloud restart ({last[0]})"
+                d.last_reason = f"dipulihkan setelah cloud restart ({last[0]})"
                 log.warning("%s: state %s dipulihkan dari database (event %s)", device_id, last[0], d.event_id)
             self._publish_state(d)
             if not d.restored:
@@ -158,7 +159,8 @@ class CloudService:
         }
         if event_type.startswith("critical"):
             g = d.last_gps
-            p["gps"] = ({"lat": g["lat"], "lng": g["lon"], "accuracy": g.get("accuracy_m")}
+            p["gps"] = ({"lat": g["lat"], "lng": g["lon"], "accuracy": g.get("accuracy_m"),
+                         "source": g.get("source", "gps")}
                         if g and g.get("fix") else None)
             p["message"] = ("DARURAT: indikasi serangan jantung. "
                             "Segera hubungi 119 / ambulans dan menuju lokasi pengguna.")
@@ -193,6 +195,7 @@ class CloudService:
             d.event_id = self.repo.open_event(d.device_id, b, ts, conf, dec["reason"])
             d.event_peak = conf
             d.event_gps_sent = False
+            d.event_gps_src = None
             d.event_fall_sent = False
 
         self._publish_state(d)
@@ -204,6 +207,7 @@ class CloudService:
                 d.event_fall_sent = True
             if payload.get("gps"):
                 d.event_gps_sent = True
+                d.event_gps_src = payload["gps"].get("source", "gps")
             self._pub(d.device_id, "alert", payload)
             self.notifier.dispatch(et, d.device_id, payload)
         elif b == C.STATE_NORMAL and a == C.STATE_CRITICAL:
@@ -339,7 +343,7 @@ class CloudService:
         d.late.reset()
         d.last_reason = f"sumber EKG: {src}" + (f" ({rek})" if rek else "")
         log.warning("%s: %s", device_id, d.last_reason)
-        if was_label and not self._label_mode(d):
+        if was_label and not self._label_mode(d) and (C.REMOTE_RESET or d.engine.state != C.STATE_CRITICAL):
             self._reset_remote(d, "pergantian sumber EKG ke hardware")
         else:
             self._publish_state(d)
@@ -358,8 +362,11 @@ class CloudService:
             d.last_gps = g
         if d.engine.state != C.STATE_CRITICAL or d.event_id is None or v.get("buffered"):
             return
-        if g and g.get("fix") and not d.event_gps_sent:
+        src = (g or {}).get("source", "gps")
+        upgrade = d.event_gps_sent and d.event_gps_src != "gps" and src == "gps"
+        if g and g.get("fix") and (not d.event_gps_sent or upgrade):
             d.event_gps_sent = True
+            d.event_gps_src = src
             self.repo.update_event(d.event_id, lat=g["lat"], lon=g["lon"])
             p = self._alert_payload(d, "critical_location", d.event_peak, None, None)
             self._pub(device_id, "alert", p)
@@ -406,7 +413,7 @@ class CloudService:
         d.mode_req_at = d.mode_sent = t
         log.warning("%s: mode %s diminta oleh %s", d.device_id, m, who)
         self._pub(d.device_id, "cmd", {"cmd": "set_mode", "mode": m, "by": who, "ts": t})
-        if changed:
+        if changed and (C.REMOTE_RESET or d.engine.state != C.STATE_CRITICAL):
             self._reset_remote(d, f"pergantian mode ke {m.capitalize()} oleh {who}")
         else:
             self._publish_state(d)

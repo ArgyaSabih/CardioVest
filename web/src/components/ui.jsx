@@ -17,6 +17,16 @@ export const CONNECTION_TEXT = {
   unknown: 'Menunggu alat',
 };
 
+export const NET_TEXT = { wifi: 'WiFi', gsm: 'GSM (SIM800L)', none: 'Tidak ada' };
+
+export const LOC_SRC = { gps: 'GPS Neo-6M', terakhir: 'Posisi terakhir', statis: 'Koordinat cadangan' };
+
+export function modemText(g) {
+  if (!g) return '–';
+  const st = g.ready ? (g.attached ? 'Terdaftar' : 'Belum terdaftar') : 'Tidak menjawab';
+  return g.csq != null && g.csq !== 99 ? `${st}, CSQ ${g.csq}` : st;
+}
+
 export function since(ts) {
   if (!ts) return '';
   const s = Math.max(0, Math.round((Date.now() - ts) / 1000));
@@ -195,7 +205,7 @@ export function transitionText(to, reason = '') {
     return n ? `Pola EKG tidak biasa terbaca ${n[1]} kali berturut-turut (sekitar ${Math.round(n[1] * 3.5)} detik).` : 'Pola EKG tidak biasa terbaca beberapa kali berturut-turut.';
   }
   if (to === 'CRITICAL') {
-    if (/cross-validation/.test(r)) return 'EKG menunjukkan pola serangan, denyut jantung, keringat, dan oksigen darah ikut tidak normal pada saat yang sama.';
+    if (/cross-validation/.test(r)) return 'EKG menunjukkan pola serangan, dan denyut jantung serta keringat dingin ikut tidak normal pada saat yang sama.';
     if (/latch|perangkat/.test(r)) return 'Alat sudah dalam kondisi darurat dan cloud mengikutinya.';
     return 'Tanda serangan jantung terdeteksi.';
   }

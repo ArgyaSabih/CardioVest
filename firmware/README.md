@@ -1,7 +1,8 @@
 # Firmware ESP32: Early Warning System Deteksi Serangan Jantung (Capstone C-251)
 
-Firmware rompi CardioVest. Alat mengirim EKG, vital, dan event ke broker MQTT (EMQX) lewat WiFi; layanan cloud di
-Render menilai sinyalnya, dan debug viewer `/debug` menampilkannya.
+Firmware rompi CardioVest. Alat mengirim EKG, vital, dan event ke broker MQTT (EMQX) lewat **WiFi sebagai jalur utama**
+dan **GPRS SIM800L sebagai jalur cadangan**. Layanan cloud di Render menilai sinyalnya, dan debug viewer `/debug`
+menampilkannya. Saat status CRITICAL, alat juga mengirim SMS berisi lokasi GPS ke kontak darurat.
 
 ```
 firmware/
@@ -23,12 +24,26 @@ Semua pengaturan ada di bagian atas `cardiovest_c251.ino`:
 #define MQTT_USER "cardiovest"
 #define MQTT_PASS "sandi broker"
 
-#define GPS_STATIC_LAT -7.765501
-#define GPS_STATIC_LON 110.372210
+#define GSM_ENABLE 1
+#define GSM_APN "internet"
+#define SMS_NUMBER "+62895364693939"
+
+#define GPS_ENABLE 1
+#define GPS_FALLBACK_LAT -7.765501
+#define GPS_FALLBACK_LON 110.372210
 ```
 
-`DEVICE_ID` harus sama dengan ID di variabel `DEVICES` Render (bawaan `cv-001`). Koneksi hanya lewat WiFi 2,4 GHz,
-dengan TLS ke port 8883 (`MQTT_USE_TLS 1`, wajib untuk EMQX Serverless).
+`DEVICE_ID` harus sama dengan ID di variabel `DEVICES` Render (bawaan `cv-001`). APN `internet` dipakai untuk kartu
+Telkomsel. `GPS_FALLBACK_*` hanya dipakai bila GPS belum pernah mendapat fix sama sekali.
+
+| Parameter | Nilai | Arti |
+|---|---|---|
+| `WIFI_FAILOVER_S` | 15 | WiFi putus selama ini, alat pindah ke GPRS |
+| `WIFI_RETURN_STABLE_S` | 10 | WiFi harus stabil selama ini sebelum alat kembali dari GPRS |
+| `SMS_WAIT_GPS_S` | 45 | SMS darurat menunggu fix GPS paling lama selama ini |
+| `SMS_AFTER_OFFLINE_S` | 30 | bila MQTT terputus selama ini saat CRITICAL, SMS langsung dikirim tanpa menunggu GPS |
+| `SMS_RETRY_S`, `SMS_MAX_TRY` | 60, 3 | jeda dan jumlah percobaan ulang SMS |
+| `GPS_PRIME_MS` | 300000 | GPS dibiarkan menyala setelah alat dinyalakan sampai fix pertama (maks. 5 menit) |
 
 ---
 
@@ -40,10 +55,11 @@ dengan TLS ke port 8883 (`MQTT_USE_TLS 1`, wajib untuk EMQX Serverless).
 3. *Tools → Board → Boards Manager* → pasang **esp32 by Espressif Systems versi 3.x**. Firmware diuji
    kompilasi pada 3.0.7.
 4. *Tools → Manage Libraries*, pasang **MQTT** by Joel Gaehwiler (256dpi), versi 2.5.2. Library lain (WiFi,
-   WiFiClientSecure, Wire, Preferences, LittleFS) sudah bawaan core ESP32. MAX30102 dan MPU6050 dibaca langsung lewat
-   register I²C, jadi tidak butuh library sensor.
+   NetworkClientSecure, PPP, Wire, Preferences, LittleFS, HardwareSerial) sudah bawaan core ESP32 3.x. MAX30102,
+   MPU6050, dan GPS dibaca langsung tanpa library sensor.
 5. Pengaturan board: **ESP32 Dev Module**, *Partition Scheme*: **Default 4MB with spiffs** (dipakai LittleFS
-   untuk buffer offline), *Upload Speed* 921600, Serial Monitor **115200 baud**.
+   untuk buffer offline), *Upload Speed* 921600, Serial Monitor **115200 baud**. Program memakai ±93 % ruang
+   aplikasi partisi bawaan. Bila nanti ruang kurang, pilih **No OTA (2MB APP/2MB SPIFFS)**.
 
 > Library **MQTT (256dpi)** dipilih alih-alih PubSubClient karena PubSubClient hanya bisa *publish* QoS 0,
 > sedangkan rancangan BAB 8 mewajibkan QoS 1 untuk topik vital dan event.
@@ -55,18 +71,32 @@ dengan TLS ke port 8883 (`MQTT_USE_TLS 1`, wajib untuk EMQX Serverless).
 | Komponen | Pin modul | Pin ESP32 | Catatan |
 |---|---|---|---|
 | AD8232 | OUTPUT / LO- / LO+ | GPIO34 / GPIO33 / GPIO32 | ADC1 (aman dipakai bersama WiFi) |
-| MAX30102 | SDA / SCL | GPIO21 / GPIO22 | bus I²C bersama, alamat 0x57, LED merah dan IR |
+| MAX30102 | SDA / SCL | GPIO21 / GPIO22 | bus I²C bersama, alamat 0x57 |
 | MPU6050 | SDA / SCL | GPIO21 / GPIO22 | alamat 0x68 (AD0 ke GND) |
 | GSR FZ3294 | SIG | GPIO35 | ADC1, input-only |
-| Catu GSR (opsional) | VCC lewat transistor | `PIN_GSR_POWER` | bawaan `-1` (tidak dipakai). Isi nomor pin bila catu GSR ingin benar-benar diputus saat mati |
+| SIM800L (board biru 5 V) | TXD / RXD | GPIO16 / GPIO17 | UART1 (library PPP). Pin VDD board (bila ada) ke 3V3 sebagai acuan logika |
+| GPS Neo-6M | TX / RX | GPIO19 / GPIO18 | UART2, 9600 baud |
 | Buzzer | + (via transistor) | GPIO27 | 2 kHz (Waspada) / 4 kHz (Darurat) |
 | LED dua warna | A / B (via resistor) | GPIO26 / GPIO25 | |
 | Tombol reset | satu kaki ke GND | GPIO4 | pull-up internal; tahan **3 s** |
 
-Elektroda Lead I: RA di bawah klavikula kanan, LA di bawah klavikula kiri, RL di perut kanan bawah. Resistor
-seri 1 MΩ per jalur elektroda (BAB 8.5.2).
+Pin RST SIM800L tidak wajib. Bila board punya pin RST, sambungkan ke GPIO23 lalu isi `PIN_GSM_RST 23`.
 
-Modul GPS dan modem seluler tidak dipakai. Lokasi dikirim sebagai koordinat statis.
+### Catu daya
+
+```
+Baterai Li-ion 9 V ──┬── XL4015 #1 (5,0 V) ──┬── ESP32 pin 5V
+                     │                       ├── SIM800L 5V ─┐
+                     │                       └── GPS VIN ────┴── kapasitor 1 mF ke GND
+                     └── XL4015 #2 (3,3 V) ──── AD8232, MAX30102, MPU6050, GSR
+```
+
+Semua GND disatukan. Baterai dilepas dari rompi untuk diisi ulang memakai pengisi bawaannya, sehingga alat tidak
+pernah terhubung ke jala-jala saat dipakai. XL4015 membutuhkan masukan di atas ±8 V; bila tegangan baterai turun di
+bawahnya, rel 5 V dan 3,3 V ikut turun dan alat perlu diisi ulang.
+
+Elektroda Lead I: RA di bawah klavikula kanan, LA di bawah klavikula kiri, RL di perut kanan bawah, memakai elektroda
+gel Ag/AgCl sekali pakai dengan kancing jepret.
 
 ---
 
@@ -85,10 +115,9 @@ Modul GPS dan modem seluler tidak dipakai. Lokasi dikirim sebagai koordinat stat
 
 | State (dari cloud) | LED | Buzzer |
 |---|---|---|
-| NORMAL | kedip singkat tiap 3 s (tiap 1 s bila offline) | mati |
+| NORMAL | kedip singkat tiap 3 s lewat WiFi, kedip ganda tiap 3 s lewat GSM, kedip tiap 1 s bila offline | mati |
 | WARNING | kedip 1 Hz | 2 kHz, 250 ms tiap 2 s |
 | CRITICAL | kedip 5 Hz | 4 kHz kontinu |
-| Mengisi daya (VBUS) | menyala tetap | – |
 
 ### Sensor per mode
 
@@ -98,36 +127,47 @@ Modul GPS dan modem seluler tidak dipakai. Lokasi dikirim sebagai koordinat stat
 | IMU MPU6050 | menyala | menyala | menyala | menyala |
 | PPG MAX30102 (HR, SpO2) | *shutdown* | menyala | menyala | menyala |
 | GSR | hanya saat kalibrasi | menyala | menyala | menyala |
-| Lokasi statis | tidak dikirim | tidak dikirim | dikirim | dikirim |
+| GPS Neo-6M | tidur (kecuali 5 menit pertama) | tidur | menyala, lokasi dikirim | menyala, lokasi dikirim |
 
 * **PPG** dimatikan lewat bit *shutdown* MAX30102 (register 0x09). Setelah menyala, HR dan SpO2 butuh sekitar
-  5 detik sampai stabil. Field `ppg_on` di vital menandai status dayanya.
-* **SpO2** dihitung dari rasio AC/DC LED merah terhadap IR (R), lalu SpO2 = 110 − 25·R. Nilai hanya dikirim bila
-  kontak kulit ada dan SQI PPG ≥ 0,5. Pendekatan ini belum dikalibrasi klinis.
-* **GSR** dibaca hanya saat dibutuhkan. Kalibrasi baseline dipicu cloud dengan perintah
-  `{"cmd":"gsr_calibrate","seconds":35}` setelah alat menyala; selama itu GSR menyala walaupun status NORMAL.
-  Field `gsr_on` di vital menandai status bacaannya.
+  5 detik sampai stabil. IR di bawah 50.000 dianggap tidak menempel.
+* **SpO2** dihitung dari rasio AC/DC LED merah terhadap IR (R), lalu SpO2 = 110 − 25·R. Nilai ini hanya informasi di
+  aplikasi dan bukan syarat CRITICAL.
+* **GSR** dibaca hanya saat dibutuhkan. Kalibrasi baseline dipicu cloud dengan `{"cmd":"gsr_calibrate","seconds":35}`.
+* **GPS** ditidurkan dengan perintah UBX RXM-PMREQ (mode *backup* u-blox) dan dibangunkan dengan mengirim byte ke pin
+  RX modul. Setelah alat menyala, GPS dibiarkan bangun sampai fix pertama (maks. 5 menit) supaya data satelit tersimpan
+  dan fix berikutnya lebih cepat. Bila saat CRITICAL belum ada fix, alat mengirim posisi terakhir yang tersimpan di NVS
+  (`source: "terakhir"`) atau koordinat cadangan (`source: "statis"`). Begitu fix didapat, `source` berubah menjadi
+  `"gps"` dan cloud mengirim pembaruan lokasi ke kontak darurat.
 * **IMU** selalu menyala karena dipakai untuk τ adaptif gerak, Kalman adaptif, dan deteksi jatuh.
 
-### Reset
+### Reset dan latch CRITICAL
 
-* **Tombol EN/RST di board**: alat menyala ulang dengan status NORMAL (tidak ada status yang disimpan), lalu
-  mengirim event `hardware_reset` dengan `reason: boot` begitu tersambung. Cloud ikut kembali ke NORMAL dan meminta
-  kalibrasi GSR baru. Sebelum event itu diterima cloud, perintah WARNING atau CRITICAL dari cloud diabaikan.
-* **Tombol GPIO4 ditahan 3 s**: status langsung NORMAL dan event `hardware_reset` dengan `reason: tombol` dikirim.
-* **Hentikan alarm di web**: cloud mengirim `clear_latch`.
-* Selama CRITICAL, perintah state yang lebih rendah dari cloud diabaikan (latch). Latch hanya ada di RAM.
+* **Latch CRITICAL disimpan di NVS.** Status CRITICAL tetap aktif walaupun alat dimatikan, kehabisan baterai, atau
+  tombol EN/RST ditekan. Saat menyala lagi, alat langsung CRITICAL dan cloud menyesuaikan.
+* **Tombol GPIO4 ditahan 3 s** adalah satu-satunya cara melepas CRITICAL. Event `hardware_reset` dengan
+  `reason: tombol` dikirim ke cloud.
+* **Reset dari aplikasi web ditolak.** Perintah `clear_latch` dari cloud hanya dijalankan di mode Test.
+* **Tombol EN/RST** saat NORMAL atau WARNING menyalakan ulang alat dalam status NORMAL dan mengirim `hardware_reset`
+  dengan `reason: boot`.
 
 ### Koneksi
 
-* **Offline**: ECG, vital, dan event disimpan di LittleFS (maks. ~700 kB ≈ 10 menit) dengan penanda
-  `buffered=true`, lalu dikirim ulang saat WiFi pulih. Antrean dibagi menjadi segmen 16 kB (`/ob/<n>.bin`).
-  Cloud menyimpan data tersebut tetapi tidak memakainya untuk menggerakkan FSM.
-* **Sinkron waktu**: stempel waktu diambil dari NTP. Paket yang dibuat sebelum jam tersinkron diberi penanda
-  (bit2 header), lalu cloud memakai waktu terima paket. Cek `waktu_sinkron=1` pada perintah `s`.
+* **WiFi utama, GPRS cadangan.** Modem SIM800L dinyalakan saat boot dan tetap siaga (terdaftar di jaringan, tanpa
+  sesi data). Bila WiFi putus lebih dari 15 detik, modem masuk mode data (PPP), MQTT tersambung ulang lewat GPRS, dan
+  EKG dikirim dalam format biner *delta-encoded* (±263 B/s) agar muat di GPRS. Begitu WiFi kembali stabil 10 detik,
+  sesi GPRS dihentikan dan MQTT kembali lewat WiFi. Jalur aktif dikirim di field `net` (`wifi`/`gsm`/`none`) dan
+  tampil di debug viewer.
+* **SMS darurat.** Satu SMS per kejadian CRITICAL dikirim ke `SMS_NUMBER` setelah GPS mendapat fix (maks. 45 detik
+  menunggu), berisi waktu WIB dan tautan Google Maps. Bila koneksi data putus lebih dari 30 detik saat CRITICAL, SMS
+  langsung dikirim. Penanda "SMS sudah terkirim" disimpan di NVS sehingga SMS tidak dikirim ulang setelah alat menyala
+  ulang.
+* **Offline**: ECG (biner), vital, dan event disimpan di LittleFS (maks. ~700 kB) dengan penanda `buffered=true`, lalu
+  dikirim ulang saat koneksi pulih. Cloud menyimpan data tersebut tetapi tidak memakainya untuk menggerakkan FSM.
+* **Sinkron waktu**: stempel waktu diambil dari NTP (lewat WiFi maupun GPRS).
 
-Perintah Serial Monitor: `s` status, `p` on/off Serial Plotter EKG, `o` zoom out, `i` zoom in, `r` tombol reset dari
-Serial, `c` hapus latch dan buffer (servis), `b` bunyi buzzer.
+Perintah Serial Monitor: `s` status (termasuk jalur jaringan, CSQ GSM, GPS), `p` on/off Serial Plotter EKG, `o` zoom
+out, `i` zoom in, `r` tombol reset dari Serial, `c` hapus latch dan buffer (servis), `b` bunyi buzzer.
 
 ---
 
@@ -161,8 +201,11 @@ Konsekuensinya ada tunda tambahan 1 s, dan tunda ini sudah dikoreksi pada stempe
 
 ## 6. Keterbatasan yang diketahui
 
+* SIM800L hanya mendukung jaringan 2G (GSM/GPRS). Jaringan 2G Telkomsel masih beroperasi, tetapi penghentiannya
+  sedang dikaji operator. Bila 2G dimatikan, modul perlu diganti modul 4G (mis. SIM7600) dengan pin dan library yang sama.
+* Pada GPRS, jabat tangan TLS butuh beberapa detik, sehingga perpindahan WiFi → GPRS memakan ±20–40 detik.
+* Saat SMS dikirim ketika jalur aktif GPRS, sesi data berhenti sebentar (modem pindah ke mode perintah).
 * Kalibrasi `ECG_GAIN` dan `GSR_ADC_NO_SKIN`, kestabilan timer 250 Hz saat WiFi aktif, dan konsumsi daya perlu
-  diuji di alat fisik.
+  diverifikasi di alat fisik.
 * HR dari ECG pada VT (kompleks lebar multiform) cenderung terlalu rendah.
-* SQI dan SpO2 PPG perlu dikalibrasi dengan sensor yang ditempel di dada (posisi rancangan), bukan di jari.
-* Tanpa modem, tidak ada SMS darurat saat WiFi putus. Data tetap disimpan dan dikirim ulang begitu tersambung.
+* SpO2 dari PPG di dada belum dikalibrasi klinis dan hanya ditampilkan sebagai informasi.

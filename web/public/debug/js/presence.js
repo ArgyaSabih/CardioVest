@@ -2,18 +2,18 @@ import { ago } from "./labels.js";
 
 const SERVER = {
   connecting: ["wait", "Menghubungkan"],
-  waking: ["wait", "Membangunkan, ±1 menit"],
-  lost: ["fail", "Terputus, mencoba lagi"],
+  waking: ["wait", "Bangun, ±1 menit"],
+  lost: ["fail", "Terputus"],
   ok: ["ok", "Tersambung"],
 };
 
 const GATE = {
-  connecting: ["Menghubungkan ke server", "Sebentar, halaman sedang tersambung ke server CardioVest."],
-  waking: ["Membangunkan server", "Server gratis tertidur bila lama tidak dibuka. Biasanya siap dalam satu menit."],
-  lost: ["Koneksi ke server terputus", "Halaman menyambung lagi secara otomatis."],
-  broker: ["Server belum tersambung ke broker", "Periksa MQTT_HOST, MQTT_USER, dan MQTT_PASS di Render, atau kuota EMQX bulan ini."],
-  checking: ["Memeriksa alat", "Menunggu kabar terbaru dari alat."],
-  device: ["Alat terputus", "Nyalakan rompi CardioVest dan pastikan tersambung ke WiFi."],
+  connecting: ["Menghubungkan", ""],
+  waking: ["Server Bangun", "±1 menit"],
+  lost: ["Server Terputus", ""],
+  broker: ["Broker Terputus", "Cek MQTT_HOST, MQTT_USER, MQTT_PASS, atau kuota EMQX."],
+  checking: ["Memeriksa Alat", ""],
+  device: ["Alat Terputus", ""],
 };
 
 export function createPresence({ device, onChange }) {
@@ -28,11 +28,11 @@ export function createPresence({ device, onChange }) {
     const out = { server: SERVER[s.server] };
     if (s.server !== "ok") out.broker = ["idle", "–"];
     else if (s.broker == null) out.broker = ["wait", "Memeriksa"];
-    else out.broker = s.broker ? ["ok", "Tersambung"] : ["fail", "Belum tersambung"];
+    else out.broker = s.broker ? ["ok", "Tersambung"] : ["fail", "Terputus"];
     if (out.broker[0] !== "ok") out.device = ["idle", "–"];
     else if (s.device == null) out.device = ["wait", "Memeriksa"];
     else if (s.device) out.device = ["ok", "Online"];
-    else out.device = ["fail", s.seen ? `Terputus, ${ago(s.seen)}` : "Belum terlihat"];
+    else out.device = ["fail", s.seen ? `Terputus ${ago(s.seen)}` : "Belum terlihat"];
     return out;
   }
 
@@ -44,8 +44,8 @@ export function createPresence({ device, onChange }) {
   }
 
   function seenText(tone) {
-    if (tone === "ok") return "Mengirim data";
-    if (tone === "fail") return s.seen ? `Terakhir terlihat ${ago(s.seen)}` : "Belum terlihat sejak server menyala";
+    if (tone === "ok") return "Online";
+    if (tone === "fail") return s.seen ? `Terakhir ${ago(s.seen)}` : "Belum terlihat";
     return "Menunggu";
   }
 
@@ -67,9 +67,9 @@ export function createPresence({ device, onChange }) {
     $("app").inert = !ready;
     const pill = $("linkPill");
     pill.dataset.tone = ready ? "ok" : st.device[0] === "fail" || st.server[0] === "fail" ? "crit" : "wait";
-    pill.textContent = ready ? "Alat online" : st.device[0] === "fail" ? "Alat terputus" : "Menghubungkan";
+    pill.textContent = ready ? "Online" : st.device[0] === "fail" ? "Terputus" : "Menghubungkan";
     if (ready !== wasReady) {
-      if (ready && wasReady === false) toast(`Alat ${device} terhubung`);
+      if (ready && wasReady === false) toast(`${device} terhubung`);
       if (wasReady !== null || ready) onChange(ready);
       wasReady = ready;
     }

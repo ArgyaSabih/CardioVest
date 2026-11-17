@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../api.js';
 import { LocationMap } from './map.jsx';
+import { LOC_SRC, NET_TEXT, modemText } from './ui.jsx';
 
 const MODES = [['demo', 'Demo'], ['test', 'Test']];
 const CLASSES = ['Normal', 'Pra-Serangan', 'Serangan'];
@@ -146,7 +147,7 @@ export function TestPanel({ vital, fresh, inference, calibration, signal, state 
           <Row k="Daya" v={v ? (v.ppg_on === false ? 'Mati (hemat energi)' : 'Menyala') : '–'} />
           <Row k="Denyut PPG" v={num(v?.hr_ppg, 1, ' bpm')} />
           <Row k="SpO2" v={num(v?.spo2, 1, '%')} />
-          <Row k="SpO2 di bawah 90%" v={yes(val?.ind_spo2)} />
+          <Row k="SpO2 di bawah 90% (informasi)" v={yes(val?.ind_spo2)} />
           <Row k="SQI" v={num(v?.sqi, 2)} />
           <Row k="Sumber denyut dipakai" v={v?.hr_source ?? '–'} />
           <Row k="Denyut dipakai" v={num(v?.hr, 1, ' bpm')} />
@@ -173,6 +174,8 @@ export function TestPanel({ vital, fresh, inference, calibration, signal, state 
           <Row k="Lintang" v={g?.fix ? g.lat.toFixed(6) : '–'} />
           <Row k="Bujur" v={g?.fix ? g.lon.toFixed(6) : '–'} />
           <Row k="Akurasi" v={g?.fix ? num(g.accuracy_m, 1, ' m') : '–'} />
+          <Row k="Sumber" v={g?.fix ? (LOC_SRC[g.source ?? 'gps'] ?? g.source) : '–'} />
+          <Row k="Satelit" v={g?.sats != null ? String(g.sats) : '–'} />
         </Card>
 
         {g?.fix && (
@@ -198,7 +201,9 @@ export function TestPanel({ vital, fresh, inference, calibration, signal, state 
           <Row k="State alat" v={v?.local_state ?? '–'} />
           <Row k="I2C terdeteksi" v={v?.i2c ?? '–'} />
           <Row k="Mode alat" v={v?.mode ? label(v.mode) : '–'} />
-          <Row k="Mengisi daya" v={v ? yes(v.charging) : '–'} />
+          <Row k="Jaringan" v={v?.net ? (NET_TEXT[v.net] ?? v.net) : '–'} />
+          <Row k="Sinyal" v={v?.rssi != null ? `${v.rssi} dBm` : '–'} />
+          <Row k="Modem SIM800L" v={modemText(v?.gsm)} />
           <Row k="Data terakhir" v={time} />
         </Card>
       </div>

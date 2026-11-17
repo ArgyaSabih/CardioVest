@@ -26,6 +26,8 @@ def svc(tmp_path, monkeypatch):
     import cloud.service as S
 
     monkeypatch.setattr(S, "CnnInference", FakeModel)
+    monkeypatch.setattr(C, "PERSIST_N_PRE", 0)
+    monkeypatch.setattr(C, "REMOTE_RESET", 1)
     s = S.CloudService("localhost", 1, str(tmp_path / "hw.db"))
     s.published = []
     s._pub = lambda dev, kind, obj, retain=False: s.published.append((kind, obj))
@@ -298,3 +300,27 @@ def test_boot_event_resets_state_and_requests_calibration(svc):
     assert cmds and cmds[0]["seconds"] == C.CALIB_SECONDS + 5
     svc.handle_vital("cv-t", vital(now(), gsr=None, gsr_on=False, ppg_on=False))
     assert len([o for k, o in svc.published if k == "cmd" and o.get("cmd") == "gsr_calibrate"]) == 1
+
+
+def test_mode_change_keeps_critical_when_remote_reset_off(svc, monkeypatch):
+    monkeypatch.setattr(C, "REMOTE_RESET", 0)
+    d = svc.ctx("cv-t")
+    d.engine.adopt_critical("uji")
+    svc.handle_remote("cv-t", json.dumps({"type": "set_mode", "mode": "test", "by": "uji"}).encode())
+    assert d.engine.state == C.STATE_CRITICAL
+    svc.handle_remote("cv-t", json.dumps({"type": "remote_reset", "by": "uji"}).encode())
+    assert d.engine.state == C.STATE_CRITICAL
+
+
+def test_fallback_location_upgraded_by_real_fix(svc):
+    d = svc.ctx("cv-t")
+    d.engine.adopt_critical("uji")
+    d.event_id = svc.repo.open_event("cv-t", C.STATE_CRITICAL, now(), 0.9, "uji")
+    svc.handle_vital("cv-t", vital(now(), local_state="CRITICAL",
+                                   gps={"active": True, "fix": True, "source": "statis", "lat": -7.0, "lon": 110.0}))
+    assert d.event_gps_src == "statis"
+    svc.handle_vital("cv-t", vital(now(), local_state="CRITICAL",
+                                   gps={"active": True, "fix": True, "source": "gps", "lat": -7.7, "lon": 110.3}))
+    assert d.event_gps_src == "gps"
+    kinds = [o.get("event_type") for k, o in svc.published if k == "alert"]
+    assert kinds.count("critical_location") == 2
