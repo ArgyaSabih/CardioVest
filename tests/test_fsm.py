@@ -27,7 +27,7 @@ def test_single_anomaly_filtered_by_persistence():
 
 
 def test_warning_after_n_then_hysteresis():
-    e = DecisionEngine()
+    e = DecisionEngine(n_pre=0)
     d = run(e, [P, P])
     assert d[-1].changed and e.state == C.STATE_WARNING
     run(e, [N, N])
@@ -37,7 +37,7 @@ def test_warning_after_n_then_hysteresis():
 
 
 def test_degraded_needs_three_windows():
-    e = DecisionEngine()
+    e = DecisionEngine(n_pre=0)
     run(e, [P, P], degraded=True)
     assert e.state == C.STATE_NORMAL
     run(e, [P], degraded=True)
@@ -69,7 +69,7 @@ def test_low_confidence_is_undecided():
 
 
 def test_low_confidence_abnormal_does_not_warn():
-    e = DecisionEngine()
+    e = DecisionEngine(tau_warn=0.80, n_pre=0)
     d = run(e, [P, P, P, A, A], conf=e.tau_warn - 0.01)
     assert all(not x.accepted for x in d) and e.state == C.STATE_NORMAL
     run(e, [P, P], conf=e.tau_warn)
@@ -77,7 +77,7 @@ def test_low_confidence_abnormal_does_not_warn():
 
 
 def test_reset_clears_warning():
-    e = DecisionEngine()
+    e = DecisionEngine(n_pre=0)
     run(e, [P, P])
     assert e.state == C.STATE_WARNING
     d = e.hardware_reset()
@@ -155,11 +155,17 @@ def test_single_fall_spike_is_not_motion():
     assert not v.evaluate().motion
 
 
-def test_n_pre_default_keeps_original_behaviour():
-    e = DecisionEngine(n=2)
+def test_n_pre_zero_keeps_proposal_behaviour():
+    e = DecisionEngine(n=2, n_pre=0)
     for _ in range(2):
         d = e.step(C.CLS_PRE, 0.9, False, False)
     assert d.state == C.STATE_WARNING
+
+
+def test_defaults_match_final_configuration():
+    e = DecisionEngine()
+    assert e.n_pre == 4 and e.tau_warn == e.tau_conf == C.TAU_CONF
+    assert C.REMOTE_RESET == 0 and C.SPO2_GATE == 0
 
 
 def test_n_pre_delays_only_pre_attack_class():
@@ -172,12 +178,20 @@ def test_n_pre_delays_only_pre_attack_class():
     assert d.state == C.STATE_CRITICAL
 
 
-def test_gate_needs_hr_gsr_and_spo2():
+def test_gate_needs_hr_and_gsr_spo2_informative():
     e = DecisionEngine()
     for _ in range(3):
         e.step(A, 0.95, False, True, ind_spo2=True)
     assert e.state == C.STATE_WARNING
-    e.step(A, 0.95, True, True, ind_spo2=False)
+    d = e.step(A, 0.95, True, True, ind_spo2=False)
+    assert d.state == C.STATE_CRITICAL
+
+
+def test_gate_with_spo2_when_enabled(monkeypatch):
+    monkeypatch.setattr(C, "SPO2_GATE", 1)
+    e = DecisionEngine()
+    for _ in range(3):
+        e.step(A, 0.95, True, True, ind_spo2=False)
     assert e.state == C.STATE_WARNING
     d = e.step(A, 0.95, True, True, ind_spo2=True)
     assert d.state == C.STATE_CRITICAL
@@ -218,7 +232,7 @@ def test_gsr_calibration_restarts_after_gap():
 
 
 def test_boot_reset_clears_warning():
-    e = DecisionEngine()
+    e = DecisionEngine(n_pre=0)
     run(e, [P, P])
     d = e.hardware_reset(boot=True)
     assert d.changed and e.state == C.STATE_NORMAL and "dinyalakan ulang" in d.reason

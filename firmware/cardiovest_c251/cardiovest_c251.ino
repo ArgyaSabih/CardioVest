@@ -23,9 +23,23 @@
 #define MQTT_KEEPALIVE_S 30
 #define MQTT_TIMEOUT_MS 10000
 
-#define GPS_STATIC_LAT -7.765501
-#define GPS_STATIC_LON 110.372210
-#define GPS_STATIC_ACCURACY_M 5.0f
+#define GSM_ENABLE 1
+#define GSM_APN "internet"
+#define GSM_BAUD 115200
+#define SMS_NUMBER "+62895364693939"
+#define WIFI_FAILOVER_S 15
+#define WIFI_RETURN_STABLE_S 10
+#define SMS_AFTER_OFFLINE_S 30
+#define SMS_RETRY_S 60
+#define SMS_MAX_TRY 3
+
+#define GPS_ENABLE 1
+#define GPS_BAUD 9600
+#define GPS_UERE_M 2.5f
+#define GPS_FALLBACK_LAT -7.765501
+#define GPS_FALLBACK_LON 110.372210
+#define GPS_PRIME_MS 300000
+#define SMS_WAIT_GPS_S 45
 
 #define PIN_LED_A 26
 #define PIN_LED_B 25
@@ -38,7 +52,11 @@
 #define PIN_I2C_SDA 21
 #define PIN_I2C_SCL 22
 #define PIN_TOMBOL_RESET 4
-#define PIN_VBUS_SENSE -1
+#define PIN_GSM_TX 17
+#define PIN_GSM_RX 16
+#define PIN_GSM_RST -1
+#define PIN_GPS_RX 19
+#define PIN_GPS_TX 18
 
 #define ECG_GAIN 1100.0f
 #define GSR_ADC_NO_SKIN 2048
@@ -85,13 +103,17 @@
 #define OFFLINE_BUFFER_MAX_KB 700
 #define OBUF_SEGMENT_BYTES (16 * 1024)
 #define JSON_BUF_BYTES 7168
-#define VBUS_THRESHOLD_MV 1500
 #define SESSION_LIMIT_HOURS 8
 
 #include <WiFi.h>
 #include "esp_wifi.h"
 #if MQTT_USE_TLS
-#include <WiFiClientSecure.h>
+#include <NetworkClientSecure.h>
+#else
+#include <NetworkClient.h>
+#endif
+#if GSM_ENABLE
+#include <PPP.h>
 #endif
 
 #include <MQTT.h>
@@ -123,6 +145,12 @@ enum EventType : uint8_t
 {
   EV_HARDWARE_RESET = 1
 };
+enum NetIf : uint8_t
+{
+  NET_NONE = 0,
+  NET_WIFI = 1,
+  NET_GSM = 2
+};
 enum BufKind : uint8_t
 {
   BUF_ECG = 1,
@@ -152,16 +180,18 @@ struct Vitals
   float hr_ppg = NAN;
   float sqi = 0;
   float spo2 = NAN;
+  bool ppg_contact = false;
+  float ppg_ir = NAN;
   bool ecg_ok = false;
   bool gsr_ok = false;
   bool gsr_on = false;
   float gsr_us = NAN;
+  float gsr_adc = NAN;
   bool imu_ok = false;
   float ax = 0, ay = 0, az = 1, amag = 1, amag_sd = 0;
   bool fall_detected = false;
   uint64_t fall_ts = 0;
   bool lead_off = false;
-  bool charging = false;
   bool session_limit = false;
 };
 
@@ -175,6 +205,15 @@ struct SensorPresence
   uint8_t ppg_id = 0;
 };
 
+struct GpsFix
+{
+  bool fix = false;
+  double lat = 0, lon = 0;
+  float hdop = NAN;
+  uint8_t sats = 0;
+  uint32_t at_ms = 0;
+};
+
 typedef bool (*ObufSender)(BufKind kind, const uint8_t *data, uint16_t len);
 
 static const float PI_F = 3.14159265358979f;
@@ -182,7 +221,7 @@ static const float PI_F = 3.14159265358979f;
 volatile DevState g_state = ST_NORMAL;
 volatile float g_motion = 0;
 volatile bool g_net_online = false;
-volatile bool g_charging = false;
+volatile NetIf g_net_if = NET_NONE;
 volatile bool g_lead_off = false;
 QueueHandle_t q_ecg_packets = nullptr;
 QueueHandle_t q_events = nullptr;
@@ -190,7 +229,6 @@ QueueHandle_t q_events = nullptr;
 static Vitals s_vitals;
 static portMUX_TYPE s_adc_mux = portMUX_INITIALIZER_UNLOCKED;
 static volatile uint32_t s_gsr_sum = 0, s_gsr_n = 0;
-static volatile int s_vbus_mv = 0;
 static volatile uint32_t s_adc_fail = 0;
 static SemaphoreHandle_t s_vmutex = nullptr;
 static SensorPresence s_has;
@@ -706,6 +744,8 @@ public:
     float ratio = pk_amp_ / resid;
     return ratio / (ratio + 4.0f);
   }
+  bool contact() const { return contact_; }
+  float irLevel() const { return dc_; }
   float spo2() const
   {
     if (!contact_ || isnan(spo2_) || sqi() < TAU_SQI)
@@ -772,20 +812,32 @@ void set_state(DevState s)
     return;
   DevState prev = g_state;
   g_state = s;
+  if (s == ST_CRITICAL)
+    s_nvs.putBool("crit_latch", true);
+  else if (prev == ST_CRITICAL)
+    s_nvs.remove("crit_latch");
   LOGF("STATE %s -> %s", stateName(prev), stateName(s));
 }
 
 void state_begin()
 {
   s_nvs.begin("cardiovest", false);
-  if (s_nvs.isKey("crit_latch"))
-    s_nvs.remove("crit_latch");
   if (s_nvs.isKey("reset_pend"))
     s_nvs.remove("reset_pend");
-  g_state = ST_NORMAL;
-  s_reset_pending = true;
-  s_reset_boot = true;
-  LOGF("STATE: alat menyala ulang, status NORMAL, cloud diberi tahu saat online");
+  if (s_nvs.getBool("crit_latch", false))
+  {
+    g_state = ST_CRITICAL;
+    s_reset_pending = false;
+    s_reset_boot = false;
+    LOGF("STATE: latch CRITICAL tersimpan di NVS, alat tetap CRITICAL sampai tombol reset ditahan %d s", RESET_HOLD_MS / 1000);
+  }
+  else
+  {
+    g_state = ST_NORMAL;
+    s_reset_pending = true;
+    s_reset_boot = true;
+    LOGF("STATE: alat menyala ulang, status NORMAL, cloud diberi tahu saat online");
+  }
   s_test_mode = s_nvs.getBool("test_mode", false);
   LOGF("MODE: %s", s_test_mode ? "test, semua sensor menyala" : "demo, PPG dan GSR menyala mulai WARNING, lokasi saat CRITICAL");
 }
@@ -839,6 +891,11 @@ bool state_remote_clear()
 {
   if (g_state != ST_CRITICAL)
     return false;
+  if (!s_test_mode)
+  {
+    LOGF("STATE: clear_latch dari cloud ditolak, CRITICAL hanya dilepas tombol reset fisik");
+    return false;
+  }
   set_state(ST_NORMAL);
   return true;
 }
@@ -890,13 +947,6 @@ void alert_beep(uint16_t freq, uint16_t ms)
   s_beep_until = millis() + ms;
 }
 
-bool vbus_present()
-{
-  if (PIN_VBUS_SENSE < 0)
-    return false;
-  return s_vbus_mv > VBUS_THRESHOLD_MV;
-}
-
 void task_alert_local(void *)
 {
   uint32_t btn_down_at = 0;
@@ -904,22 +954,9 @@ void task_alert_local(void *)
   uint16_t cur_tone = 0;
   uint32_t session_start = millis();
   bool session_warned = false;
-  bool was_charging = false;
   for (;;)
   {
     uint32_t t = millis();
-    bool chg = vbus_present();
-    if (chg != was_charging)
-    {
-      g_charging = chg;
-      was_charging = chg;
-      LOGF("SAFETY: %s", chg ? "pengisian daya terdeteksi, akuisisi ECG dikunci" : "pengisian selesai, akuisisi dilanjutkan");
-      if (!chg)
-      {
-        session_start = t;
-        session_warned = false;
-      }
-    }
     if (!session_warned && t - session_start > (uint32_t)SESSION_LIMIT_HOURS * 3600000UL)
     {
       session_warned = true;
@@ -954,12 +991,7 @@ void task_alert_local(void *)
     DevState s = g_state;
     uint16_t tone = 0;
     bool la = false, lb = false;
-    if (chg)
-    {
-      la = true;
-      lb = true;
-    }
-    else if (s == ST_CRITICAL)
+    if (s == ST_CRITICAL)
     {
       bool ph = (t / 100) % 2;
       la = ph;
@@ -973,7 +1005,12 @@ void task_alert_local(void *)
     }
     else
     {
-      la = g_net_online ? (t % 3000) < 60 : (t % 1000) < 60;
+      if (!g_net_online)
+        la = (t % 1000) < 60;
+      else if (g_net_if == NET_GSM)
+        la = (t % 3000) < 60 || ((t % 3000) >= 200 && (t % 3000) < 260);
+      else
+        la = (t % 3000) < 60;
     }
     if (t < s_beep_until)
       tone = s_beep_freq;
@@ -1006,8 +1043,6 @@ void alert_begin()
   }
   if (PIN_TOMBOL_RESET >= 0)
     pinMode(PIN_TOMBOL_RESET, INPUT_PULLUP);
-  if (PIN_VBUS_SENSE >= 0)
-    analogSetPinAttenuation(PIN_VBUS_SENSE, ADC_11db);
   xTaskCreatePinnedToCore(task_alert_local, "alert", 3072, nullptr, 3, nullptr, 1);
 }
 
@@ -1049,12 +1084,6 @@ void task_ecg_acquire(void *)
         portEXIT_CRITICAL(&s_adc_mux);
       }
     }
-    if (PIN_VBUS_SENSE >= 0 && k % ECG_FS == 0)
-    {
-      uint32_t vb = analogReadMilliVolts(PIN_VBUS_SENSE);
-      if (vb > 0)
-        s_vbus_mv = vb;
-    }
     RawSample r;
     r.lead_off = digitalRead(PIN_ECG_LO_PLUS) || digitalRead(PIN_ECG_LO_MINUS);
     uint32_t mv = analogReadMilliVolts(PIN_ECG_OUT);
@@ -1069,8 +1098,6 @@ void task_ecg_acquire(void *)
     }
     last_mv = (uint16_t)mv;
     r.mv = (uint16_t)mv;
-    if (g_charging)
-      r.lead_off = 2;
     if (xQueueSend(q_raw, &r, 0) != pdTRUE)
     {
       RawSample dump;
@@ -1101,7 +1128,7 @@ void task_ecg_filter(void *)
       continue;
     float y;
     float raw = ((float)r.mv - PLOT_ADC_MID_MV) / ECG_GAIN;
-    g_lead_off = (r.lead_off == 1);
+    g_lead_off = r.lead_off;
     if (r.lead_off)
     {
       y = 0;
@@ -1560,7 +1587,10 @@ void task_sensor_aux(void *)
       if (PIN_GSR_POWER >= 0)
         digitalWrite(PIN_GSR_POWER, gsr_on ? HIGH : LOW);
       if (!gsr_on)
+      {
         gsr_take_adc(&gsr_adc_drop);
+        s_gsr_adc_last = NAN;
+      }
       LOGF("GSR: %s", gsr_on ? "menyala" : "dimatikan (hemat energi, mode demo NORMAL)");
     }
     float gsr_adc;
@@ -1600,6 +1630,9 @@ void task_sensor_aux(void *)
       s_vitals.hr_ppg = ppg_on ? s_ppgp.hr() : NAN;
       s_vitals.sqi = ppg_on ? s_ppgp.sqi() : 0;
       s_vitals.spo2 = ppg_on ? s_ppgp.spo2() : NAN;
+      s_vitals.ppg_contact = ppg_on && s_ppgp.contact();
+      s_vitals.ppg_ir = ppg_on ? s_ppgp.irLevel() : NAN;
+      s_vitals.gsr_adc = gsr_on ? s_gsr_adc_last : NAN;
       s_vitals.gsr_on = gsr_on;
       s_vitals.gsr_ok = gsr_on && !isnan(gsr_ema);
       s_vitals.gsr_us = gsr_on ? gsr_ema : NAN;
@@ -1641,6 +1674,249 @@ void sensors_begin()
   s_has.gsr = true;
   LOGF("GSR: FZ3294 di GPIO%d", PIN_GSR);
   xTaskCreatePinnedToCore(task_sensor_aux, "sensor_aux", 4096, nullptr, 3, nullptr, 1);
+}
+
+#if GPS_ENABLE
+HardwareSerial GpsSerial(2);
+#endif
+static portMUX_TYPE s_gps_mux = portMUX_INITIALIZER_UNLOCKED;
+static GpsFix s_gps;
+static volatile bool s_gps_awake = false;
+static volatile bool s_gps_seen = false;
+static bool s_gps_has_last = false;
+static double s_gps_last_lat = GPS_FALLBACK_LAT, s_gps_last_lon = GPS_FALLBACK_LON;
+
+GpsFix gps_get()
+{
+  portENTER_CRITICAL(&s_gps_mux);
+  GpsFix g = s_gps;
+  portEXIT_CRITICAL(&s_gps_mux);
+  if (g.fix && millis() - g.at_ms > 5000)
+    g.fix = false;
+  return g;
+}
+
+void gps_fallback(double *lat, double *lon)
+{
+  *lat = s_gps_last_lat;
+  *lon = s_gps_last_lon;
+}
+
+double nmea_coord(const char *v, const char *hemi)
+{
+  if (!v || !*v)
+    return NAN;
+  double raw = atof(v);
+  int deg = (int)(raw / 100);
+  double c = deg + (raw - deg * 100) / 60.0;
+  if (hemi && (*hemi == 'S' || *hemi == 'W'))
+    c = -c;
+  return c;
+}
+
+bool nmea_checksum_ok(const char *line)
+{
+  const char *star = strchr(line, '*');
+  if (!star || line[0] != '$' || strlen(star) < 3)
+    return false;
+  uint8_t cs = 0;
+  for (const char *p = line + 1; p < star; ++p)
+    cs ^= (uint8_t)*p;
+  return cs == (uint8_t)strtol(star + 1, nullptr, 16);
+}
+
+void gps_parse(char *line)
+{
+  if (!nmea_checksum_ok(line))
+    return;
+  if (strncmp(line + 3, "GGA,", 4))
+    return;
+  char *star = strchr(line, '*');
+  if (star)
+    *star = 0;
+  char *f[16] = {0};
+  int n = 0;
+  char *p = line;
+  while (n < 16)
+  {
+    f[n++] = p;
+    char *c = strchr(p, ',');
+    if (!c)
+      break;
+    *c = 0;
+    p = c + 1;
+  }
+  if (n < 9)
+    return;
+  int q = atoi(f[6]);
+  double lat = nmea_coord(f[2], f[3]);
+  double lon = nmea_coord(f[4], f[5]);
+  GpsFix g;
+  g.sats = (uint8_t)atoi(f[7]);
+  g.hdop = *f[8] ? atof(f[8]) : NAN;
+  g.fix = q > 0 && !isnan(lat) && !isnan(lon);
+  g.lat = lat;
+  g.lon = lon;
+  g.at_ms = millis();
+  s_gps_seen = true;
+  portENTER_CRITICAL(&s_gps_mux);
+  if (g.fix)
+    s_gps = g;
+  else
+  {
+    s_gps.fix = false;
+    s_gps.sats = g.sats;
+  }
+  portEXIT_CRITICAL(&s_gps_mux);
+}
+
+#if GPS_ENABLE
+void gps_ubx(const uint8_t *msg, size_t len)
+{
+  uint8_t a = 0, b = 0;
+  for (size_t i = 2; i < len; ++i)
+  {
+    a += msg[i];
+    b += a;
+  }
+  GpsSerial.write(msg, len);
+  GpsSerial.write(a);
+  GpsSerial.write(b);
+}
+
+void gps_sleep()
+{
+  static const uint8_t pmreq[] = {0xB5, 0x62, 0x02, 0x41, 0x08, 0x00, 0, 0, 0, 0, 0x02, 0, 0, 0};
+  gps_ubx(pmreq, sizeof(pmreq));
+  s_gps_awake = false;
+  portENTER_CRITICAL(&s_gps_mux);
+  s_gps.fix = false;
+  portEXIT_CRITICAL(&s_gps_mux);
+  LOGF("GPS: tidur (mode backup u-blox), hemat energi");
+}
+
+void gps_wake()
+{
+  for (int i = 0; i < 16; ++i)
+    GpsSerial.write(0xFF);
+  s_gps_awake = true;
+  LOGF("GPS: dibangunkan, menunggu fix satelit");
+}
+
+void task_gps(void *)
+{
+  char line[100];
+  int len = 0;
+  uint32_t boot = millis();
+  uint32_t last_save = 0;
+  bool primed = false;
+  for (;;)
+  {
+    uint32_t t = millis();
+    GpsFix g = gps_get();
+    if (!primed && (g.fix || t - boot > GPS_PRIME_MS))
+    {
+      primed = true;
+      LOGF("GPS: priming selesai (%s)", g.fix ? "fix diperoleh" : "batas waktu");
+    }
+    bool want = gps_wanted() || !primed;
+    if (want && !s_gps_awake)
+      gps_wake();
+    else if (!want && s_gps_awake)
+      gps_sleep();
+    while (GpsSerial.available())
+    {
+      char c = (char)GpsSerial.read();
+      if (c == '$')
+        len = 0;
+      if (c == '\n' || c == '\r')
+      {
+        if (len > 6)
+        {
+          line[len] = 0;
+          gps_parse(line);
+        }
+        len = 0;
+      }
+      else if (len < (int)sizeof(line) - 1)
+        line[len++] = c;
+    }
+    if (g.fix && t - last_save > 60000)
+    {
+      last_save = t;
+      s_gps_last_lat = g.lat;
+      s_gps_last_lon = g.lon;
+      s_gps_has_last = true;
+      s_nvs.putDouble("gps_lat", g.lat);
+      s_nvs.putDouble("gps_lon", g.lon);
+    }
+    vTaskDelay(pdMS_TO_TICKS(20));
+  }
+}
+#endif
+
+void gps_begin()
+{
+  if (s_nvs.isKey("gps_lat") && s_nvs.isKey("gps_lon"))
+  {
+    s_gps_last_lat = s_nvs.getDouble("gps_lat", GPS_FALLBACK_LAT);
+    s_gps_last_lon = s_nvs.getDouble("gps_lon", GPS_FALLBACK_LON);
+    s_gps_has_last = true;
+  }
+#if GPS_ENABLE
+  GpsSerial.begin(GPS_BAUD, SERIAL_8N1, PIN_GPS_RX, PIN_GPS_TX);
+  s_gps_awake = true;
+  xTaskCreatePinnedToCore(task_gps, "gps", 3072, nullptr, 2, nullptr, 1);
+  LOGF("GPS: Neo-6M di UART2 RX=GPIO%d TX=GPIO%d, priming fix pertama maks %d s", PIN_GPS_RX, PIN_GPS_TX, GPS_PRIME_MS / 1000);
+#else
+  LOGF("GPS: dinonaktifkan, lokasi memakai koordinat cadangan");
+#endif
+}
+
+static volatile bool s_gsm_ok = false;
+static volatile bool s_gsm_attached = false;
+static volatile int s_gsm_csq = 99;
+static volatile bool s_ppp_data = false;
+static volatile bool s_ppp_ip = false;
+static volatile bool s_gsm_want_data = false;
+
+const char *net_name(NetIf n)
+{
+  if (n == NET_WIFI)
+    return "wifi";
+  if (n == NET_GSM)
+    return "gsm";
+  return "none";
+}
+
+bool gsm_ready()
+{
+  return s_gsm_ok;
+}
+
+bool gsm_attached()
+{
+  return s_gsm_ok && s_gsm_attached;
+}
+
+int gsm_csq()
+{
+  return s_gsm_csq;
+}
+
+const char *net_rssi_json(char *buf, size_t cap)
+{
+  if (g_net_if == NET_WIFI)
+  {
+    snprintf(buf, cap, "%d", (int)WiFi.RSSI());
+    return buf;
+  }
+  if (g_net_if == NET_GSM && s_gsm_csq >= 0 && s_gsm_csq <= 31)
+  {
+    snprintf(buf, cap, "%d", -113 + 2 * s_gsm_csq);
+    return buf;
+  }
+  return "null";
 }
 
 static const char *OB_DIR = "/ob";
@@ -2003,6 +2279,8 @@ size_t encode_vital_json(const Vitals &v, float hr_ecg, bool buffered, char *out
            json_num(c, sizeof(c), hr_ecg, 1), json_num(d, sizeof(d), v.sqi, 2), json_num(o, sizeof(o), v.spo2, 1),
            json_num(e, sizeof(e), gsr, 2));
   json_add(out, cap, &n, "\"ppg_on\":%s,\"gsr_on\":%s,", json_bool(v.ppg_on), json_bool(v.gsr_on));
+  json_add(out, cap, &n, "\"ppg_contact\":%s,\"ppg_ir\":%s,\"gsr_adc\":%s,", json_bool(v.ppg_contact),
+           json_num(a, sizeof(a), v.ppg_ir, 0), json_num(b, sizeof(b), v.gsr_adc, 0));
   if (v.imu_ok)
   {
     char sx[16], sy[16], sz[16], sm[16], sd[16];
@@ -2020,15 +2298,32 @@ size_t encode_vital_json(const Vitals &v, float hr_ecg, bool buffered, char *out
     json_add(out, cap, &n, "\"fall_detected\":false,\"fall_ts\":null,");
   json_add(out, cap, &n, "\"local_state\":\"%s\",\"mode\":\"%s\",", stateName(g_state), s_test_mode ? "test" : "demo");
   if (gps_wanted())
-    json_add(out, cap, &n, "\"gps\":{\"active\":true,\"fix\":true,\"lat\":%.6f,\"lon\":%.6f,\"accuracy_m\":%.1f},",
-             GPS_STATIC_LAT, GPS_STATIC_LON, GPS_STATIC_ACCURACY_M);
+  {
+    GpsFix g = gps_get();
+    if (g.fix)
+    {
+      char acc[16];
+      json_add(out, cap, &n, "\"gps\":{\"active\":true,\"fix\":true,\"source\":\"gps\",\"lat\":%.6f,\"lon\":%.6f,\"accuracy_m\":%s,\"sats\":%u},",
+               g.lat, g.lon, json_num(acc, sizeof(acc), g.hdop * GPS_UERE_M, 1), (unsigned)g.sats);
+    }
+    else
+    {
+      double la, lo;
+      gps_fallback(&la, &lo);
+      json_add(out, cap, &n, "\"gps\":{\"active\":true,\"fix\":true,\"source\":\"%s\",\"lat\":%.6f,\"lon\":%.6f,\"accuracy_m\":null,\"sats\":%u},",
+               s_gps_has_last ? "terakhir" : "statis", la, lo, (unsigned)g.sats);
+    }
+  }
   else
     json_add(out, cap, &n, "\"gps\":{\"active\":false,\"fix\":false},");
-  json_add(out, cap, &n, "\"buffered\":%s,\"lead_off\":%s,\"charging\":%s,\"session_limit\":%s,",
-           json_bool(buffered), json_bool(v.lead_off), json_bool(v.charging), json_bool(v.session_limit));
+  char rs[12];
+  json_add(out, cap, &n, "\"net\":\"%s\",\"rssi\":%s,\"gsm\":{\"ready\":%s,\"attached\":%s,\"csq\":%d},",
+           net_name(g_net_if), net_rssi_json(rs, sizeof(rs)), json_bool(gsm_ready()), json_bool(gsm_attached()), gsm_csq());
+  json_add(out, cap, &n, "\"buffered\":%s,\"lead_off\":%s,\"session_limit\":%s,",
+           json_bool(buffered), json_bool(v.lead_off), json_bool(v.session_limit));
   json_add(out, cap, &n, "\"i2c\":\"%s\",\"ppg_id\":%u,", s_i2c_scan, (unsigned)s_has.ppg_id);
   json_add(out, cap, &n, "\"sensors\":{\"ecg\":%s,\"ppg\":%s,\"gsr\":%s,\"imu\":%s,\"gps\":%s}}",
-           json_bool(v.ecg_ok), json_bool(v.ppg_ok), json_bool(v.gsr_ok), json_bool(v.imu_ok), json_bool(gps_wanted()));
+           json_bool(v.ecg_ok), json_bool(v.ppg_ok), json_bool(v.gsr_ok), json_bool(v.imu_ok), json_bool(GPS_ENABLE && s_gps_seen));
   return (n < 0 || (size_t)n >= cap) ? 0 : (size_t)n;
 }
 
@@ -2077,9 +2372,9 @@ static const char MQTT_CA_CERT[] =
 #endif
 
 #if MQTT_USE_TLS
-WiFiClientSecure net;
+NetworkClientSecure net;
 #else
-WiFiClient net;
+NetworkClient net;
 #endif
 
 MQTTClient mqtt(8192);
@@ -2089,9 +2384,8 @@ static volatile uint32_t s_offline_since = 0;
 static uint32_t s_next_mqtt_try = 0, s_backoff = 1000;
 static uint32_t s_tx_bytes = 0, s_tx_ecg = 0, s_tx_vital = 0;
 static uint32_t s_mqtt_drops = 0;
-#if ECG_PAYLOAD_BINARY
+static uint32_t s_net_switches = 0, s_sms_sent = 0;
 static uint8_t s_bin[20 + 2 + ECG_HOP * 3];
-#endif
 static char s_json[JSON_BUF_BYTES];
 static EcgPacket s_pkt_send;
 
@@ -2136,19 +2430,98 @@ void wifi_on_disconnect(WiFiEvent_t event, WiFiEventInfo_t info)
   LOGF("WIFI: lepas dari access point, kode alasan %d", (int)info.wifi_sta_disconnected.reason);
 }
 
-bool network_ensure()
+void on_ppp_event(arduino_event_id_t event, arduino_event_info_t info)
+{
+#if GSM_ENABLE
+  if (event == ARDUINO_EVENT_PPP_GOT_IP)
+  {
+    s_ppp_ip = true;
+    LOGF("GSM: PPP mendapat IP %s", PPP.localIP().toString().c_str());
+  }
+  else if (event == ARDUINO_EVENT_PPP_LOST_IP || event == ARDUINO_EVENT_PPP_DISCONNECTED || event == ARDUINO_EVENT_PPP_STOP)
+  {
+    if (s_ppp_ip)
+      LOGF("GSM: PPP kehilangan IP");
+    s_ppp_ip = false;
+  }
+#endif
+}
+
+void gsm_begin()
+{
+#if GSM_ENABLE
+  PPP.setApn(GSM_APN);
+  if (PIN_GSM_RST >= 0)
+    PPP.setResetPin(PIN_GSM_RST, true, 200);
+  PPP.setPins(PIN_GSM_TX, PIN_GSM_RX);
+  LOGF("GSM: memulai SIM800L di UART1 TX=GPIO%d RX=GPIO%d, APN %s", PIN_GSM_TX, PIN_GSM_RX, GSM_APN);
+  s_gsm_ok = PPP.begin(PPP_MODEM_SIM800, 1, GSM_BAUD);
+  if (!s_gsm_ok)
+  {
+    LOGF("GSM: modem tidak menjawab, koneksi hanya WiFi");
+    return;
+  }
+  s_gsm_attached = PPP.attached();
+  s_gsm_csq = PPP.RSSI();
+  LOGF("GSM: %s IMEI %s, operator %s, CSQ %d, %s", PPP.moduleName().c_str(), PPP.IMEI().c_str(),
+       PPP.operatorName().c_str(), (int)s_gsm_csq, s_gsm_attached ? "terdaftar GPRS" : "belum terdaftar");
+#endif
+}
+
+void gsm_data_start()
+{
+#if GSM_ENABLE
+  if (!s_gsm_ok || s_ppp_data || !s_gsm_attached)
+    return;
+  if (PPP.mode(ESP_MODEM_MODE_DATA))
+  {
+    s_ppp_data = true;
+    LOGF("GSM: mode data (PPP over GPRS) dimulai");
+  }
+  else
+  {
+    LOGF("GSM: gagal masuk mode data");
+  }
+#endif
+}
+
+void gsm_data_stop()
+{
+#if GSM_ENABLE
+  if (!s_ppp_data)
+    return;
+  PPP.mode(ESP_MODEM_MODE_COMMAND);
+  s_ppp_data = false;
+  s_ppp_ip = false;
+  LOGF("GSM: mode data dihentikan, modem siaga (mode perintah)");
+#endif
+}
+
+void gsm_refresh()
+{
+#if GSM_ENABLE
+  bool was = s_gsm_attached;
+  s_gsm_attached = PPP.attached();
+  int csq = PPP.RSSI();
+  if (csq >= 0)
+    s_gsm_csq = csq;
+  if (was != s_gsm_attached)
+    LOGF("GSM: %s (CSQ %d)", s_gsm_attached ? "terdaftar GPRS" : "lepas dari jaringan", (int)s_gsm_csq);
+#endif
+}
+
+void wifi_service(bool wifi_up)
 {
   static uint32_t last_try = 0;
   static bool started = false, was_up = false;
-  wl_status_t st = WiFi.status();
-  if (st == WL_CONNECTED)
+  if (wifi_up)
   {
     if (!was_up)
     {
       was_up = true;
       LOGF("WIFI: tersambung, IP %s, RSSI %d dBm", WiFi.localIP().toString().c_str(), WiFi.RSSI());
     }
-    return true;
+    return;
   }
   if (was_up)
   {
@@ -2175,12 +2548,177 @@ bool network_ensure()
   else if (millis() - last_try > 15000)
   {
     last_try = millis();
-    LOGF("WIFI: belum tersambung (status %d), mencoba reconnect", (int)st);
+    LOGF("WIFI: belum tersambung (status %d), mencoba reconnect", (int)WiFi.status());
     WiFi.disconnect();
     delay(100);
     WiFi.begin(WIFI_SSID, WIFI_PASS);
   }
-  return false;
+}
+
+bool network_ensure()
+{
+  static uint32_t wifi_up_since = 0, wifi_down_since = 0;
+  uint32_t t = millis();
+  bool wifi_up = WiFi.status() == WL_CONNECTED;
+  wifi_service(wifi_up);
+  if (wifi_up)
+  {
+    if (!wifi_up_since)
+      wifi_up_since = t;
+    wifi_down_since = 0;
+  }
+  else
+  {
+    wifi_up_since = 0;
+    if (!wifi_down_since)
+      wifi_down_since = t;
+  }
+  bool wifi_stable = wifi_up && t - wifi_up_since >= (uint32_t)WIFI_RETURN_STABLE_S * 1000;
+  bool failover = wifi_down_since && t - wifi_down_since >= (uint32_t)WIFI_FAILOVER_S * 1000;
+  static uint32_t gsm_hold_until = 0, ppp_wait_since = 0;
+  bool gsm_usable = GSM_ENABLE && s_gsm_ok && (s_gsm_attached || s_ppp_data) && (int32_t)(t - gsm_hold_until) >= 0;
+  NetIf target = NET_NONE;
+  if (wifi_up && (g_net_if != NET_GSM || wifi_stable || !s_ppp_ip))
+    target = NET_WIFI;
+  else if (gsm_usable && (g_net_if == NET_GSM || failover))
+    target = NET_GSM;
+  s_gsm_want_data = target == NET_GSM;
+  if (s_ppp_data && !s_ppp_ip)
+  {
+    if (!ppp_wait_since)
+      ppp_wait_since = t;
+    else if (t - ppp_wait_since > 60000)
+    {
+      ppp_wait_since = 0;
+      gsm_hold_until = t + 60000;
+      s_gsm_want_data = false;
+      LOGF("GSM: PPP tidak mendapat IP dalam 60 s, modem kembali ke mode perintah selama 60 s");
+    }
+  }
+  else
+    ppp_wait_since = 0;
+  NetIf active = target;
+  if (target == NET_GSM && !s_ppp_ip)
+    active = NET_NONE;
+  if (active != g_net_if)
+  {
+    NetIf prev = g_net_if;
+    if (mqtt.connected())
+      mqtt.disconnect();
+    net.stop();
+    s_next_mqtt_try = 0;
+    s_backoff = 1000;
+    g_net_if = active;
+    if (active != NET_NONE && prev != NET_NONE)
+      s_net_switches++;
+#if GSM_ENABLE
+    if (active == NET_GSM)
+      PPP.setDefault();
+    else if (active == NET_WIFI)
+      WiFi.STA.setDefault();
+#endif
+    LOGF("JARINGAN: %s -> %s", net_name(prev), net_name(active));
+  }
+  return active != NET_NONE;
+}
+
+void format_wib(char *buf, size_t cap)
+{
+  if (!time_valid())
+  {
+    snprintf(buf, cap, "waktu belum sinkron");
+    return;
+  }
+  time_t now = time(nullptr) + 7 * 3600;
+  struct tm tm;
+  gmtime_r(&now, &tm);
+  snprintf(buf, cap, "%02d:%02d WIB %02d/%02d/%04d", tm.tm_hour, tm.tm_min, tm.tm_mday, tm.tm_mon + 1, tm.tm_year + 1900);
+}
+
+void sms_poll()
+{
+#if GSM_ENABLE
+  static uint32_t crit_since = 0, next_try = 0;
+  static uint8_t tries = 0;
+  static bool was_crit = false;
+  uint32_t t = millis();
+  if (g_state != ST_CRITICAL)
+  {
+    if (was_crit && s_nvs.isKey("crit_sms"))
+      s_nvs.remove("crit_sms");
+    was_crit = false;
+    crit_since = 0;
+    tries = 0;
+    return;
+  }
+  was_crit = true;
+  if (!crit_since)
+    crit_since = t;
+  if (s_nvs.getBool("crit_sms", false) || !s_gsm_ok || tries >= SMS_MAX_TRY || (int32_t)(t - next_try) < 0)
+    return;
+  GpsFix g = gps_get();
+  bool offline = !g_net_online && s_offline_since && t - s_offline_since >= (uint32_t)SMS_AFTER_OFFLINE_S * 1000;
+  if (!g.fix && !offline && t - crit_since < (uint32_t)SMS_WAIT_GPS_S * 1000)
+    return;
+  tries++;
+  next_try = t + (uint32_t)SMS_RETRY_S * 1000;
+  double la = g.lat, lo = g.lon;
+  if (!g.fix)
+    gps_fallback(&la, &lo);
+  char when[32], msg[161];
+  format_wib(when, sizeof(when));
+  snprintf(msg, sizeof(msg), "DARURAT CardioVest %s: kondisi kritis %s. Lokasi%s: https://maps.google.com/?q=%.6f,%.6f",
+           DEVICE_ID, when, g.fix ? "" : " (perkiraan)", la, lo);
+  if (s_ppp_data)
+    gsm_data_stop();
+  bool ok = PPP.sms(SMS_NUMBER, msg);
+  if (ok)
+  {
+    s_sms_sent++;
+    s_nvs.putBool("crit_sms", true);
+  }
+  LOGF("SMS: %s ke %s (percobaan %u/%d)%s", ok ? "terkirim" : "GAGAL", SMS_NUMBER, (unsigned)tries, SMS_MAX_TRY,
+       offline ? ", koneksi data tidak tersedia" : ", kanal cadangan paralel notifikasi web");
+#endif
+}
+
+void task_gsm(void *)
+{
+#if GSM_ENABLE
+  Network.onEvent(on_ppp_event);
+  gsm_begin();
+  uint32_t retry_ms = 60000, next_begin = millis() + retry_ms, next_check = millis() + 10000;
+  for (;;)
+  {
+    uint32_t t = millis();
+    if (!s_gsm_ok)
+    {
+      if ((int32_t)(t - next_begin) >= 0)
+      {
+        PPP.end();
+        gsm_begin();
+        retry_ms = min(retry_ms * 2, (uint32_t)300000);
+        next_begin = millis() + retry_ms;
+      }
+    }
+    else
+    {
+      sms_poll();
+      if (s_gsm_want_data && !s_ppp_data)
+        gsm_data_start();
+      else if (!s_gsm_want_data && s_ppp_data)
+        gsm_data_stop();
+      if (!s_ppp_data && (int32_t)(t - next_check) >= 0)
+      {
+        next_check = t + (s_gsm_want_data ? 10000 : 30000);
+        gsm_refresh();
+      }
+    }
+    vTaskDelay(pdMS_TO_TICKS(200));
+  }
+#else
+  vTaskDelete(nullptr);
+#endif
 }
 
 void time_sync()
@@ -2208,10 +2746,10 @@ void on_mqtt_message(String &topic, String &payload)
   const char *p = payload.c_str();
   if (strstr(p, "\"clear_latch\""))
   {
-    bool was_critical = state_remote_clear();
-    if (was_critical)
+    bool cleared = state_remote_clear();
+    if (cleared)
       alert_beep(3000, 150);
-    LOGF("CMD: clear_latch dari cloud (reset dari aplikasi): %s", was_critical ? "CRITICAL dibersihkan" : "tidak ada latch");
+    LOGF("CMD: clear_latch dari cloud: %s", cleared ? "CRITICAL dibersihkan (mode test)" : "tidak mengubah status");
     return;
   }
   if (strstr(p, "\"gsr_calibrate\""))
@@ -2285,12 +2823,13 @@ void mqtt_ensure()
     g_net_online = false;
     s_offline_since = millis();
     s_mqtt_drops++;
-    int rssi = WiFi.RSSI();
-    LOGF("MQTT: terputus (err %d, rc %d, RSSI %d dBm, heap %u B)", mqtt.lastError(), mqtt.returnCode(), rssi, (unsigned)ESP.getFreeHeap());
+    char rs[12];
+    LOGF("MQTT: terputus (err %d, rc %d, jalur %s, RSSI %s dBm, heap %u B)", mqtt.lastError(), mqtt.returnCode(),
+         net_name(g_net_if), net_rssi_json(rs, sizeof(rs)), (unsigned)ESP.getFreeHeap());
   }
   if ((int32_t)(millis() - s_next_mqtt_try) < 0)
     return;
-  LOGF("MQTT: menyambung ke %s:%d", MQTT_HOST, MQTT_PORT);
+  LOGF("MQTT: menyambung ke %s:%d lewat %s", MQTT_HOST, MQTT_PORT, net_name(g_net_if));
   mqtt.setWill(T_LWT, "{\"status\":\"offline\",\"reason\":\"koneksi terputus tak terduga\"}", true, 1);
   const char *user = strlen(MQTT_USER) ? MQTT_USER : nullptr;
   const char *pass = strlen(MQTT_PASS) ? MQTT_PASS : nullptr;
@@ -2304,7 +2843,7 @@ void mqtt_ensure()
     g_net_online = true;
     s_offline_since = 0;
     s_backoff = 1000;
-    LOGF("MQTT: terhubung, subscribe %s", T_CMD);
+    LOGF("MQTT: terhubung lewat %s, subscribe %s", net_name(g_net_if), T_CMD);
   }
   else
   {
@@ -2316,23 +2855,16 @@ void mqtt_ensure()
 
 void handle_ecg(const EcgPacket &p)
 {
-#if ECG_PAYLOAD_BINARY
-  size_t n = encode_ecg_binary(p, false, s_bin, sizeof(s_bin));
-  if (n == 0)
-    return;
-  if (g_net_online && publish_kind(BUF_ECG, s_bin, n))
-    return;
-  s_bin[3] |= 0x01;
-  obuf_push(BUF_ECG, s_bin, n);
-#else
-  size_t n = encode_ecg_json(p, false, s_json, sizeof(s_json));
-  if (n == 0)
-    return;
-  if (g_net_online && publish_kind(BUF_ECG, (uint8_t *)s_json, n))
-    return;
-  n = encode_ecg_json(p, true, s_json, sizeof(s_json));
-  obuf_push(BUF_ECG, (uint8_t *)s_json, n);
-#endif
+  if (g_net_online)
+  {
+    bool bin = ECG_PAYLOAD_BINARY || g_net_if == NET_GSM;
+    size_t n = bin ? encode_ecg_binary(p, false, s_bin, sizeof(s_bin)) : encode_ecg_json(p, false, s_json, sizeof(s_json));
+    if (n && publish_kind(BUF_ECG, bin ? s_bin : (uint8_t *)s_json, n))
+      return;
+  }
+  size_t n = encode_ecg_binary(p, true, s_bin, sizeof(s_bin));
+  if (n)
+    obuf_push(BUF_ECG, s_bin, n);
 }
 
 void handle_vital()
@@ -2340,7 +2872,6 @@ void handle_vital()
   Vitals v = vitals_get();
   v.ecg_ok = s_ecg_active;
   v.lead_off = g_lead_off;
-  v.charging = g_charging;
   float hr_ecg = (v.ecg_ok && !v.lead_off) ? s_hr_ecg : NAN;
   static char live[1024], buf[1024];
   size_t n1 = encode_vital_json(v, hr_ecg, false, live, sizeof(live));
@@ -2371,6 +2902,7 @@ void task_mqtt_publish(void *)
 {
   uint32_t next_vital = millis() + 1000;
   uint32_t next_reset_retry = 0, next_flush = 0;
+  wifi_service(false);
   for (;;)
   {
     bool net_up = network_ensure();
@@ -2412,9 +2944,10 @@ void task_mqtt_publish(void *)
     }
     if (g_net_online && (int32_t)(millis() - next_flush) >= 0)
     {
-      next_flush = millis() + 250;
+      bool gsm = g_net_if == NET_GSM;
+      next_flush = millis() + (gsm ? 1000 : 250);
       if (obuf_size() > 0)
-        obuf_flush(publish_kind, 3);
+        obuf_flush(publish_kind, gsm ? 1 : 3);
     }
     vTaskDelay(pdMS_TO_TICKS(10));
   }
@@ -2435,8 +2968,11 @@ void comm_begin()
   mqtt.onMessage(on_mqtt_message);
   s_offline_since = millis();
   xTaskCreatePinnedToCore(task_mqtt_publish, "mqtt_pub", 12288, nullptr, 2, nullptr, 0);
-  LOGF("KOMUNIKASI: WiFi, broker %s:%d%s, ECG %s", MQTT_HOST, MQTT_PORT, MQTT_USE_TLS ? " TLS" : "",
-       ECG_PAYLOAD_BINARY ? "biner" : "JSON");
+#if GSM_ENABLE
+  xTaskCreatePinnedToCore(task_gsm, "gsm", 8192, nullptr, 1, nullptr, 0);
+#endif
+  LOGF("KOMUNIKASI: WiFi utama%s, broker %s:%d%s, ECG %s", GSM_ENABLE ? " + SIM800L GPRS cadangan" : "",
+       MQTT_HOST, MQTT_PORT, MQTT_USE_TLS ? " TLS" : "", ECG_PAYLOAD_BINARY ? "biner" : "JSON (biner saat GSM)");
 }
 
 void print_status()
@@ -2446,14 +2982,21 @@ void print_status()
   Serial.printf("state=%s mode=%s online=%d putus=%lu waktu_sinkron=%d buffer=%u B terkirim ecg=%lu vital=%lu byte=%lu\n",
                 stateName(g_state), s_test_mode ? "test" : "demo", g_net_online, (unsigned long)s_mqtt_drops, time_valid(), (unsigned)obuf_size(),
                 (unsigned long)s_tx_ecg, (unsigned long)s_tx_vital, (unsigned long)s_tx_bytes);
-  Serial.printf("ECG lead_off=%d HR_ecg=%.1f adc_gagal=%lu | PPG %s HR=%.1f SQI=%.2f SpO2=%.1f | GSR %s %.2f uS (ADC %.0f)\n",
-                g_lead_off, s_hr_ecg, (unsigned long)s_adc_fail, !s_has.ppg ? "tidak ada" : v.ppg_on ? "on" : "off", v.hr_ppg, v.sqi, v.spo2,
-                v.gsr_on ? "on" : "off", v.gsr_us, s_gsr_adc_last);
+  Serial.printf("ECG lead_off=%d HR_ecg=%.1f adc_gagal=%lu | PPG %s kontak=%d IR=%.0f HR=%.1f SQI=%.2f SpO2=%.1f | GSR %s %.2f uS (ADC %.0f)\n",
+                g_lead_off, s_hr_ecg, (unsigned long)s_adc_fail, !s_has.ppg ? "tidak ada" : v.ppg_on ? "on" : "off", v.ppg_contact, v.ppg_ir,
+                v.hr_ppg, v.sqi, v.spo2, v.gsr_on ? "on" : "off", v.gsr_us, s_gsr_adc_last);
   Serial.printf("I2C: %s\n", s_i2c_scan);
-  Serial.printf("IMU %s |a|=%.3f g sd=%.3f g jatuh=%d | mengisi=%d | heap=%u B\n",
-                s_has.imu ? "on" : "off", v.amag, v.amag_sd, v.fall_detected, g_charging, (unsigned)ESP.getFreeHeap());
-  Serial.printf("WiFi status=%d RSSI=%d dBm\n", (int)WiFi.status(), WiFi.RSSI());
-  Serial.printf("Lokasi %s %.6f,%.6f\n\n", gps_wanted() ? "dikirim" : "tidak dikirim", GPS_STATIC_LAT, GPS_STATIC_LON);
+  Serial.printf("IMU %s |a|=%.3f g sd=%.3f g jatuh=%d | heap=%u B\n",
+                s_has.imu ? "on" : "off", v.amag, v.amag_sd, v.fall_detected, (unsigned)ESP.getFreeHeap());
+  Serial.printf("JARINGAN aktif=%s pindah=%lu | WiFi status=%d RSSI=%d dBm | GSM modem=%d terdaftar=%d CSQ=%d data=%d IP=%d SMS=%lu\n",
+                net_name(g_net_if), (unsigned long)s_net_switches, (int)WiFi.status(), WiFi.RSSI(), (int)s_gsm_ok, (int)s_gsm_attached,
+                (int)s_gsm_csq, (int)s_ppp_data, (int)s_ppp_ip, (unsigned long)s_sms_sent);
+  GpsFix g = gps_get();
+  double la = g.lat, lo = g.lon;
+  if (!g.fix)
+    gps_fallback(&la, &lo);
+  Serial.printf("GPS %s fix=%d satelit=%u HDOP=%.1f | lokasi %s %.6f,%.6f (%s)\n\n", s_gps_awake ? "bangun" : "tidur", (int)g.fix,
+                (unsigned)g.sats, g.hdop, gps_wanted() ? "dikirim" : "tidak dikirim", la, lo, g.fix ? "gps" : s_gps_has_last ? "terakhir" : "statis");
 }
 
 void plot_zoom(int dir)
@@ -2489,6 +3032,7 @@ void setup()
   state_begin();
   alert_begin();
   sensors_begin();
+  gps_begin();
   ecg_begin();
   comm_begin();
   alert_beep(2500, 120);
@@ -2528,8 +3072,7 @@ void loop()
     {
       state_hardware_reset();
       obuf_clear();
-      state_reset_delivered();
-      LOGF("SERIAL: latch CRITICAL dan buffer offline dihapus");
+      LOGF("SERIAL: latch CRITICAL dan buffer offline dihapus, event reset dikirim ke cloud");
     }
     else if (c == 'b')
     {

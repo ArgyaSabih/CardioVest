@@ -29,9 +29,9 @@ class ReplayStream:
         self.rec = d["rec"].astype(str)
         self.hr_bank = d["hr"].astype(float)
         tau = float(os.getenv("TAU_CONF", "0.44"))
-        tau_warn = max(tau, float(os.getenv("TAU_WARN", "0.80")))
+        tau_warn = max(tau, float(os.getenv("TAU_WARN", str(tau))))
         min_normal = float(os.getenv("REPLAY_MIN_CONF_NORMAL", str(max(tau, 0.60))))
-        min_abnormal = float(os.getenv("REPLAY_MIN_CONF", str(tau_warn)))
+        min_abnormal = float(os.getenv("REPLAY_MIN_CONF", str(max(tau_warn, 0.80))))
         self.min_conf = min_abnormal
         if "pred" in d.files:
             correct = d["pred"] == d["y"]

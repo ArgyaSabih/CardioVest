@@ -20,8 +20,8 @@ Alurnya mengikuti rancangan BAB 1–11:
  │ Rompi CardioVest (ESP32) │ ───────────────────────► │ Broker MQTT  │ ─────► │ Layanan cloud                  │
  │ ECG AD8232 250 Hz        │  device/{id}/ecg   (0)   │  8883 (TLS)  │        │  • sliding window 1750/875     │
  │ MAX30102 HR+SpO2 / GSR   │  device/{id}/vital (1)   │  EMQX Cloud  │        │  • CNN 1D ONNX (44.547 param.) │
- │ MPU6050, lokasi statis   │  device/{id}/event (1)   │              │ ◄───── │  • decision engine FSM S1/S2/S3│
- │ WiFi, jatuh 3 fase       │ ◄─ device/{id}/cmd (1)   │              │        │  • SQLite + mock notifikasi    │
+ │ MPU6050, GPS Neo-6M      │  device/{id}/event (1)   │              │ ◄───── │  • decision engine FSM S1/S2/S3│
+ │ WiFi + GPRS SIM800L, SMS │ ◄─ device/{id}/cmd (1)   │              │        │  • SQLite + mock notifikasi    │
  └──────────────────────────┘    device/{id}/lwt (1,R) └──────┬───────┘        └────────────────────────────────┘
                                                               │ device/{id}/state (1,R) · alert (2) · inference (0)
                                                               ▼
@@ -121,7 +121,7 @@ Paling mudah lewat debug viewer `/debug`. Lewat API (dari aplikasi, atau Console
 
 ## 3. Mode alat dan sumber EKG
 
-Sistem hanya bergerak bila rompi (ESP32) tersambung lewat WiFi. Di debug viewer `/debug` dipilih:
+Sistem hanya bergerak bila rompi (ESP32) tersambung lewat WiFi atau, sebagai cadangan, GPRS SIM800L. Di debug viewer `/debug` dipilih:
 
 | Pilihan | Isi |
 |---|---|
@@ -138,7 +138,7 @@ Sensor yang menyala per mode dan state:
 | IMU MPU6050 (gerak, jatuh, τ adaptif) | menyala | menyala | menyala | menyala |
 | PPG MAX30102 (HR, SpO2) | mati | menyala | menyala | menyala |
 | GSR | hanya saat kalibrasi baseline | menyala | menyala | menyala |
-| Lokasi statis −7,765501, 110,372210 | tidak dikirim | tidak dikirim | dikirim | dikirim |
+| GPS Neo-6M | tidur | tidur | menyala, lokasi dikirim | menyala, lokasi dikirim |
 
 Saat PPG mati, HR diambil dari EKG (Pan-Tompkins) dan tidak dihitung sebagai mode validator terdegradasi.
 
@@ -147,16 +147,16 @@ Jenis rekaman Dataset dan hasilnya:
 | Kelompok | Rekaman | Mode Demo (CNN + FSM + validator rompi) | Mode Test (langsung label rekaman) |
 |---|---|---|---|
 | Normal | `normal` | tetap NORMAL | NORMAL |
-| Pra-serangan | `st_depression`, `af`, `pvc`, `cd`, `svt` | WARNING setelah N = 2 window bila CNN yakin ≥ τ_warn, lalu pulih saat kembali Normal | WARNING |
-| Serangan | `stemi`, `vt`, `vf` | WARNING; CRITICAL hanya bila validator rompi ikut tidak normal (1_HR ∧ 1_GSR ∧ 1_SpO2). Pemakai yang sehat dan duduk diam membuat status berhenti di WARNING | CRITICAL |
+| Pra-serangan | `st_depression`, `af`, `pvc`, `cd`, `svt` | WARNING setelah N_pra = 4 window bila p_conf ≥ τ_conf, lalu pulih saat kembali Normal | WARNING |
+| Serangan | `stemi`, `vt`, `vf` | WARNING; CRITICAL hanya bila validator rompi ikut tidak normal (1_HR ∧ 1_GSR). Pemakai yang sehat dan duduk diam membuat status berhenti di WARNING | CRITICAL |
 
 Di mode Test + Dataset, CNN tetap berjalan dan hasilnya tampil, tetapi state langsung mengikuti label rekaman tanpa
 persistence dan validator. Berpindah ke rekaman lain langsung mengganti state (CRITICAL ikut dilepas). Keluar dari
 kombinasi ini (ganti ke Demo atau ke Hardware) mengembalikan state ke NORMAL.
 
-`POST /api/reset`, **Reset status** / **Hentikan alarm** (beranda web), tombol reset GPIO4 (tahan 3 s), dan tombol
-EN/RST di board ESP32 mengembalikan sistem ke NORMAL dari state mana pun. BAB 4.5 hanya menyebut tombol fisik untuk
-keluar dari CRITICAL; jalur web adalah tambahan dan bisa dimatikan dengan `REMOTE_RESET=0`.
+CRITICAL hanya dapat dilepas dengan menahan tombol reset GPIO4 selama 3 detik (sesuai BAB 4.5). Latch CRITICAL
+disimpan di NVS alat sehingga tetap aktif walaupun alat dimatikan atau tombol EN/RST ditekan. Tombol **Hentikan alarm**
+di web dan `POST /api/reset` mati secara bawaan (`REMOTE_RESET=0`); WARNING tetap pulih sendiri lewat histeresis.
 
 ---
 
@@ -179,9 +179,10 @@ keluar dari CRITICAL; jalur web adalah tambahan dan bisa dimatikan dengan `REMOT
 **Contoh `vital`:**
 ```json
 {"device_id":"cv-001","ts":1790677951422,"hr":124.6,"hr_source":"PPG","hr_ppg":124.6,"hr_ecg":109.6,
- "sqi":0.85,"spo2":96.4,"gsr":13.83,"ppg_on":true,"gsr_on":true,
+ "sqi":0.85,"spo2":96.4,"gsr":13.83,"ppg_on":true,"gsr_on":true,"ppg_contact":true,"ppg_ir":152340,"gsr_adc":1712,
  "accel":{"x":0.018,"y":0.055,"z":0.985,"mag":0.986,"sd":0.012},"fall_detected":false,"fall_ts":null,
- "local_state":"WARNING","mode":"demo","gps":{"active":false,"fix":false},"buffered":false}
+ "local_state":"WARNING","mode":"demo","gps":{"active":false,"fix":false},
+ "net":"gsm","rssi":-77,"gsm":{"ready":true,"attached":true,"csq":18},"buffered":false}
 ```
 
 **Contoh `ecg` (JSON):** `{"device_id":"cv-001","seq":42,"t0":1790677900000,"fs":250,"n":875,"unit":"count (1 mV = 500)","samples":[12,15,...],"buffered":false}`
@@ -196,9 +197,11 @@ paket (1,05 byte/sampel, ≈ 263 B/s)**, sesuai perkiraan 1,1 byte/sampel di BAB
  "confidence":0.754,"class":"Serangan","hr":127.1,"hr_source":"PPG","gsr":15.95,"spo2":88.2,
  "validator_quality":"independen","fall_detected":false,"event_id":2,"gps":null,"message":"DARURAT: ..."}
 ```
-Modul GPS tidak dipakai. Alat mengirim koordinat statis −7,765501, 110,372210 di field `gps` (mode Demo mulai
-CRITICAL, mode Test selalu). Bila koordinat itu baru masuk setelah alert `critical`, cloud mengirim alert lanjutan
-`critical_location`, dan `critical_fall` bila jatuh terdeteksi setelah CRITICAL. Saat reset, cloud mengirim `resolved`.
+Lokasi berasal dari GPS Neo-6M yang dibangunkan saat CRITICAL (mode Test: selalu). Field `gps.source` bernilai `gps`
+(fix satelit), `terakhir` (posisi terakhir tersimpan di NVS), atau `statis` (koordinat cadangan −7,765501, 110,372210).
+Bila koordinat baru masuk setelah alert `critical`, atau sumber berubah dari cadangan ke `gps`, cloud mengirim alert
+lanjutan `critical_location`, dan `critical_fall` bila jatuh terdeteksi setelah CRITICAL. Saat reset, cloud mengirim
+`resolved`. Field `net` (`wifi`/`gsm`/`none`), `rssi`, dan `gsm` menunjukkan jalur koneksi alat.
 
 ---
 
@@ -207,16 +210,17 @@ CRITICAL, mode Test selalu). Bila koordinat itu baru masuk setelah alert `critic
 | Parameter | Nilai default | Variabel `.env` |
 |---|---|---|
 | Ambang kepercayaan τ_conf | 0,44 saat diam (p_conf < τ → "tidak diputuskan"; hasil kalibrasi, lihat 6.3) | `TAU_CONF` |
-| Ambang kelas non-Normal τ_warn | 0,80: window Pra-Serangan/Serangan baru dihitung bila p_conf ≥ 0,80 (penekan alarm palsu) | `TAU_WARN` |
+| Ambang kelas non-Normal τ_warn | sama dengan τ_conf (0,44). Ambang tambahan 0,80 dihapus karena menurunkan deteksi STEMI menjadi ±5 % per window | `TAU_WARN` |
 | τ adaptif gerak | 0,76 bila median `accel.sd` 7 s terakhir > 0,08 g (pengguna bergerak) | `TAU_CONF_MOTION`, `MOTION_SD_G` |
-| Persistence S1→S2 | N = 2 window berturut-turut non-Normal | `PERSIST_N` |
+| Persistence S1→S2 | N = 2 window berturut-turut non-Normal (kelas Serangan) | `PERSIST_N` |
+| Persistence khusus Pra-Serangan | N_pra = 4 window (±14 s). Menurunkan WARNING palsu dari 5,7 ke 1,95 per jam tanpa mengubah sensitivitas kelas Serangan (`docs/analisis_alarm_palsu.md`) | `PERSIST_N_PRE` |
 | Mode validator terdegradasi (PPG menyala tetapi SQI < 0,5, HR dari ECG) | N = 3 | `PERSIST_N_DEGRADED`, `TAU_SQI` |
 | Histeresis S2→S1 | N + M = 3 window Normal (M = 1) | `HYSTERESIS_M` |
 | 1_HR | HR > 120 atau < 40 bpm (median 3 s terakhir) | `HR_HIGH`, `HR_LOW` |
 | 1_GSR | GSR > min(max(μ + kσ, μ + 3 µS), 20 µS), k = 2,5. Baseline dikalibrasi saat NORMAL: cloud mengirim `gsr_calibrate` setelah alat menyala, alat menyalakan GSR selama `CALIB_SECONDS` + 5 s lalu mematikannya lagi (mode Demo). Bila belum terkalibrasi, ambang = 20 µS | `GSR_K`, `CALIB_SECONDS`, `GSR_ABS_HIGH`, `GSR_CALIB_RETRY_S` |
-| 1_SpO2 | SpO2 < 90 % (median 3 s terakhir, dari rasio merah/IR MAX30102, hanya bila SQI PPG ≥ 0,5) | `SPO2_LOW` |
-| Masuk S3 | kelas Serangan **∧** 1_HR **∧** 1_GSR **∧** 1_SpO2 (dari S1 tetap perlu persistence N) | – |
-| Reset | `hardware_reset` dari perangkat berlaku di semua state (WARNING dan CRITICAL kembali NORMAL; pada NORMAL hanya penghitung persistence dibersihkan). Alat yang menyala ulang (tombol EN/RST) selalu mulai NORMAL dan mengirim `hardware_reset` dengan `reason: boot`; cloud ikut kembali ke NORMAL dan mengulang kalibrasi GSR. Reset dari beranda web juga berlaku di semua state bila `REMOTE_RESET=1` (default; `0` = hanya tombol fisik sesuai proposal) | `REMOTE_RESET` |
+| 1_SpO2 | SpO2 < 90 % (median 3 s terakhir). Hanya informasi, bukan syarat CRITICAL (`SPO2_GATE=0`) | `SPO2_LOW`, `SPO2_GATE` |
+| Masuk S3 | kelas Serangan **∧** 1_HR **∧** 1_GSR (dari S1 tetap perlu persistence N) | – |
+| Reset | `hardware_reset` dari tombol GPIO4 (3 s) berlaku di semua state. Alat yang menyala ulang dari NORMAL/WARNING mengirim `hardware_reset` dengan `reason: boot`; alat yang menyala ulang dengan latch CRITICAL tetap CRITICAL dan cloud menyesuaikan. Reset dari web hanya bila `REMOTE_RESET=1` (bawaan `0`) | `REMOTE_RESET` |
 | Mode Test + Dataset | state = label rekaman (`normal` NORMAL, pra-serangan WARNING, serangan CRITICAL), tanpa persistence dan validator | – |
 
 Beberapa keputusan implementasi yang belum diatur rinci di dokumen:
@@ -231,8 +235,8 @@ Beberapa keputusan implementasi yang belum diatur rinci di dokumen:
 * Kalibrasi 30 s dipersingkat dari rancangan 10–30 menit supaya demo cepat. Ubah `CALIB_SECONDS` untuk pengujian nyata;
   alat otomatis menyalakan GSR selama durasi yang diminta cloud.
 * SpO2 adalah tambahan di luar rancangan awal. Rumusnya pendekatan umum 110 − 25·R tanpa kalibrasi klinis, dan sensor
-  di dada membuat angkanya kasar. SpO2 menjadi validator ketiga yang wajib ikut terpenuhi bersama HR dan GSR.
-* Angka sistem di bagian 6.3 dihitung dengan gerbang lama (1_GSR ∧ 1_HR) sebelum SpO2 ditambahkan.
+  di dada membuat angkanya kasar, sehingga SpO2 hanya ditampilkan sebagai informasi.
+* Angka sistem di bagian 6.3 dihitung dengan gerbang 1_GSR ∧ 1_HR, sama dengan konfigurasi akhir.
 
 ---
 
@@ -481,8 +485,9 @@ Rincian fitur ada di [`web/README.md`](web/README.md), endpoint dan CLI admin di
 | Aplikasi atau ESP32 tidak tersambung ke server | Lihat tabel pemecahan masalah di `deploy/README.md`. |
 | State tidak pernah WARNING di awal | Cloud baru start: kalibrasi GSR 30 s berjalan, dan window pertama butuh 2 paket (7 s). |
 | `model tidak ditemukan` | `cloud/model/artifacts/cnn1d_ecg.onnx` hilang. Jalankan `python cloud\model\ekspor_model.py` lalu push. |
-| Tetap CRITICAL | Memang terkunci (latching). Tekan **Hentikan alarm** di beranda web, `POST /api/reset`, tombol reset GPIO4 (3 s), atau EN/RST. |
+| Tetap CRITICAL | Memang terkunci (latching, tersimpan di NVS). Tahan tombol reset GPIO4 selama 3 s. |
 | Peta tidak muncul | Mode Demo hanya mengirim lokasi saat CRITICAL. Mode Test selalu mengirim. Tile peta perlu internet. |
+| Alat tidak pindah ke GSM saat WiFi mati | Serial `s`: cek `GSM modem=1 terdaftar=1`. Modem butuh ±2 A saat transmisi (kapasitor 1 mF wajib), kartu Telkomsel aktif dengan kuota, APN `internet`. |
 | Alat asli tersambung tetapi state tidak pernah berubah | Lihat tab Logs di Render: bila "kualitas sinyal" ditolak, elektroda lepas atau sinyal datar. Bila log cloud berisi "jam perangkat belum tersinkron", itu normal di menit pertama (cloud memakai waktu terima). |
 | Alarm palsu sering saat alat dipakai | Lihat `docs/analisis_alarm_palsu.md`, lalu jalankan `tools/kalibrasi_lapangan.py` dengan data alat sendiri. |
 | Notifikasi web tidak muncul | Wajib HTTPS (kecuali localhost) dan izin notifikasi. iPhone: tambahkan ke Layar Utama dulu (iOS 16.4+). |
@@ -491,8 +496,9 @@ Rincian fitur ada di [`web/README.md`](web/README.md), endpoint dan CLI admin di
 
 ## 11. Firmware ESP32 (perangkat asli)
 
-Folder `firmware/` berisi firmware Arduino IDE untuk ESP32 + AD8232 + MAX30102 + MPU6050 + GSR, tersambung lewat
-WiFi. WiFi, alamat broker, dan akun MQTT ditulis langsung di bagian atas `cardiovest_c251.ino`.
+Folder `firmware/` berisi firmware Arduino IDE untuk ESP32 + AD8232 + MAX30102 + MPU6050 + GSR + GPS Neo-6M +
+SIM800L, tersambung lewat WiFi dengan GPRS sebagai cadangan. WiFi, APN, nomor SMS, alamat broker, dan akun MQTT ditulis
+langsung di bagian atas `cardiovest_c251.ino`.
 
 Panduan pemasangan library, rangkaian, perintah Serial Monitor, dan Serial Plotter ada di `firmware/README.md`.
 
@@ -507,7 +513,8 @@ Panduan pemasangan library, rangkaian, perintah Serial Monitor, dan Serial Plott
 3. Uji elektroda dulu tanpa cloud: Serial Plotter (`p`) harus menampilkan QRS jelas pada grafik mentah dan terfilter
    saat duduk diam.
    Lepas satu elektroda: log cloud di Render harus menunjukkan window ditolak karena kualitas sinyal dan state tetap NORMAL.
-4. Tekan EN/RST saat status WARNING atau CRITICAL: alat dan cloud harus kembali NORMAL.
+4. Saat CRITICAL, tekan EN/RST: alat harus tetap CRITICAL. Tahan tombol GPIO4 3 s: alat dan cloud kembali NORMAL.
+   Matikan WiFi: dalam ±40 s debug viewer harus menampilkan jaringan "GSM (SIM800L)" dan EKG tetap mengalir.
 5. Pakai alat 6–8 jam saat sehat, lalu jalankan `tools/kalibrasi_lapangan.py`. Angka alarm palsu dari
    alat sendiri lebih bisa dipercaya daripada perkiraan di `docs/analisis_alarm_palsu.md`.
 6. Kalibrasi baseline GSR untuk alat sungguhan: `CALIB_SECONDS=600` (10 menit, sesuai 5.5.3). Nilai 30 detik

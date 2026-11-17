@@ -6,7 +6,7 @@ import { api } from '../api.js';
 import { LiveEcg } from '../components/EcgStrip.jsx';
 import Icon from '../components/icons.jsx';
 import { ModeSwitch, TestPanel } from '../components/TestMode.jsx';
-import { AckList, CallButtons, Connection, StateBanner, StickyCall, Wordmark, displayState, since } from '../components/ui.jsx';
+import { AckList, CallButtons, Connection, LOC_SRC, StateBanner, StickyCall, Wordmark, displayState, since } from '../components/ui.jsx';
 
 const HR_HIGH = 120;
 const HR_LOW = 40;
@@ -206,13 +206,13 @@ export default function Dashboard() {
             {live.fall && <p className="state-note">Keluarga juga diberi tahu bahwa Anda terjatuh.</p>}
             {live.gps ? (
               <p className="state-note">
-                Lokasi Anda sudah terkirim{live.gps.acc ? ` (akurasi sekitar ${Math.round(live.gps.acc)} m)` : ''}.
+                Lokasi Anda sudah terkirim{live.gps.src && live.gps.src !== 'gps' ? ` (${(LOC_SRC[live.gps.src] ?? 'posisi perkiraan').toLowerCase()}, diperbarui begitu GPS mendapat sinyal)` : live.gps.acc ? ` (akurasi sekitar ${Math.round(live.gps.acc)} m)` : ''}.
               </p>
             ) : (
               <p className="state-note">Lokasi dikirim ke keluarga begitu diterima dari alat.</p>
             )}
             {!linked && (
-              <p className="state-note">Alat sedang terputus dari WiFi. Data dikirim lagi begitu tersambung.</p>
+              <p className="state-note">Alat sedang terputus dari internet. Data dikirim lagi begitu WiFi atau jaringan seluler tersambung, dan SMS darurat tetap dikirim dari alat.</p>
             )}
             <ResetAlarm allowed={live.remoteReset && linked} level="CRITICAL" />
             <details className="state-more">

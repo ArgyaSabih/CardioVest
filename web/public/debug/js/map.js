@@ -1,4 +1,4 @@
-import { num } from "./labels.js";
+import { LOC_SRC, num } from "./labels.js";
 
 const cssVar = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
@@ -18,10 +18,8 @@ export function createMap(box, empty, meta) {
 
   function waiting(mode) {
     clear();
-    empty.textContent = mode === "test"
-      ? "Mode Test: lokasi muncul begitu data dari alat masuk."
-      : "Mode Demo: lokasi hanya dikirim saat status Darurat.";
-    meta.textContent = "Siaga";
+    empty.textContent = mode === "test" ? "Menunggu lokasi" : "Aktif saat Darurat";
+    meta.textContent = "–";
   }
 
   return {
@@ -36,7 +34,8 @@ export function createMap(box, empty, meta) {
       a.target = "_blank";
       a.rel = "noopener";
       a.textContent = `${num(g.lat, 6)}, ${num(g.lon, 6)}`;
-      meta.append(a, g.accuracy_m != null ? ` ±${num(g.accuracy_m)} m` : "");
+      const src = LOC_SRC[g.source ?? "gps"] ?? g.source;
+      meta.append(a, g.accuracy_m != null ? ` ±${num(g.accuracy_m)} m` : "", ` (${src}${g.sats != null ? `, ${g.sats} satelit` : ""})`);
       if (!window.L) return;
       if (!map) {
         box.textContent = "";

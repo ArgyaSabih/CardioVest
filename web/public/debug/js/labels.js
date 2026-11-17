@@ -4,29 +4,37 @@ export const STATES = {
   CRITICAL: { word: "Darurat", tone: "crit" },
 };
 
-export const CLASSES = ["Normal", "Pra-serangan", "Serangan"];
+export const CLASSES = ["Normal", "Pra-Serangan", "Serangan"];
 
 export const LOG_TAGS = {
   transisi: ["Transisi", "warn"],
   alert: ["Peringatan", "crit"],
   koneksi: ["Koneksi", "info"],
   sinyal: ["Sinyal", "warn"],
-  mode: ["Mode alat", "info"],
+  mode: ["Mode Alat", "info"],
   jatuh: ["Jatuh", "crit"],
   sumber: ["Sumber EKG", "info"],
   server: ["Server", "crit"],
-  jam: ["Jam alat", "warn"],
+  jam: ["Jam Alat", "warn"],
 };
 
 export const EVENTS = {
   warning: "Waspada",
   critical: "Darurat",
-  critical_fall: "Darurat, pemakai terjatuh",
-  critical_location: "Lokasi darurat tersedia",
-  resolved: "Keadaan darurat selesai",
+  critical_fall: "Darurat, Jatuh",
+  critical_location: "Lokasi Darurat",
+  resolved: "Darurat Selesai",
 };
 
 export const MODES = { demo: "Demo", test: "Test" };
+export const NET_TEXT = { wifi: "WiFi", gsm: "GSM (SIM800L)", none: "Tidak ada" };
+export const LOC_SRC = { gps: "GPS Neo-6M", terakhir: "Posisi terakhir", statis: "Koordinat cadangan" };
+
+export function modemText(g) {
+  if (!g) return "–";
+  const st = g.ready ? (g.attached ? "Terdaftar" : "Belum terdaftar") : "Tidak menjawab";
+  return g.csq != null && g.csq !== 99 ? `${st}, CSQ ${g.csq}` : st;
+}
 export const SOURCES = { hardware: "Hardware", dataset: "Dataset" };
 
 export const rekamanLabels = () =>

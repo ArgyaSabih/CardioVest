@@ -170,10 +170,11 @@ class DecisionEngine:
             self.consec_normal = 0
 
         cls_name = C.CLASSES[cls]
-        gate = cls == C.CLS_ATTACK and ind_hr and ind_gsr and ind_spo2
+        gate = cls == C.CLS_ATTACK and ind_hr and ind_gsr and (ind_spo2 or not C.SPO2_GATE)
         if cls == C.CLS_PRE and self.n_pre:
             n_req = max(n_req, self.n_pre)
-        val_txt = f"1_HR={int(ind_hr)}, 1_GSR={int(ind_gsr)}, 1_SpO2={int(ind_spo2)}"
+        val_txt = (f"1_HR={int(ind_hr)}, 1_GSR={int(ind_gsr)}, 1_SpO2={int(ind_spo2)}" if C.SPO2_GATE
+                   else f"1_HR={int(ind_hr)}, 1_GSR={int(ind_gsr)}")
 
         if self.state == C.STATE_CRITICAL:
             reason = "CRITICAL terkunci (latching); menunggu hardware reset"
@@ -227,7 +228,7 @@ class DecisionEngine:
         self.consec_non_normal = 0
         self.consec_normal = 0
         if prev == C.STATE_NORMAL:
-            return self._decision(prev, False, f"{why}; state sudah NORMAL, penghitung persistence dibersihkan", self.n)
+            return self._decision(prev, False, f"{why}; sudah NORMAL", self.n)
         return self._decision(prev, True, why, self.n)
 
     def remote_reset(self, who: str = "aplikasi web") -> Decision:
